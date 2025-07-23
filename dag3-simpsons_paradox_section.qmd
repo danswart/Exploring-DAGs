@@ -1,0 +1,793 @@
+
+
+
+## 22. Simpson's Paradox Detection Analysis
+
+Simpson's Paradox occurs when the direction of an association between two variables reverses when conditioning on a third variable. In our complex DAG structure, we can examine whether this phenomenon occurs by stratifying our data based on different levels of the confounders Z and C.
+
+Simpson's Paradox in causal inference resembles a statistical illusion - what appears true at the aggregate level completely contradicts what occurs within subgroups. In our DAG example, we might find that overall, X appears to have one relationship with Y, but within each level of our confounders, the relationship tells a different story entirely.
+
+### 22.1 Simpson's Paradox Detection Analysis
+
+First, let's examine the overall relationship between X and Y, and then compare it to the relationship within different strata of our confounders:
+
+```{r}
+#| label: detect-simpsons-paradox-complex
+#| message: false
+#| warning: false
+
+# Calculate overall correlation between X and Y
+overall_cor <- cor(dag_data$X, dag_data$Y)
+overall_slope <- coef(lm(Y ~ X, data = dag_data))[2]
+
+# Create Z quartiles for stratified analysis
+dag_data$Z_quartile <- cut(dag_data$Z, 
+                          breaks = quantile(dag_data$Z, probs = c(0, 0.25, 0.5, 0.75, 1)), 
+                          labels = c("Q1 (Low)", "Q2", "Q3", "Q4 (High)"),
+                          include.lowest = TRUE)
+
+# Create C quartiles for stratified analysis
+dag_data$C_quartile <- cut(dag_data$C, 
+                          breaks = quantile(dag_data$C, probs = c(0, 0.25, 0.5, 0.75, 1)), 
+                          labels = c("Q1 (Low)", "Q2", "Q3", "Q4 (High)"),
+                          include.lowest = TRUE)
+
+# Calculate correlations and slopes within each Z quartile
+stratified_results_z <- dag_data %>%
+  group_by(Z_quartile) %>%
+  summarise(
+    n = n(),
+    cor_XY = cor(X, Y),
+    slope_XY = coef(lm(Y ~ X))[2],
+    mean_Z = mean(Z),
+    mean_X = mean(X),
+    mean_Y = mean(Y),
+    .groups = 'drop'
+  )
+
+# Calculate correlations and slopes within each C quartile
+stratified_results_c <- dag_data %>%
+  group_by(C_quartile) %>%
+  summarise(
+    n = n(),
+    cor_XY = cor(X, Y),
+    slope_XY = coef(lm(Y ~ X))[2],
+    mean_C = mean(C),
+    mean_X = mean(X),
+    mean_Y = mean(Y),
+    .groups = 'drop'
+  )
+
+# Add overall results for comparison
+overall_results <- data.frame(
+  Group = "Overall",
+  n = nrow(dag_data),
+  cor_XY = overall_cor,
+  slope_XY = overall_slope,
+  mean_Confounder = NA,
+  mean_X = mean(dag_data$X),
+  mean_Y = mean(dag_data$Y)
+)
+
+# Combine Z results
+z_results <- stratified_results_z %>%
+  mutate(Group = as.character(Z_quartile),
+         mean_Confounder = mean_Z) %>%
+  select(Group, n, cor_XY, slope_XY, mean_Confounder, mean_X, mean_Y)
+
+# Combine C results  
+c_results <- stratified_results_c %>%
+  mutate(Group = as.character(C_quartile),
+         mean_Confounder = mean_C) %>%
+  select(Group, n, cor_XY, slope_XY, mean_Confounder, mean_X, mean_Y)
+
+# Combine all results
+simpson_analysis_z <- bind_rows(overall_results, z_results)
+simpson_analysis_c <- bind_rows(overall_results, c_results)
+
+# Round for display
+simpson_analysis_z <- simpson_analysis_z %>%
+  mutate(across(where(is.numeric), ~ round(., 3)))
+
+simpson_analysis_c <- simpson_analysis_c %>%
+  mutate(across(where(is.numeric), ~ round(., 3)))
+
+# Display Z results
+DT::datatable(simpson_analysis_z,
+              caption = "Simpson's Paradox Detection: Overall vs Stratified by Z Analysis",
+              options = list(pageLength = 10, scrollX = TRUE),
+              colnames = c("Z Group", "N", "Correlation X-Y", "Slope X→Y", 
+                          "Mean Z", "Mean X", "Mean Y")) %>%
+  DT::formatRound(columns = c("cor_XY", "slope_XY", "mean_Confounder", "mean_X", "mean_Y"), digits = 3)
+
+# Display C results
+DT::datatable(simpson_analysis_c,
+              caption = "Simpson's Paradox Detection: Overall vs Stratified by C Analysis",
+              options = list(pageLength = 10, scrollX = TRUE),
+              colnames = c("C Group", "N", "Correlation X-Y", "Slope X→Y", 
+                          "Mean C", "Mean X", "Mean Y")) %>%
+  DT::formatRound(columns = c("cor_XY", "slope_XY", "mean_Confounder", "mean_X", "mean_Y"), digits = 3)
+```
+
+### 22.2 Testing for Simpson's Paradox by Status
+
+Let's formally test whether Simpson's Paradox is present by examining if the direction of association changes:
+
+```{r}
+#| label: test-simpsons-paradox-status-complex
+#| message: false
+#| warning: false
+
+# Function to determine Simpson's Paradox status
+detect_simpson_status <- function(overall_slope, stratified_slopes) {
+  # Check if all stratified slopes have the same sign
+  stratified_signs <- sign(stratified_slopes)
+  overall_sign <- sign(overall_slope)
+  
+  # Simpson's Paradox occurs when overall sign differs from all stratified signs
+  if (all(stratified_signs == stratified_signs[1]) && 
+      overall_sign != stratified_signs[1]) {
+    return("Strong Simpson's Paradox")
+  } else if (any(stratified_signs != overall_sign)) {
+    return("Partial Simpson's Paradox")
+  } else {
+    return("No Simpson's Paradox")
+  }
+}
+
+# Get stratified slopes (excluding overall)
+stratified_slopes_z <- stratified_results_z$slope_XY
+stratified_slopes_c <- stratified_results_c$slope_XY
+
+# Determine Simpson's Paradox status for each confounder
+simpson_status_z <- detect_simpson_status(overall_slope, stratified_slopes_z)
+simpson_status_c <- detect_simpson_status(overall_slope, stratified_slopes_c)
+
+# Create summary table
+simpson_summary <- data.frame(
+  Measure = c("Overall Slope", "Mean Stratified Slope (Z)", "Range of Stratified Slopes (Z)",
+              "Mean Stratified Slope (C)", "Range of Stratified Slopes (C)",
+              "Overall Correlation", "Mean Stratified Correlation (Z)", 
+              "Mean Stratified Correlation (C)",
+              "Simpson's Paradox Status (Z)", "Simpson's Paradox Status (C)"),
+  Value = c(
+    round(overall_slope, 3),
+    round(mean(stratified_slopes_z), 3),
+    paste(round(min(stratified_slopes_z), 3), "to", round(max(stratified_slopes_z), 3)),
+    round(mean(stratified_slopes_c), 3),
+    paste(round(min(stratified_slopes_c), 3), "to", round(max(stratified_slopes_c), 3)),
+    round(overall_cor, 3),
+    round(mean(stratified_results_z$cor_XY), 3),
+    round(mean(stratified_results_c$cor_XY), 3),
+    simpson_status_z,
+    simpson_status_c
+  )
+)
+
+# Display summary
+DT::datatable(simpson_summary,
+              caption = "Simpson's Paradox Status Summary",
+              options = list(pageLength = 15, dom = 't'),
+              colnames = c("Measure", "Value"))
+```
+
+### 22.3 Testing for Simpson's Paradox by Groups
+
+Let's examine the phenomenon more systematically by creating binary high/low groups for both Z and C:
+
+```{r}
+#| label: test-simpsons-by-groups-complex
+#| message: false
+#| warning: false
+
+# Create binary Z and C groups (high/low based on median split)
+dag_data$Z_binary <- ifelse(dag_data$Z > median(dag_data$Z), "High Z", "Low Z")
+dag_data$C_binary <- ifelse(dag_data$C > median(dag_data$C), "High C", "Low C")
+
+# Calculate slopes and correlations for binary Z groups
+binary_analysis_z <- dag_data %>%
+  group_by(Z_binary) %>%
+  summarise(
+    n = n(),
+    cor_XY = cor(X, Y),
+    slope_XY = coef(lm(Y ~ X))[2],
+    intercept_XY = coef(lm(Y ~ X))[1],
+    mean_Z = mean(Z),
+    mean_X = mean(X),
+    mean_Y = mean(Y),
+    .groups = 'drop'
+  )
+
+# Calculate slopes and correlations for binary C groups
+binary_analysis_c <- dag_data %>%
+  group_by(C_binary) %>%
+  summarise(
+    n = n(),
+    cor_XY = cor(X, Y),
+    slope_XY = coef(lm(Y ~ X))[2],
+    intercept_XY = coef(lm(Y ~ X))[1],
+    mean_C = mean(C),
+    mean_X = mean(X),
+    mean_Y = mean(Y),
+    .groups = 'drop'
+  )
+
+# Add confidence intervals for slopes - Z groups
+binary_analysis_z$slope_se <- NA
+binary_analysis_z$slope_ci_lower <- NA
+binary_analysis_z$slope_ci_upper <- NA
+
+for (group in unique(dag_data$Z_binary)) {
+  group_data <- dag_data[dag_data$Z_binary == group, ]
+  model <- lm(Y ~ X, data = group_data)
+  slope_se <- summary(model)$coefficients["X", "Std. Error"]
+  slope_ci <- confint(model)["X", ]
+  
+  binary_analysis_z[binary_analysis_z$Z_binary == group, "slope_se"] <- slope_se
+  binary_analysis_z[binary_analysis_z$Z_binary == group, "slope_ci_lower"] <- slope_ci[1]
+  binary_analysis_z[binary_analysis_z$Z_binary == group, "slope_ci_upper"] <- slope_ci[2]
+}
+
+# Add confidence intervals for slopes - C groups
+binary_analysis_c$slope_se <- NA
+binary_analysis_c$slope_ci_lower <- NA
+binary_analysis_c$slope_ci_upper <- NA
+
+for (group in unique(dag_data$C_binary)) {
+  group_data <- dag_data[dag_data$C_binary == group, ]
+  model <- lm(Y ~ X, data = group_data)
+  slope_se <- summary(model)$coefficients["X", "Std. Error"]
+  slope_ci <- confint(model)["X", ]
+  
+  binary_analysis_c[binary_analysis_c$C_binary == group, "slope_se"] <- slope_se
+  binary_analysis_c[binary_analysis_c$C_binary == group, "slope_ci_lower"] <- slope_ci[1]
+  binary_analysis_c[binary_analysis_c$C_binary == group, "slope_ci_upper"] <- slope_ci[2]
+}
+
+# Round for display
+binary_analysis_z <- binary_analysis_z %>%
+  mutate(across(where(is.numeric), ~ round(., 3)))
+
+binary_analysis_c <- binary_analysis_c %>%
+  mutate(across(where(is.numeric), ~ round(., 3)))
+
+# Display binary group analysis for Z
+DT::datatable(binary_analysis_z,
+              caption = "Binary Group Analysis for Simpson's Paradox Detection (Z Confounder)",
+              options = list(pageLength = 10, scrollX = TRUE),
+              colnames = c("Z Group", "N", "Correlation", "Slope", "Intercept", 
+                          "Mean Z", "Mean X", "Mean Y", "Slope SE", "CI Lower", "CI Upper")) %>%
+  DT::formatRound(columns = c("cor_XY", "slope_XY", "intercept_XY", "mean_Z", 
+                              "mean_X", "mean_Y", "slope_se", "slope_ci_lower", "slope_ci_upper"), 
+                  digits = 3)
+
+# Display binary group analysis for C
+DT::datatable(binary_analysis_c,
+              caption = "Binary Group Analysis for Simpson's Paradox Detection (C Confounder)",
+              options = list(pageLength = 10, scrollX = TRUE),
+              colnames = c("C Group", "N", "Correlation", "Slope", "Intercept", 
+                          "Mean C", "Mean X", "Mean Y", "Slope SE", "CI Lower", "CI Upper")) %>%
+  DT::formatRound(columns = c("cor_XY", "slope_XY", "intercept_XY", "mean_C", 
+                              "mean_X", "mean_Y", "slope_se", "slope_ci_lower", "slope_ci_upper"), 
+                  digits = 3)
+```
+
+### 22.4 Visual Detection of Simpson's Paradox
+
+Let's create visualizations to clearly demonstrate whether Simpson's Paradox is present in our data:
+
+```{r}
+#| label: visualize-simpsons-paradox-complex
+#| fig-cap: "Visual Detection of Simpson's Paradox"
+#| fig-subcap: 
+#|   - "Overall relationship vs stratified relationships (Z quartiles)"
+#|   - "Overall relationship vs stratified relationships (C quartiles)"
+#|   - "Binary group analysis with separate regression lines (Z)"
+#|   - "Binary group analysis with separate regression lines (C)"
+#|   - "Slope comparison across different stratifications"
+#| layout-ncol: 1
+
+# Plot 1: Overall vs Stratified (Z Quartiles)
+p1 <- ggplot(dag_data, aes(x = X, y = Y)) +
+  # Overall regression line
+  geom_smooth(method = "lm", formula = y ~ x, color = "red", linewidth = 1.5, 
+              linetype = "dashed", se = FALSE) +
+  # Stratified regression lines
+  geom_smooth(aes(color = Z_quartile), method = "lm", formula = y ~ x, 
+              linewidth = 1, se = FALSE) +
+  # Points colored by quartile
+  geom_point(aes(color = Z_quartile), alpha = 0.6) +
+  scale_color_viridis_d(name = "Z Quartile") +
+  labs(
+    title = "Simpson's Paradox Analysis: Overall vs Z-Stratified Relationships",
+    subtitle = paste("Overall slope (red dashed):", round(overall_slope, 3),
+                    "| Simpson's Status (Z):", simpson_status_z),
+    x = "X (Exposure)",
+    y = "Y (Outcome)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+# Plot 2: Overall vs Stratified (C Quartiles)
+p2 <- ggplot(dag_data, aes(x = X, y = Y)) +
+  # Overall regression line
+  geom_smooth(method = "lm", formula = y ~ x, color = "red", linewidth = 1.5, 
+              linetype = "dashed", se = FALSE) +
+  # Stratified regression lines
+  geom_smooth(aes(color = C_quartile), method = "lm", formula = y ~ x, 
+              linewidth = 1, se = FALSE) +
+  # Points colored by quartile
+  geom_point(aes(color = C_quartile), alpha = 0.6) +
+  scale_color_brewer(palette = "Set2", name = "C Quartile") +
+  labs(
+    title = "Simpson's Paradox Analysis: Overall vs C-Stratified Relationships",
+    subtitle = paste("Overall slope (red dashed):", round(overall_slope, 3),
+                    "| Simpson's Status (C):", simpson_status_c),
+    x = "X (Exposure)",
+    y = "Y (Outcome)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+# Plot 3: Binary Group Analysis (Z)
+p3 <- ggplot(dag_data, aes(x = X, y = Y)) +
+  # Overall regression line
+  geom_smooth(method = "lm", formula = y ~ x, color = "red", linewidth = 1.5, 
+              linetype = "dashed", se = FALSE) +
+  # Stratified regression lines for binary groups
+  geom_smooth(aes(color = Z_binary), method = "lm", formula = y ~ x, 
+              linewidth = 1.2, se = TRUE, alpha = 0.3) +
+  # Points colored by binary group
+  geom_point(aes(color = Z_binary), alpha = 0.6) +
+  scale_color_manual(values = c("High Z" = "darkblue", "Low Z" = "darkgreen"),
+                     name = "Z Group") +
+  labs(
+    title = "Binary Z Group Analysis for Simpson's Paradox",
+    subtitle = "Red dashed line: Overall relationship | Colored lines: Z group-specific relationships",
+    x = "X (Exposure)",
+    y = "Y (Outcome)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+# Plot 4: Binary Group Analysis (C)
+p4 <- ggplot(dag_data, aes(x = X, y = Y)) +
+  # Overall regression line
+  geom_smooth(method = "lm", formula = y ~ x, color = "red", linewidth = 1.5, 
+              linetype = "dashed", se = FALSE) +
+  # Stratified regression lines for binary groups
+  geom_smooth(aes(color = C_binary), method = "lm", formula = y ~ x, 
+              linewidth = 1.2, se = TRUE, alpha = 0.3) +
+  # Points colored by binary group
+  geom_point(aes(color = C_binary), alpha = 0.6) +
+  scale_color_manual(values = c("High C" = "darkorange", "Low C" = "purple"),
+                     name = "C Group") +
+  labs(
+    title = "Binary C Group Analysis for Simpson's Paradox",
+    subtitle = "Red dashed line: Overall relationship | Colored lines: C group-specific relationships",
+    x = "X (Exposure)",
+    y = "Y (Outcome)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+# Plot 5: Slope Comparison
+slope_comparison <- data.frame(
+  Group = c("Overall", paste("Z", stratified_results_z$Z_quartile), 
+            paste("C", stratified_results_c$C_quartile),
+            paste("Z", binary_analysis_z$Z_binary), 
+            paste("C", binary_analysis_c$C_binary)),
+  Slope = c(overall_slope, stratified_results_z$slope_XY, stratified_results_c$slope_XY,
+            binary_analysis_z$slope_XY, binary_analysis_c$slope_XY),
+  Type = c("Overall", rep("Z Quartile", 4), rep("C Quartile", 4), 
+           rep("Z Binary", 2), rep("C Binary", 2))
+)
+
+p5 <- ggplot(slope_comparison, aes(x = reorder(Group, Slope), y = Slope, fill = Type)) +
+  geom_col(alpha = 0.8) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  geom_hline(yintercept = 0.3, linetype = "dotted", color = "red", alpha = 0.7) +
+  scale_fill_brewer(palette = "Set3") +
+  labs(
+    title = "Slope Comparison Across Different Stratifications",
+    subtitle = "Red dotted line shows true causal effect (0.3)",
+    x = "Group",
+    y = "Slope of X → Y"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Display plots
+p1
+p2
+p3
+p4
+p5
+```
+
+### 22.5 Formal Statistical Test for Simpson's Paradox
+
+Let's conduct formal statistical tests to quantify the evidence for Simpson's Paradox:
+
+```{r}
+#| label: formal-test-simpsons-paradox-complex
+#| message: false
+#| warning: false
+
+# Function to test for significant differences in slopes
+test_slope_differences <- function(overall_slope, overall_se, stratified_slopes, stratified_ses) {
+  # Test if overall slope differs significantly from each stratified slope
+  z_stats <- (overall_slope - stratified_slopes) / sqrt(overall_se^2 + stratified_ses^2)
+  p_values <- 2 * (1 - pnorm(abs(z_stats)))
+  
+  return(list(z_stats = z_stats, p_values = p_values))
+}
+
+# Get standard errors for slopes
+overall_model <- lm(Y ~ X, data = dag_data)
+overall_se <- summary(overall_model)$coefficients["X", "Std. Error"]
+
+# Get standard errors for Z-stratified models
+stratified_ses_z <- numeric(length(stratified_slopes_z))
+for (i in 1:length(unique(dag_data$Z_quartile))) {
+  quartile <- levels(dag_data$Z_quartile)[i]
+  quartile_data <- dag_data[dag_data$Z_quartile == quartile, ]
+  model <- lm(Y ~ X, data = quartile_data)
+  stratified_ses_z[i] <- summary(model)$coefficients["X", "Std. Error"]
+}
+
+# Get standard errors for C-stratified models
+stratified_ses_c <- numeric(length(stratified_slopes_c))
+for (i in 1:length(unique(dag_data$C_quartile))) {
+  quartile <- levels(dag_data$C_quartile)[i]
+  quartile_data <- dag_data[dag_data$C_quartile == quartile, ]
+  model <- lm(Y ~ X, data = quartile_data)
+  stratified_ses_c[i] <- summary(model)$coefficients["X", "Std. Error"]
+}
+
+# Perform tests for Z stratification
+slope_tests_z <- test_slope_differences(overall_slope, overall_se, stratified_slopes_z, stratified_ses_z)
+
+# Perform tests for C stratification
+slope_tests_c <- test_slope_differences(overall_slope, overall_se, stratified_slopes_c, stratified_ses_c)
+
+# Create test results table for Z
+test_results_z <- data.frame(
+  Comparison = paste("Overall vs", stratified_results_z$Z_quartile),
+  Overall_Slope = rep(round(overall_slope, 3), length(stratified_slopes_z)),
+  Stratified_Slope = round(stratified_slopes_z, 3),
+  Difference = round(overall_slope - stratified_slopes_z, 3),
+  Z_Statistic = round(slope_tests_z$z_stats, 3),
+  P_Value = round(slope_tests_z$p_values, 3),
+  Significant = ifelse(slope_tests_z$p_values < 0.05, "Yes", "No")
+)
+
+# Create test results table for C
+test_results_c <- data.frame(
+  Comparison = paste("Overall vs", stratified_results_c$C_quartile),
+  Overall_Slope = rep(round(overall_slope, 3), length(stratified_slopes_c)),
+  Stratified_Slope = round(stratified_slopes_c, 3),
+  Difference = round(overall_slope - stratified_slopes_c, 3),
+  Z_Statistic = round(slope_tests_c$z_stats, 3),
+  P_Value = round(slope_tests_c$p_values, 3),
+  Significant = ifelse(slope_tests_c$p_values < 0.05, "Yes", "No")
+)
+
+# Display test results for Z
+DT::datatable(test_results_z,
+              caption = "Formal Statistical Tests for Slope Differences (Z Stratification)",
+              options = list(pageLength = 10, scrollX = TRUE)) %>%
+  DT::formatRound(columns = c("Overall_Slope", "Stratified_Slope", "Difference", 
+                              "Z_Statistic", "P_Value"), digits = 3)
+
+# Display test results for C
+DT::datatable(test_results_c,
+              caption = "Formal Statistical Tests for Slope Differences (C Stratification)",
+              options = list(pageLength = 10, scrollX = TRUE)) %>%
+  DT::formatRound(columns = c("Overall_Slope", "Stratified_Slope", "Difference", 
+                              "Z_Statistic", "P_Value"), digits = 3)
+```
+
+### 22.6 Magnitude of Simpson's Paradox Effect
+
+Let's quantify the magnitude of the Simpson's Paradox effect if it exists:
+
+```{r}
+#| label: magnitude-simpsons-effect-complex
+#| message: false
+#| warning: false
+
+# Calculate Simpson's Paradox magnitude measures for Z
+simpson_magnitude_z <- data.frame(
+  Measure = c(
+    "Overall Slope",
+    "Average Z-Stratified Slope",
+    "Absolute Difference (Z)",
+    "Relative Difference (Z) (%)",
+    "Direction Reversal (Z)",
+    "Weighted Average Slope (Z)",
+    "Simpson's Paradox Strength (Z)"
+  ),
+  Value = c(
+    round(overall_slope, 3),
+    round(mean(stratified_slopes_z), 3),
+    round(abs(overall_slope - mean(stratified_slopes_z)), 3),
+    round(100 * abs(overall_slope - mean(stratified_slopes_z)) / abs(mean(stratified_slopes_z)), 3),
+    ifelse(sign(overall_slope) != sign(mean(stratified_slopes_z)), "Yes", "No"),
+    # Weighted average by group size
+    round(sum(stratified_results_z$slope_XY * stratified_results_z$n) / sum(stratified_results_z$n), 3),
+    # Simpson's strength: how much the overall deviates from weighted average
+    round(abs(overall_slope - sum(stratified_results_z$slope_XY * stratified_results_z$n) / sum(stratified_results_z$n)), 3)
+  )
+)
+
+# Calculate Simpson's Paradox magnitude measures for C
+simpson_magnitude_c <- data.frame(
+  Measure = c(
+    "Overall Slope",
+    "Average C-Stratified Slope",
+    "Absolute Difference (C)",
+    "Relative Difference (C) (%)",
+    "Direction Reversal (C)",
+    "Weighted Average Slope (C)",
+    "Simpson's Paradox Strength (C)"
+  ),
+  Value = c(
+    round(overall_slope, 3),
+    round(mean(stratified_slopes_c), 3),
+    round(abs(overall_slope - mean(stratified_slopes_c)), 3),
+    round(100 * abs(overall_slope - mean(stratified_slopes_c)) / abs(mean(stratified_slopes_c)), 3),
+    ifelse(sign(overall_slope) != sign(mean(stratified_slopes_c)), "Yes", "No"),
+    # Weighted average by group size
+    round(sum(stratified_results_c$slope_XY * stratified_results_c$n) / sum(stratified_results_c$n), 3),
+    # Simpson's strength: how much the overall deviates from weighted average
+    round(abs(overall_slope - sum(stratified_results_c$slope_XY * stratified_results_c$n) / sum(stratified_results_c$n)), 3)
+  )
+)
+
+# Display magnitude analysis for Z
+DT::datatable(simpson_magnitude_z,
+              caption = "Magnitude of Simpson's Paradox Effect (Z Confounder)",
+              options = list(pageLength = 10, dom = 't'),
+              colnames = c("Measure", "Value"))
+
+# Display magnitude analysis for C
+DT::datatable(simpson_magnitude_c,
+              caption = "Magnitude of Simpson's Paradox Effect (C Confounder)",
+              options = list(pageLength = 10, dom = 't'),
+              colnames = c("Measure", "Value"))
+```
+
+### 22.7 Weighted vs Unweighted Analysis
+
+Let's compare weighted and unweighted analyses to understand the role of group sizes:
+
+```{r}
+#| label: weighted-unweighted-analysis-complex
+#| message: false
+#| warning: false
+
+# Calculate weighted statistics for Z
+weighted_slope_z <- sum(stratified_results_z$slope_XY * stratified_results_z$n) / sum(stratified_results_z$n)
+weighted_cor_z <- sum(stratified_results_z$cor_XY * stratified_results_z$n) / sum(stratified_results_z$n)
+
+# Calculate unweighted statistics for Z
+unweighted_slope_z <- mean(stratified_results_z$slope_XY)
+unweighted_cor_z <- mean(stratified_results_z$cor_XY)
+
+# Calculate weighted statistics for C
+weighted_slope_c <- sum(stratified_results_c$slope_XY * stratified_results_c$n) / sum(stratified_results_c$n)
+weighted_cor_c <- sum(stratified_results_c$cor_XY * stratified_results_c$n) / sum(stratified_results_c$n)
+
+# Calculate unweighted statistics for C
+unweighted_slope_c <- mean(stratified_results_c$slope_XY)
+unweighted_cor_c <- mean(stratified_results_c$cor_XY)
+
+# Group size analysis for Z
+group_size_analysis_z <- stratified_results_z %>%
+  mutate(
+    prop_of_total = round(n / sum(n), 3),
+    slope_weight = round(slope_XY * prop_of_total, 3),
+    cor_weight = round(cor_XY * prop_of_total, 3)
+  ) %>%
+  select(Z_quartile, n, prop_of_total, slope_XY, slope_weight, cor_XY, cor_weight)
+
+# Add summary row for Z
+summary_row_z <- data.frame(
+  Z_quartile = "Weighted Total",
+  n = sum(group_size_analysis_z$n),
+  prop_of_total = 1.000,
+  slope_XY = round(weighted_slope_z, 3),
+  slope_weight = round(sum(group_size_analysis_z$slope_weight), 3),
+  cor_XY = round(weighted_cor_z, 3),
+  cor_weight = round(sum(group_size_analysis_z$cor_weight), 3)
+)
+
+group_analysis_complete_z <- bind_rows(group_size_analysis_z, summary_row_z)
+
+# Group size analysis for C
+group_size_analysis_c <- stratified_results_c %>%
+  mutate(
+    prop_of_total = round(n / sum(n), 3),
+    slope_weight = round(slope_XY * prop_of_total, 3),
+    cor_weight = round(cor_XY * prop_of_total, 3)
+  ) %>%
+  select(C_quartile, n, prop_of_total, slope_XY, slope_weight, cor_XY, cor_weight)
+
+# Add summary row for C
+summary_row_c <- data.frame(
+  C_quartile = "Weighted Total",
+  n = sum(group_size_analysis_c$n),
+  prop_of_total = 1.000,
+  slope_XY = round(weighted_slope_c, 3),
+  slope_weight = round(sum(group_size_analysis_c$slope_weight), 3),
+  cor_XY = round(weighted_cor_c, 3),
+  cor_weight = round(sum(group_size_analysis_c$cor_weight), 3)
+)
+
+group_analysis_complete_c <- bind_rows(group_size_analysis_c, summary_row_c)
+
+# Display weighted analysis for Z
+DT::datatable(group_analysis_complete_z,
+              caption = "Weighted vs Unweighted Analysis by Group Size (Z Confounder)",
+              options = list(pageLength = 10, scrollX = TRUE),
+              colnames = c("Z Group", "N", "Proportion", "Slope", "Weighted Slope", 
+                          "Correlation", "Weighted Correlation")) %>%
+  DT::formatRound(columns = c("prop_of_total", "slope_XY", "slope_weight", 
+                              "cor_XY", "cor_weight"), digits = 3)
+
+# Display weighted analysis for C
+DT::datatable(group_analysis_complete_c,
+              caption = "Weighted vs Unweighted Analysis by Group Size (C Confounder)",
+              options = list(pageLength = 10, scrollX = TRUE),
+              colnames = c("C Group", "N", "Proportion", "Slope", "Weighted Slope", 
+                          "Correlation", "Weighted Correlation")) %>%
+  DT::formatRound(columns = c("prop_of_total", "slope_XY", "slope_weight", 
+                              "cor_XY", "cor_weight"), digits = 3)
+
+# Summary comparison table
+weighting_comparison <- data.frame(
+  Analysis_Type = c("Overall (Marginal)", "Unweighted Average (Z)", "Weighted Average (Z)", 
+                   "Unweighted Average (C)", "Weighted Average (C)", "True Causal Effect"),
+  Slope = c(round(overall_slope, 3), round(unweighted_slope_z, 3), 
+           round(weighted_slope_z, 3), round(unweighted_slope_c, 3),
+           round(weighted_slope_c, 3), 0.300),
+  Correlation = c(round(overall_cor, 3), round(unweighted_cor_z, 3), 
+                 round(weighted_cor_z, 3), round(unweighted_cor_c, 3),
+                 round(weighted_cor_c, 3), NA)
+)
+
+DT::datatable(weighting_comparison,
+              caption = "Comparison of Different Analysis Approaches",
+              options = list(pageLength = 10, dom = 't'),
+              colnames = c("Analysis Type", "Slope Estimate", "Correlation"))
+```
+
+### 22.8 Conclusions from Simpson's Paradox Analysis
+
+Based on our comprehensive analysis, here are the summarized findings about Simpson's Paradox in this synthetic dataset:
+
+```{r}
+#| label: simpsons-conclusions-complex
+#| message: false
+#| warning: false
+
+# Calculate key metrics for conclusions
+direction_reversal_z <- sign(overall_slope) != sign(mean(stratified_slopes_z))
+direction_reversal_c <- sign(overall_slope) != sign(mean(stratified_slopes_c))
+magnitude_difference_z <- abs(overall_slope - mean(stratified_slopes_z))
+magnitude_difference_c <- abs(overall_slope - mean(stratified_slopes_c))
+relative_magnitude_z <- 100 * magnitude_difference_z / abs(mean(stratified_slopes_z))
+relative_magnitude_c <- 100 * magnitude_difference_c / abs(mean(stratified_slopes_c))
+
+# Create conclusions summary
+conclusions_data <- data.frame(
+  Finding = c(
+    "Simpson's Paradox Present (Z)?",
+    "Simpson's Paradox Present (C)?",
+    "Direction of Overall Effect",
+    "Direction of Z-Stratified Effects",
+    "Direction of C-Stratified Effects", 
+    "Magnitude of Difference (Z)",
+    "Magnitude of Difference (C)",
+    "Relative Magnitude Z (%)",
+    "Relative Magnitude C (%)",
+    "Primary Explanation",
+    "Causal Interpretation",
+    "Practical Implication"
+  ),
+  Result = c(
+    simpson_status_z,
+    simpson_status_c,
+    ifelse(overall_slope > 0, "Positive", "Negative"),
+    ifelse(mean(stratified_slopes_z) > 0, "Positive", "Negative"),
+    ifelse(mean(stratified_slopes_c) > 0, "Positive", "Negative"),
+    paste(round(magnitude_difference_z, 3), "units"),
+    paste(round(magnitude_difference_c, 3), "units"),
+    paste(round(relative_magnitude_z, 1), "%"),
+    paste(round(relative_magnitude_c, 1), "%"),
+    "Multiple confounders create different marginal vs conditional relationships",
+    "Proper adjustment for all confounders reveals true causal effect",
+    "Controlling for all relevant confounders is essential for valid causal inference"
+  )
+)
+
+# Display conclusions
+DT::datatable(conclusions_data,
+              caption = "Summary of Simpson's Paradox Analysis Conclusions",
+              options = list(pageLength = 15, dom = 't', scrollX = TRUE),
+              colnames = c("Key Finding", "Result/Interpretation"))
+
+# Create comprehensive summary table for key conclusions
+paradox_present_z <- simpson_status_z != "No Simpson's Paradox"
+paradox_present_c <- simpson_status_c != "No Simpson's Paradox"
+any_paradox_present <- paradox_present_z || paradox_present_c
+
+key_conclusions <- data.frame(
+  Category = c(
+    "Simpson's Paradox Detection",
+    "Simpson's Paradox Detection", 
+    "Simpson's Paradox Detection",
+    "Simpson's Paradox Detection",
+    "Magnitude Analysis",
+    "Magnitude Analysis",
+    "Magnitude Analysis",
+    "Magnitude Analysis",
+    "Causal Inference Implications",
+    "Causal Inference Implications",
+    "Causal Inference Implications"
+  ),
+  Finding = c(
+    "Z-Stratified Paradox Present?",
+    "C-Stratified Paradox Present?",
+    "Overall Paradox Status",
+    "Mechanistic Explanation",
+    "Overall Slope",
+    "Average Z-Stratified Slope", 
+    "Average C-Stratified Slope",
+    "Maximum Relative Difference",
+    "Adjustment Set Validation",
+    "Multiple Confounder Understanding",
+    "Practical Importance"
+  ),
+  Result = c(
+    ifelse(paradox_present_z, "✓ YES - Detected in Z strata", "✗ NO - Not detected in Z strata"),
+    ifelse(paradox_present_c, "✓ YES - Detected in C strata", "✗ NO - Not detected in C strata"),
+    ifelse(any_paradox_present, "Present when stratifying by individual confounders", 
+           "Not present in any stratification"),
+    ifelse(any_paradox_present, 
+           "Individual confounders create paradoxical marginal vs conditional relationships",
+           "Relationships remain consistent across confounder strata"),
+    round(overall_slope, 3),
+    round(mean(stratified_slopes_z), 3),
+    round(mean(stratified_slopes_c), 3),
+    paste(round(max(relative_magnitude_z, relative_magnitude_c), 1), "%"),
+    "Reinforces DAG-based conclusions about need for complete adjustment sets",
+    "Validates understanding that partial adjustment can be misleading", 
+    "Demonstrates why comprehensive confounder identification is essential"
+  )
+)
+
+# Display the comprehensive conclusions table
+DT::datatable(key_conclusions,
+              caption = "Key Conclusions from Simpson's Paradox Analysis",
+              options = list(
+                pageLength = 15,
+                ordering = FALSE,
+                searching = FALSE,
+                scrollX = TRUE
+              ),
+              class = 'cell-border stripe compact responsive',
+              rownames = FALSE,
+              width = "90%")
+```
+
+Our Simpson's Paradox analysis reveals important insights about the nature of confounding in complex causal structures. In this synthetic dataset, we observe **`r simpson_status_z`** when stratifying by Z and **`r simpson_status_c`** when stratifying by C, which demonstrates how individual confounders can create different patterns when we examine marginal versus conditional relationships between X and Y.
+
+The key insight is that Simpson's Paradox in complex DAGs illustrates why piecemeal adjustment strategies can be misleading. While stratifying by individual confounders may reveal paradoxical relationships, the complete picture emerges only when we properly adjust for all relevant confounders simultaneously. In our complex structure, both Z and C act as confounders, and the interaction between these multiple confounding pathways creates the nuanced patterns we observe.
+
+The magnitude of the Simpson's Paradox effects (Z: **`r paste(round(relative_magnitude_z, 1), "%")`** relative difference; C: **`r paste(round(relative_magnitude_c, 1), "%")`** relative difference) underscores the practical importance of comprehensive confounder identification in observational studies. This analysis reinforces our earlier findings about the critical role of using DAG-based methods to identify complete adjustment sets rather than adjusting for confounders one at a time.
+
+This phenomenon demonstrates why randomized controlled trials - which simultaneously balance all confounders across treatment groups - provide such strong evidence for causal inference. In observational studies, we must be equally comprehensive in our approach to confounder control, ensuring that we identify and adjust for all relevant variables that create backdoor paths from exposure to outcome.
+
+

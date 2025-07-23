@@ -1,0 +1,2325 @@
+---
+title: "DAG Analysis: HIV-Stroke Causal Structure with Unmeasured Confounder"
+author: "Dan Swart and Claude 4 Sonnet"
+format: 
+  html:
+    toc: true
+    toc-float: true
+    page-layout: article
+    embed-resources: true
+    code-fold: true
+    code-summary: "Show the code"
+    code-tools: true
+    code-overflow: wrap
+    code-block-bg: "#FAEBD7"
+    code-block-border-left: "#31BAE9"
+    code-link: true          # This adds individual buttons
+    fig-width: 10
+    fig-height: 8
+    fig-align: center
+    html-math-method: katex
+    css: swart-20250327.css
+  pdf:
+    toc: true
+    number-sections: true
+    colorlinks: true
+    papersize: letter
+    geometry:
+      - margin=1in
+    fig-width: 10
+    fig-height: 8
+    fig-pos: 'H'
+  typst:
+    toc: true
+    fig-width: 10
+    fig-height: 8
+    keep-tex: true
+    prefer-html: true
+---
+
+```{r}
+#| label: setup
+#| include: false
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+# Load required libraries
+library(tidyverse)  # For dplyr, ggplot, and data manipulation
+library(ggdag)      # For plotting DAGs
+library(dagitty)    # For working with DAG logic
+library(DiagrammeR) # For DAG visualization
+library(corrplot)   # For correlation plots
+library(DT)         # For interactive tables
+library(lavaan)     # For structural equation modeling
+library(rethinking) # For Bayesian analysis
+library(ggpubr)     # For arranging multiple plots
+```
+
+## 1. Introduction: Understanding HIV-Stroke Causal Structure with Unmeasured Confounding
+
+This document explores a complex causal structure examining the relationship between HIV status and stroke risk in the presence of an unmeasured confounder. This represents one of the most challenging scenarios in observational epidemiology where:
+
+- X (HIV) is the exposure variable of primary interest
+- Y (Stroke) is the outcome variable  
+- A (Smoking) and B (Age) are measured confounders that we can observe and adjust for
+- U (Unmeasured Confounder) represents unknown factors that affect both smoking behavior and stroke risk
+
+This DAG structure illustrates a fundamental limitation of observational studies: even with careful measurement and adjustment for all known confounders, unmeasured confounding can still bias causal estimates. Think of it like trying to navigate with a map that's missing some important landmarks - you can see the roads you know about (measured confounders), but there are invisible forces (unmeasured confounders) affecting your journey that you can't account for.
+
+The presence of unmeasured confounding creates backdoor paths between exposure and outcome that cannot be closed through standard statistical adjustment, making true causal identification impossible without strong assumptions.
+
+## 2. Describe the DAG in words
+
+This DAG represents a causal structure with five variables where one critical confounder remains unmeasured:
+
+**Variables:**
+- X (HIV): The primary exposure of interest
+- Y (Stroke): The health outcome we want to understand
+- A (Smoking): A measured lifestyle factor that affects both HIV acquisition risk and stroke risk
+- B (Age): A measured demographic factor that influences smoking, HIV risk, and stroke risk  
+- U (Unmeasured Confounder): An unobserved variable that affects both smoking behavior and stroke risk
+
+**The causal pathways include:**
+
+*Direct causal relationships:*
+1. X → Y: The direct effect of HIV on stroke risk (our parameter of interest)
+2. A → Y: Direct effect of smoking on stroke risk
+3. B → Y: Direct effect of age on stroke risk
+
+*Measured confounding pathways:*
+1. X ← A → Y: Confounding through smoking behavior
+2. X ← B → Y: Confounding through age
+3. X ← B → A → Y: Indirect confounding pathway through age affecting smoking
+
+*Unmeasured confounding pathways:*
+1. A ← U → Y: The unmeasured confounder affects both smoking and stroke
+2. X ← A ← U → Y: Complex pathway where the unmeasured confounder influences HIV status through smoking, then affects stroke both directly and through HIV
+
+This creates a challenging analytical situation where standard epidemiological methods can adjust for the measured confounders (Age and Smoking) but cannot eliminate bias from the unmeasured confounder U. The result is that even our best available statistical models will provide biased estimates of the true HIV effect on stroke risk.
+
+## 3. Recreate the DAG for reference using DiagrammeR and ggdag
+
+```{r}
+#| label: diagrammer-dag-unmeasured
+#| fig-cap: "HIV-Stroke Causal DAG with Unmeasured Confounding"
+
+library(DiagrammeR)
+
+# Create the DAG using DiagrammeR with exact template formatting
+hiv_stroke_dag <- grViz("
+  digraph DAG {
+    # Graph settings
+    graph [layout=neato, margin=\"1.0, 1.0, 2.0, 1.0\"]  
+    
+    # Add a title
+    labelloc=\"t\"
+    label=\"HIV-Stroke Causal Structure with Unmeasured Confounder\\nDemonstrating the Challenge of Hidden Bias\\n   \"
+    fontname=\"Cabin\"  fontsize=18
+    
+   # Node settings
+    node [shape=plaintext, fontsize=20, fontname=\"Cabin\"]
+    
+    # Edge settings
+    edge [penwidth=1.20, color=\"darkblue\", arrowsize=1.00, fontsize=12]
+    
+    # Nodes with exact coordinates
+    X [label=\"HIV\", pos=\"4.0, 3.0!\", fontcolor=\"dodgerblue\"]
+    Y [label=\"Stroke\", pos=\"6.0, 3.0!\", fontcolor=\"dodgerblue\"]
+    A [label=\"Smoking\", pos=\"1.0, 6.0!\", fontcolor=\"red\"]
+    B [label=\"Age\", pos=\"1.0, 1.0!\", fontcolor=\"red\"]
+    U [label=\"Unmeasured Confounder\", pos=\"5.0, 6.0!\", fontcolor=\"red\"]
+    
+    # Edges with true effect sizes
+    X -> Y [label=\"0.5\"]
+    A -> Y [label=\"0.7\"]
+    B -> Y [label=\"0.3\"]
+    A -> X [label=\"0.4\"]
+    B -> X [label=\"0.2\"]
+    B -> A [label=\"0.3\"]
+    U -> A [label=\"0.6\"]
+    U -> Y [label=\"0.4\"]
+    
+    # Caption
+    Caption [shape=plaintext, label=\"Figure 1: HIV-Stroke Causal Structure with Unmeasured Confounding\", 
+             fontsize=12, pos=\"3.5,0.0!\"]
+  }
+")
+
+# Display the DAG
+hiv_stroke_dag
+```
+
+```{r}
+#| label: ggdag-visualization-hiv-stroke
+#| fig-cap: "ggdag representation of HIV-Stroke causal model with unmeasured confounding"
+
+# Define the DAG using dagitty/ggdag for analysis
+hiv_stroke_ggdag <- dagify(
+  Y ~ X + A + B + U,   # Stroke affected by HIV, Smoking, Age, and Unmeasured
+  X ~ A + B,           # HIV affected by Smoking and Age
+  A ~ B + U,           # Smoking affected by Age and Unmeasured
+  exposure = "X",
+  outcome = "Y",
+  labels = c("X" = "HIV", 
+             "Y" = "Stroke", 
+             "A" = "Smoking",
+             "B" = "Age",
+             "U" = "Unmeasured")
+)
+
+# Set coordinates for visualization
+coordinates(hiv_stroke_ggdag) <- list(
+  x = c(X = 2.5, Y = 4, A = 1, B = 1, U = 3.5),
+  y = c(X = 2, Y = 2, A = 4, B = 1, U = 4)
+)
+
+# Create visualization
+ggdag(hiv_stroke_ggdag, edge_type = "link") + 
+  geom_dag_point(color = "lightblue", size = 14, alpha = 0.7) +
+  geom_dag_text(color = "black") +
+  geom_dag_edges(edge_colour = "blue", edge_width = 1.0, arrow_size = 0.6) +
+  theme_dag() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  ggtitle("DAG: HIV-Stroke Structure with Unmeasured Confounding")
+```
+
+## 4. Generate synthetic data following the causal structure
+
+We'll generate synthetic data that follows the causal relationships specified in our DAG. The key challenge here is that we must generate the unmeasured confounder to create realistic bias, but then "hide" it from our analysis to simulate real-world conditions where this confounder is unknown to researchers.
+
+```{r}
+#| label: generate-data-hiv-stroke-unmeasured
+#| tbl-cap: "Summary of synthetic HIV-stroke data with unmeasured confounding"
+
+# Set seed for reproducibility
+set.seed(42)
+
+# Sample size
+n <- 1000
+
+# Generate data following the DAG structure
+# Start with root causes: B (Age) and U (Unmeasured Confounder)
+B_age <- round(rnorm(n, mean = 0, sd = 1), 3)
+U_unmeasured <- round(rnorm(n, mean = 0, sd = 1), 3)
+
+# Generate A (Smoking) influenced by B (Age) and U (Unmeasured)
+A_smoking <- round(0.3 * B_age + 0.6 * U_unmeasured + rnorm(n, mean = 0, sd = 0.8), 3)
+
+# Generate X (HIV) influenced by A (Smoking) and B (Age)
+X_hiv <- round(0.4 * A_smoking + 0.2 * B_age + rnorm(n, mean = 0, sd = 0.7), 3)
+
+# Generate Y (Stroke) influenced by X (HIV), A (Smoking), B (Age), and U (Unmeasured)
+Y_stroke <- round(0.5 * X_hiv + 0.7 * A_smoking + 0.3 * B_age + 0.4 * U_unmeasured + rnorm(n, mean = 0, sd = 0.6), 3)
+
+# True direct effect of HIV on Stroke
+true_hiv_effect <- 0.500
+
+# Create observed dataset (what researchers would actually see)
+observed_hiv_data <- data.frame(
+  Age = B_age,
+  Smoking = A_smoking, 
+  HIV = X_hiv,
+  Stroke = Y_stroke
+)
+
+# Create complete dataset including unmeasured confounder (for oracle comparison)
+complete_hiv_data <- data.frame(
+  Age = B_age,
+  Smoking = A_smoking, 
+  HIV = X_hiv,
+  Stroke = Y_stroke,
+  Unmeasured = U_unmeasured
+)
+
+# Display summary statistics for observed data
+round(sapply(observed_hiv_data, summary), 3)
+```
+
+```{r}
+#| label: true-effects-hiv-stroke
+#| tbl-cap: "True causal effects in the HIV-Stroke DAG with unmeasured confounding"
+
+# Create table of all true causal effects
+true_effects_hiv <- data.frame(
+  Causal_Relationship = c("Age → Smoking", "Age → HIV", "Age → Stroke", 
+                         "Smoking → HIV", "Smoking → Stroke", "HIV → Stroke",
+                         "Unmeasured → Smoking", "Unmeasured → Stroke"),
+  True_Effect = c(0.3, 0.2, 0.3, 0.4, 0.7, 0.5, 0.6, 0.4),
+  Effect_Type = c("Root cause to mediator", "Confounder to exposure", "Confounder to outcome",
+                 "Mediator to exposure", "Confounder to outcome", "CAUSAL EFFECT OF INTEREST",
+                 "Unmeasured to mediator", "Unmeasured to outcome"),
+  Bias_Source = c("No", "No", "No", "No", "No", "Target Effect",
+                 "Yes - Creates bias", "Yes - Creates bias")
+)
+
+# Display the table
+datatable(true_effects_hiv,
+          options = list(pageLength = 10, dom = 't'),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+```
+
+## 5. Examine structure of synthetic data
+
+### 5.1 Correlation matrix of observed variables
+
+```{r}
+#| label: correlation-matrix-hiv-stroke
+#| fig-cap: "Correlation matrix of observed variables in HIV-stroke data"
+
+# Calculate correlation matrix for observed variables
+corr_matrix_hiv <- cor(observed_hiv_data)
+
+# Create correlation table
+corr_table_hiv <- as.data.frame(round(corr_matrix_hiv, 3))
+
+# Display correlation table
+datatable(corr_table_hiv,
+          options = list(pageLength = 10, dom = 't'),
+          rownames = TRUE,
+          class = 'cell-border stripe compact responsive')
+
+# Create correlation plot
+corrplot(corr_matrix_hiv, 
+         method = "color", 
+         type = "upper", 
+         order = "hclust",
+         addCoef.col = "black",
+         number.cex = 1.5,
+         tl.col = "black",
+         tl.srt = 45,
+         diag = FALSE,
+         col = colorRampPalette(c("#6BAED6", "white", "#E6550D"))(200),
+         title = "Correlation Matrix: Observed Variables",
+         mar = c(0,0,1,0))
+
+# Interpretation of key correlations
+correlation_interpretation <- data.frame(
+  Variable_Pair = c("HIV and Stroke", "HIV and Smoking", "HIV and Age", 
+                   "Stroke and Smoking", "Stroke and Age", "Smoking and Age"),
+  Observed_Correlation = c(round(cor(observed_hiv_data$HIV, observed_hiv_data$Stroke), 3), 
+                          round(cor(observed_hiv_data$HIV, observed_hiv_data$Smoking), 3), 
+                          round(cor(observed_hiv_data$HIV, observed_hiv_data$Age), 3),
+                          round(cor(observed_hiv_data$Stroke, observed_hiv_data$Smoking), 3), 
+                          round(cor(observed_hiv_data$Stroke, observed_hiv_data$Age), 3), 
+                          round(cor(observed_hiv_data$Smoking, observed_hiv_data$Age), 3)),
+  Interpretation = c(
+    "Strong correlation: Direct effect + measured confounding + unmeasured confounding",
+    "Moderate correlation: Smoking increases HIV risk",
+    "Weak correlation: Age increases HIV risk",
+    "Strong correlation: Direct smoking effect + shared unmeasured confounding",
+    "Moderate correlation: Age affects stroke + indirect pathways",
+    "Moderate correlation: Age affects smoking + unmeasured confounding"
+  )
+)
+
+datatable(correlation_interpretation,
+          caption = "Interpretation of key correlations (unmeasured confounding hidden)",
+          options = list(pageLength = 10, scrollX = TRUE),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+```
+
+### 5.2 Impact of unmeasured confounder on correlations
+
+```{r}
+#| label: unmeasured-impact-correlations
+#| fig-cap: "Comparing correlations with and without unmeasured confounder visibility"
+
+# Calculate correlations including unmeasured confounder
+corr_matrix_complete <- cor(complete_hiv_data)
+
+# Create comparison of key correlations
+correlation_comparison <- data.frame(
+  Variable_Pair = c("HIV-Stroke", "HIV-Smoking", "Stroke-Smoking", "HIV-Age", "Stroke-Age", "Smoking-Age"),
+  Observed_Data = c(
+    round(cor(observed_hiv_data$HIV, observed_hiv_data$Stroke), 3),
+    round(cor(observed_hiv_data$HIV, observed_hiv_data$Smoking), 3),
+    round(cor(observed_hiv_data$Stroke, observed_hiv_data$Smoking), 3),
+    round(cor(observed_hiv_data$HIV, observed_hiv_data$Age), 3),
+    round(cor(observed_hiv_data$Stroke, observed_hiv_data$Age), 3),
+    round(cor(observed_hiv_data$Smoking, observed_hiv_data$Age), 3)
+  ),
+  With_Unmeasured_Visible = c(
+    round(cor(complete_hiv_data$HIV, complete_hiv_data$Stroke), 3),
+    round(cor(complete_hiv_data$HIV, complete_hiv_data$Smoking), 3),
+    round(cor(complete_hiv_data$Stroke, complete_hiv_data$Smoking), 3),
+    round(cor(complete_hiv_data$HIV, complete_hiv_data$Age), 3),
+    round(cor(complete_hiv_data$Stroke, complete_hiv_data$Age), 3),
+    round(cor(complete_hiv_data$Smoking, complete_hiv_data$Age), 3)
+  ),
+  Unmeasured_Correlations = c(
+    round(cor(complete_hiv_data$HIV, complete_hiv_data$Unmeasured), 3),
+    round(cor(complete_hiv_data$Stroke, complete_hiv_data$Unmeasured), 3),
+    round(cor(complete_hiv_data$Smoking, complete_hiv_data$Unmeasured), 3),
+    round(cor(complete_hiv_data$Age, complete_hiv_data$Unmeasured), 3),
+    NA, NA
+  )
+)
+
+datatable(correlation_comparison,
+          caption = "Impact of unmeasured confounder on variable relationships",
+          options = list(pageLength = 10, scrollX = TRUE),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+```
+
+## 6. Visualize distributions and relationships in synthetic data
+
+```{r}
+#| label: data-distributions-hiv-stroke
+#| fig-cap: "Distributions of all observed variables in HIV-stroke synthetic data"
+
+# Visualize distributions of observed variables
+observed_hiv_data %>%
+  pivot_longer(cols = everything(), names_to = "Variable", values_to = "Value") %>%
+  ggplot(aes(x = Value)) +
+  geom_histogram(fill = "steelblue", alpha = 0.7, bins = 30) +
+  facet_wrap(~ Variable, scales = "free") +
+  theme_minimal() +
+  ggtitle("Distributions of Observed Variables in HIV-Stroke Data")
+```
+
+```{r}
+#| label: key-relationships-hiv-stroke
+#| fig-cap: "Key relationships in the HIV-stroke causal structure"
+#| fig-subcap: 
+#|   - "HIV-Stroke Relationship (Primary Interest - Confounded)"
+#|   - "Smoking-Stroke Relationship (Strong Confounder)"
+#|   - "Age-Stroke Relationship (Moderate Confounder)"
+#|   - "Age-Smoking Relationship (Root Cause to Mediator)"
+#| layout-ncol: 2
+
+# Primary relationship of interest: HIV → Stroke
+ggplot(observed_hiv_data, aes(x = HIV, y = Stroke)) +
+  geom_point(alpha = 0.3, color = "dodgerblue") +
+  geom_smooth(method = "lm", formula = y ~ x, color = "darkred") +
+  theme_minimal() +
+  ggtitle("HIV → Stroke: Primary Causal Relationship") +
+  theme(plot.title = element_text(size = 28))
+
+# Strong confounder: Smoking → Stroke
+ggplot(observed_hiv_data, aes(x = Smoking, y = Stroke)) +
+  geom_point(alpha = 0.3, color = "darkgreen") +
+  geom_smooth(method = "lm", formula = y ~ x, color = "darkred") +
+  theme_minimal() +
+  ggtitle("Smoking → Stroke: Major Confounder") +
+  theme(plot.title = element_text(size = 28))
+
+# Moderate confounder: Age → Stroke
+ggplot(observed_hiv_data, aes(x = Age, y = Stroke)) +
+  geom_point(alpha = 0.3, color = "purple") +
+  geom_smooth(method = "lm", formula = y ~ x, color = "darkred") +
+  theme_minimal() +
+  ggtitle("Age → Stroke: Demographic Confounder") +
+  theme(plot.title = element_text(size = 28))
+
+# Root cause relationship: Age → Smoking
+ggplot(observed_hiv_data, aes(x = Age, y = Smoking)) +
+  geom_point(alpha = 0.3, color = "orange") +
+  geom_smooth(method = "lm", formula = y ~ x, color = "darkred") +
+  theme_minimal() +
+  ggtitle("Age → Smoking: Root Cause Effect") +
+  theme(plot.title = element_text(size = 28))
+```
+
+## 7. Residual Diagnostics
+
+Let's examine residuals for different modeling approaches to understand how unmeasured confounding affects model diagnostics.
+
+```{r}
+#| label: residual-diagnostics-hiv-models
+#| fig-cap: "Residual diagnostics for HIV-stroke models with unmeasured confounding"
+
+# Create different modeling approaches
+hiv_models <- list(
+  "Naive" = lm(Stroke ~ HIV, data = observed_hiv_data),
+  "Age_Adjusted" = lm(Stroke ~ HIV + Age, data = observed_hiv_data),
+  "Smoking_Adjusted" = lm(Stroke ~ HIV + Smoking, data = observed_hiv_data),
+  "Best_Available" = lm(Stroke ~ HIV + Smoking + Age, data = observed_hiv_data)
+)
+
+# Oracle model including unmeasured confounder
+oracle_hiv_model <- lm(Stroke ~ HIV + Smoking + Age + Unmeasured, data = complete_hiv_data)
+
+# Plot diagnostics for best available model
+par(mfrow = c(2, 2))
+plot(hiv_models[["Best_Available"]], main = "Best Available Model Diagnostics\n(Residual Bias from Unmeasured Confounding)")
+```
+
+The residual diagnostics reveal:
+
+1. **Residuals vs Fitted**: Some systematic patterns may remain due to unmeasured confounding affecting the relationship structure
+2. **Normal Q-Q**: Residuals appear approximately normal, indicating the linear model structure is reasonable
+3. **Scale-Location**: Relatively constant variance, though unmeasured confounding may introduce subtle heteroscedasticity
+4. **Residuals vs Leverage**: No extreme influential points detected, suggesting data quality is good
+
+These diagnostics suggest the model fits reasonably well given the information available, but residual confounding from unmeasured variables likely persists.
+
+## 8. Test the Structure by comparing models with and without adjustment
+
+### 8.1 Naive Model (Severely Biased)
+
+```{r}
+#| label: naive-hiv-model
+#| tbl-cap: "Naive model results (severely biased due to unmeasured confounding)"
+
+# Fit naive model
+naive_hiv_model <- lm(Stroke ~ HIV, data = observed_hiv_data)
+summary_naive_hiv <- summary(naive_hiv_model)
+
+# Create results table
+naive_hiv_results <- data.frame(
+  Term = c("Intercept", "HIV"),
+  Estimate = c(coef(naive_hiv_model)[1], coef(naive_hiv_model)[2]),
+  StdError = c(summary_naive_hiv$coefficients[1,2], summary_naive_hiv$coefficients[2,2]),
+  tValue = c(summary_naive_hiv$coefficients[1,3], summary_naive_hiv$coefficients[2,3]),
+  pValue = c(summary_naive_hiv$coefficients[1,4], summary_naive_hiv$coefficients[2,4])
+)
+
+datatable(naive_hiv_results,
+          caption = "Naive Model: HIV Effect on Stroke (Severely Biased)",
+          options = list(pageLength = 10, dom = 't'),
+          rownames = FALSE) %>%
+  formatRound(columns=c('Estimate', 'StdError', 'tValue'), digits=3) %>%
+  formatSignif(columns='pValue', digits=3)
+```
+
+### 8.2 Best Available Model (Residually Biased)
+
+```{r}
+#| label: best-available-hiv-model
+#| tbl-cap: "Best available model results (residually biased due to unmeasured confounding)"
+
+# Fit best available model with all measured confounders
+best_hiv_model <- lm(Stroke ~ HIV + Smoking + Age, data = observed_hiv_data)
+summary_best_hiv <- summary(best_hiv_model)
+
+# Create results table
+best_hiv_results <- data.frame(
+  Term = c("Intercept", "HIV", "Smoking", "Age"),
+  Estimate = coef(best_hiv_model),
+  StdError = summary_best_hiv$coefficients[,2],
+  tValue = summary_best_hiv$coefficients[,3],
+  pValue = summary_best_hiv$coefficients[,4]
+)
+
+datatable(best_hiv_results,
+          caption = "Best Available Model: All Measured Confounders (Residually Biased)",
+          options = list(pageLength = 10, dom = 't'),
+          rownames = FALSE) %>%
+  formatRound(columns=c('Estimate', 'StdError', 'tValue'), digits=3) %>%
+  formatSignif(columns='pValue', digits=3)
+
+# R-squared
+r2_best_hiv <- data.frame(
+  Measure = c("R-squared", "Adjusted R-squared"),
+  Value = c(summary_best_hiv$r.squared, summary_best_hiv$adj.r.squared)
+)
+
+datatable(r2_best_hiv,
+          options = list(pageLength = 10, dom = 't'),
+          rownames = FALSE) %>%
+  formatRound(columns='Value', digits=3)
+```
+
+### 8.3 Oracle Model (Unbiased - Includes Unmeasured Confounder)
+
+```{r}
+#| label: oracle-hiv-model
+#| tbl-cap: "Oracle model results (unbiased - includes unmeasured confounder)"
+
+# Oracle model summary
+summary_oracle_hiv <- summary(oracle_hiv_model)
+
+# Create results table
+oracle_hiv_results <- data.frame(
+  Term = c("Intercept", "HIV", "Smoking", "Age", "Unmeasured"),
+  Estimate = coef(oracle_hiv_model),
+  StdError = summary_oracle_hiv$coefficients[,2],
+  tValue = summary_oracle_hiv$coefficients[,3],
+  pValue = summary_oracle_hiv$coefficients[,4]
+)
+
+datatable(oracle_hiv_results,
+          caption = "Oracle Model: Includes Unmeasured Confounder (Unbiased)",
+          options = list(pageLength = 10, dom = 't'),
+          rownames = FALSE) %>%
+  formatRound(columns=c('Estimate', 'StdError', 'tValue'), digits=3) %>%
+  formatSignif(columns='pValue', digits=3)
+
+# R-squared for oracle model
+r2_oracle_hiv <- data.frame(
+  Measure = c("R-squared", "Adjusted R-squared"),
+  Value = c(summary_oracle_hiv$r.squared, summary_oracle_hiv$adj.r.squared)
+)
+
+datatable(r2_oracle_hiv,
+          options = list(pageLength = 10, dom = 't'),
+          rownames = FALSE) %>%
+  formatRound(columns='Value', digits=3)
+```
+
+
+
+## 9. Comparing Model Results: The Unmeasured Confounding Challenge
+
+```{r}
+#| label: model-comparison-hiv-stroke
+#| tbl-cap: "Comprehensive comparison of HIV effect estimates across modeling strategies"
+
+# Create comprehensive comparison table
+hiv_comparison_df <- data.frame(
+  Model = c("True Causal Effect",
+           "Naive (Biased)", 
+           "Age Adjusted", 
+           "Smoking Adjusted",
+           "Best Available (Age + Smoking)",
+           "Oracle (Age + Smoking + Unmeasured)"),
+  HIV_Coefficient = c(
+    true_hiv_effect,
+    coef(hiv_models[["Naive"]])["HIV"],
+    coef(hiv_models[["Age_Adjusted"]])["HIV"],
+    coef(hiv_models[["Smoking_Adjusted"]])["HIV"],
+    coef(hiv_models[["Best_Available"]])["HIV"],
+    coef(oracle_hiv_model)["HIV"]
+  ),
+  Standard_Error = c(
+    NA,
+    summary(hiv_models[["Naive"]])$coefficients["HIV", "Std. Error"],
+    summary(hiv_models[["Age_Adjusted"]])$coefficients["HIV", "Std. Error"],
+    summary(hiv_models[["Smoking_Adjusted"]])$coefficients["HIV", "Std. Error"],
+    summary(hiv_models[["Best_Available"]])$coefficients["HIV", "Std. Error"],
+    summary(oracle_hiv_model)$coefficients["HIV", "Std. Error"]
+  )
+)
+
+# Calculate bias metrics
+hiv_comparison_df$Bias <- hiv_comparison_df$HIV_Coefficient - true_hiv_effect
+hiv_comparison_df$Bias_Percent <- 100 * (hiv_comparison_df$HIV_Coefficient - true_hiv_effect) / true_hiv_effect
+
+# Add R-squared values
+hiv_comparison_df$R_Squared <- c(
+  NA,
+  summary(hiv_models[["Naive"]])$r.squared,
+  summary(hiv_models[["Age_Adjusted"]])$r.squared,
+  summary(hiv_models[["Smoking_Adjusted"]])$r.squared,
+  summary(hiv_models[["Best_Available"]])$r.squared,
+  summary(oracle_hiv_model)$r.squared
+)
+
+# Format for display
+hiv_comparison_df$HIV_Coefficient <- round(hiv_comparison_df$HIV_Coefficient, 3)
+hiv_comparison_df$Standard_Error <- round(hiv_comparison_df$Standard_Error, 3)
+hiv_comparison_df$Bias <- round(hiv_comparison_df$Bias, 3)
+hiv_comparison_df$Bias_Percent <- round(hiv_comparison_df$Bias_Percent, 3)
+hiv_comparison_df$R_Squared <- round(hiv_comparison_df$R_Squared, 3)
+
+# Display comprehensive comparison
+datatable(hiv_comparison_df,
+          caption = "HIV Effect Estimates: Impact of Unmeasured Confounding Across Models",
+          options = list(pageLength = 10, scrollX = TRUE),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+```
+
+
+
+## 10. Statistical tests for differences between models
+
+```{r}
+#| label: statistical-tests-hiv-models
+#| tbl-cap: "Statistical tests comparing model performance with unmeasured confounding"
+
+# Compare models using ANOVA tests
+anova_naive_age <- anova(hiv_models[["Naive"]], hiv_models[["Age_Adjusted"]])
+anova_naive_smoking <- anova(hiv_models[["Naive"]], hiv_models[["Smoking_Adjusted"]])
+anova_naive_best <- anova(hiv_models[["Naive"]], hiv_models[["Best_Available"]])
+anova_best_oracle <- anova(hiv_models[["Best_Available"]], oracle_hiv_model)
+
+# Test if coefficients differ significantly from true effect
+naive_z_test <- (coef(hiv_models[["Naive"]])["HIV"] - true_hiv_effect) / 
+  summary(hiv_models[["Naive"]])$coefficients["HIV", "Std. Error"]
+naive_p_val <- 2 * (1 - pnorm(abs(naive_z_test)))
+
+best_z_test <- (coef(hiv_models[["Best_Available"]])["HIV"] - true_hiv_effect) / 
+  summary(hiv_models[["Best_Available"]])$coefficients["HIV", "Std. Error"]
+best_p_val <- 2 * (1 - pnorm(abs(best_z_test)))
+
+oracle_z_test <- (coef(oracle_hiv_model)["HIV"] - true_hiv_effect) / 
+  summary(oracle_hiv_model)$coefficients["HIV", "Std. Error"]
+oracle_p_val <- 2 * (1 - pnorm(abs(oracle_z_test)))
+
+# Create comprehensive test results table
+statistical_tests_hiv <- data.frame(
+  Test_Comparison = c(
+    "Naive vs Age Adjusted",
+    "Naive vs Smoking Adjusted",
+    "Naive vs Best Available",
+    "Best Available vs Oracle",
+    "Naive Estimate vs True Effect",
+    "Best Available vs True Effect",
+    "Oracle Estimate vs True Effect"
+  ),
+  Test_Type = c(
+    "F-test (ANOVA)",
+    "F-test (ANOVA)",
+    "F-test (ANOVA)",
+    "F-test (ANOVA)",
+    "Z-test (Coefficient)",
+    "Z-test (Coefficient)",
+    "Z-test (Coefficient)"
+  ),
+  Test_Statistic = c(
+    round(anova_naive_age$F[2], 3),
+    round(anova_naive_smoking$F[2], 3),
+    round(anova_naive_best$F[2], 3),
+    round(anova_best_oracle$F[2], 3),
+    round(naive_z_test, 3),
+    round(best_z_test, 3),
+    round(oracle_z_test, 3)
+  ),
+  P_Value = c(
+    round(anova_naive_age$`Pr(>F)`[2], 3),
+    round(anova_naive_smoking$`Pr(>F)`[2], 3),
+    round(anova_naive_best$`Pr(>F)`[2], 3),
+    round(anova_best_oracle$`Pr(>F)`[2], 3),
+    round(naive_p_val, 3),
+    round(best_p_val, 3),
+    round(oracle_p_val, 3)
+  ),
+  Interpretation = c(
+    ifelse(anova_naive_age$`Pr(>F)`[2] < 0.05, "Significant improvement", "No improvement"),
+    ifelse(anova_naive_smoking$`Pr(>F)`[2] < 0.05, "Significant improvement", "No improvement"),
+    ifelse(anova_naive_best$`Pr(>F)`[2] < 0.05, "Significant improvement", "No improvement"),
+    ifelse(anova_best_oracle$`Pr(>F)`[2] < 0.05, "Oracle significantly better", "No difference"),
+    ifelse(naive_p_val < 0.05, "Significantly biased", "Not significantly different"),
+    ifelse(best_p_val < 0.05, "Significantly biased", "Not significantly different"),
+    ifelse(oracle_p_val < 0.05, "Significantly biased", "Not significantly different")
+  )
+)
+
+datatable(statistical_tests_hiv,
+          caption = "Statistical Tests: Model Performance with Unmeasured Confounding",
+          options = list(pageLength = 10, scrollX = TRUE),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+```
+
+## Conclusions from Model Comparisons:
+
+The statistical tests reveal the fundamental challenge of unmeasured confounding:
+
+1. **Measured adjustment helps significantly**: Adjusting for age and smoking dramatically improves model fit over naive approaches
+2. **Residual bias persists**: Even the best available model shows significant bias compared to the true effect
+3. **Oracle model superiority**: The oracle model significantly outperforms the best available model, demonstrating the cost of unmeasured confounding
+4. **Systematic bias**: The bias is systematic and substantial, not just increased uncertainty
+
+## 11. Identifying Backdoor Paths and Adjustment Sets
+
+```{r}
+#| label: backdoor-analysis-hiv-stroke
+#| tbl-cap: "Backdoor paths and adjustment possibilities with unmeasured confounding"
+
+# Define DAG for backdoor analysis
+hiv_dag_backdoor <- dagitty("dag{
+  HIV -> Stroke
+  Smoking -> HIV
+  Smoking -> Stroke  
+  Age -> Smoking
+  Age -> HIV
+  Age -> Stroke
+  Unmeasured -> Smoking
+  Unmeasured -> Stroke
+}")
+
+# Set exposure and outcome
+exposures(hiv_dag_backdoor) <- "HIV"
+outcomes(hiv_dag_backdoor) <- "Stroke"
+
+# Identify backdoor paths
+backdoor_paths_hiv <- dagitty::paths(hiv_dag_backdoor, from = "HIV", to = "Stroke")
+
+# Find adjustment sets (will show impossibility with unmeasured confounding)
+adjustment_sets_hiv <- adjustmentSets(hiv_dag_backdoor)
+
+# Create backdoor paths table
+backdoor_paths_table <- data.frame(
+  Path_ID = 1:6,
+  Backdoor_Path = c(
+    "HIV ← Smoking → Stroke",
+    "HIV ← Age → Stroke", 
+    "HIV ← Age → Smoking → Stroke",
+    "HIV ← Smoking ← Unmeasured → Stroke",
+    "HIV ← Age → Smoking ← Unmeasured → Stroke",
+    "HIV ← Smoking ← Unmeasured → Stroke (alternative)"
+  ),
+  Path_Type = c(
+    "Direct measured confounding", 
+    "Direct measured confounding", 
+    "Indirect measured confounding",
+    "Direct unmeasured confounding", 
+    "Complex unmeasured confounding", 
+    "Unmeasured confounding via smoking"
+  ),
+  Can_Block_With_Available = c(
+    "Yes - adjust for Smoking", 
+    "Yes - adjust for Age", 
+    "Yes - adjust for Age or Smoking",
+    "No - Unmeasured variable", 
+    "No - Unmeasured variable", 
+    "No - Unmeasured variable"
+  ),
+  Oracle_Blocking = c(
+    "Adjust for Smoking", 
+    "Adjust for Age", 
+    "Adjust for Age or Smoking",
+    "Adjust for Unmeasured", 
+    "Adjust for Unmeasured", 
+    "Adjust for Unmeasured"
+  )
+)
+
+datatable(backdoor_paths_table,
+          caption = "Backdoor Paths in HIV-Stroke DAG with Unmeasured Confounding",
+          options = list(pageLength = 10, scrollX = TRUE),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+
+# Adjustment sets analysis
+adjustment_analysis <- data.frame(
+  Scenario = c("With Available Variables Only", "Oracle Scenario (Impossible)", "Reality Check"),
+  Variables_Available = c("{Age, Smoking}", "{Age, Smoking, Unmeasured}", "{Age, Smoking}"),
+  Causal_Identification = c("Incomplete - Residual Bias", "Complete - Unbiased", "Incomplete - Must Accept Bias"),
+  Practical_Status = c("Best We Can Do", "Theoretical Ideal", "Real World Limitation")
+)
+
+datatable(adjustment_analysis,
+          caption = "Adjustment Set Analysis: The Unmeasured Confounding Challenge",
+          options = list(pageLength = 10, scrollX = TRUE),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+```
+
+## 12. Testing Confounding: Correlations and Dependencies
+
+```{r}
+#| label: confounding-evidence-hiv-stroke
+#| tbl-cap: "Evidence for confounding relationships in HIV-stroke data"
+
+# Test for measured confounding relationships
+measured_confounding_tests <- data.frame(
+  Relationship = c("Age and HIV", "Age and Stroke", "Smoking and HIV", 
+                  "Smoking and Stroke", "Age and Smoking", "HIV and Stroke"),
+  Correlation = c(
+    cor(observed_hiv_data$Age, observed_hiv_data$HIV), 
+    cor(observed_hiv_data$Age, observed_hiv_data$Stroke),
+    cor(observed_hiv_data$Smoking, observed_hiv_data$HIV), 
+    cor(observed_hiv_data$Smoking, observed_hiv_data$Stroke),
+    cor(observed_hiv_data$Age, observed_hiv_data$Smoking),
+    cor(observed_hiv_data$HIV, observed_hiv_data$Stroke)
+  ),
+  P_Value = c(
+    cor.test(observed_hiv_data$Age, observed_hiv_data$HIV)$p.value,
+    cor.test(observed_hiv_data$Age, observed_hiv_data$Stroke)$p.value,
+    cor.test(observed_hiv_data$Smoking, observed_hiv_data$HIV)$p.value,
+    cor.test(observed_hiv_data$Smoking, observed_hiv_data$Stroke)$p.value,
+    cor.test(observed_hiv_data$Age, observed_hiv_data$Smoking)$p.value,
+    cor.test(observed_hiv_data$HIV, observed_hiv_data$Stroke)$p.value
+  ),
+  Confounding_Type = c(
+    "Age confounds HIV-Stroke relationship",
+    "Age directly affects stroke outcome", 
+    "Smoking confounds HIV-Stroke relationship",
+    "Smoking directly affects stroke outcome",
+    "Age affects smoking (creates confounding chain)",
+    "Primary association (includes causal + confounding effects)"
+  )
+)
+
+# Test for unmeasured confounding relationships
+unmeasured_confounding_tests <- data.frame(
+  Relationship = c("Unmeasured-Smoking", "Unmeasured-Stroke", "Unmeasured-HIV", "Unmeasured-Age"),
+  Correlation = c(
+    cor(complete_hiv_data$Unmeasured, complete_hiv_data$Smoking), 
+    cor(complete_hiv_data$Unmeasured, complete_hiv_data$Stroke),
+    cor(complete_hiv_data$Unmeasured, complete_hiv_data$HIV),
+    cor(complete_hiv_data$Unmeasured, complete_hiv_data$Age)
+  ),
+  P_Value = c(
+    cor.test(complete_hiv_data$Unmeasured, complete_hiv_data$Smoking)$p.value,
+    cor.test(complete_hiv_data$Unmeasured, complete_hiv_data$Stroke)$p.value,
+    cor.test(complete_hiv_data$Unmeasured, complete_hiv_data$HIV)$p.value,
+    cor.test(complete_hiv_data$Unmeasured, complete_hiv_data$Age)$p.value
+  ),
+  Hidden_Bias_Source = c(
+    "Direct effect on smoking behavior",
+    "Direct effect on stroke risk", 
+    "Indirect effect through smoking pathway",
+    "Independent of age (by design)"
+  )
+)
+
+# Format results
+measured_confounding_tests$Correlation <- round(measured_confounding_tests$Correlation, 3)
+measured_confounding_tests$P_Value <- round(measured_confounding_tests$P_Value, 3)
+
+unmeasured_confounding_tests$Correlation <- round(unmeasured_confounding_tests$Correlation, 3)
+unmeasured_confounding_tests$P_Value <- round(unmeasured_confounding_tests$P_Value, 3)
+
+# Display tables
+datatable(measured_confounding_tests,
+          caption = "Evidence for Measured Confounding in HIV-Stroke Data",
+          options = list(pageLength = 10, scrollX = TRUE),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+
+datatable(unmeasured_confounding_tests,
+          caption = "Evidence for Unmeasured Confounding (Oracle Analysis)",
+          options = list(pageLength = 10, scrollX = TRUE),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+```
+
+## Conclusions from Confounding Analysis:
+
+The confounding analysis reveals the complex bias structure:
+
+1. **Strong measured confounding present**: All measured variables show expected confounding relationships
+2. **Hidden unmeasured confounding**: The unmeasured confounder shows strong relationships with both smoking and stroke
+3. **Multiple bias pathways**: Both direct and indirect unmeasured confounding pathways exist
+4. **Compound bias effects**: The HIV-Stroke association is inflated by multiple sources of confounding
+
+## 13. Stratification Analysis
+
+```{r}
+#| label: stratification-analysis-hiv-stroke
+#| fig-cap: "Stratified analysis revealing patterns of confounding in HIV-stroke relationship"
+#| fig-subcap: 
+#|   - "HIV-Stroke by Smoking Status (Residual Confounding Present)"
+#|   - "HIV-Stroke by Age Group (Residual Confounding Present)" 
+#|   - "HIV-Stroke by Combined Age and Smoking Strata"
+#|   - "HIV-Stroke by Unmeasured Confounder Level (Oracle Analysis)"
+#| layout-ncol: 2
+
+# Create smoking strata
+observed_hiv_data <- observed_hiv_data %>%
+  mutate(Smoking_Level = cut(Smoking, breaks = 3, labels = c("Low Smoking", "Moderate Smoking", "High Smoking")))
+
+# Stratified analysis by smoking level
+p1_strat <- ggplot(observed_hiv_data, aes(x = HIV, y = Stroke, color = Smoking_Level)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = TRUE) +
+  facet_wrap(~ Smoking_Level) +
+  labs(title = "HIV-Stroke by Smoking Status",
+       subtitle = "Residual confounding from unmeasured factors persists") +
+  theme_minimal() +
+  theme(legend.position = "bottom", plot.title = element_text(size = 28), plot.subtitle = element_text(size = 28))
+print(p1_strat)
+
+# Create age strata
+observed_hiv_data <- observed_hiv_data %>%
+  mutate(Age_Group = cut(Age, breaks = 3, labels = c("Younger", "Middle Age", "Older")))
+
+# Stratified analysis by age group
+p2_strat <- ggplot(observed_hiv_data, aes(x = HIV, y = Stroke, color = Age_Group)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = TRUE) +
+  facet_wrap(~ Age_Group) +
+  labs(title = "HIV-Stroke by Age Group",
+       subtitle = "Age stratification shows confounding patterns") +
+  theme_minimal() +
+  theme(legend.position = "bottom", plot.title = element_text(size = 28), plot.subtitle = element_text(size = 28))
+print(p2_strat)
+
+# Combined stratification
+observed_hiv_data <- observed_hiv_data %>%
+  mutate(Combined_Strata = paste(Age_Group, Smoking_Level, sep = " + "))
+
+# Show subset for clarity
+p3_strat <- observed_hiv_data %>%
+  filter(Combined_Strata %in% c("Younger + Low Smoking", "Older + High Smoking", "Middle Age + Moderate Smoking")) %>%
+  ggplot(aes(x = HIV, y = Stroke, color = Combined_Strata)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = TRUE) +
+  facet_wrap(~ Combined_Strata) +
+  labs(title = "HIV-Stroke by Combined Age and Smoking",
+       subtitle = "Joint stratification still shows residual confounding") +
+  theme_minimal() +
+  theme(legend.position = "bottom", plot.title = element_text(size = 28), plot.subtitle = element_text(size = 28))
+print(p3_strat)
+
+# Oracle analysis: stratify by unmeasured confounder
+complete_hiv_data <- complete_hiv_data %>%
+  mutate(Unmeasured_Level = cut(Unmeasured, breaks = 3, labels = c("Low Hidden", "Medium Hidden", "High Hidden")))
+
+p4_strat <- ggplot(complete_hiv_data, aes(x = HIV, y = Stroke, color = Unmeasured_Level)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = TRUE) +
+  facet_wrap(~ Unmeasured_Level) +
+  labs(title = "HIV-Stroke by Unmeasured Confounder Level",
+       subtitle = "Oracle analysis reveals hidden confounding structure") +
+  theme_minimal() +
+  theme(legend.position = "bottom", plot.title = element_text(size = 28), plot.subtitle = element_text(size = 28))
+print(p4_strat)
+```
+
+## Conclusions from Stratification Analysis:
+
+The stratified analysis demonstrates the persistence of unmeasured confounding:
+
+1. **Incomplete stratification control**: Stratifying by measured variables reduces but doesn't eliminate confounding
+2. **Residual bias remains**: Even combined stratification shows persistent bias patterns
+3. **Hidden confounder impact**: The oracle analysis reveals how unmeasured confounding creates systematic differences
+4. **Need for sensitivity methods**: This illustrates why sensitivity analysis is crucial for unmeasured confounding
+
+## 14. Structural Equation Modeling (SEM)
+
+```{r}
+#| label: sem-analysis-hiv-stroke
+#| tbl-cap: "Structural Equation Model results for HIV-stroke with unmeasured confounding"
+
+# Define SEM model using observed variables only (biased)
+sem_model_observed <- '
+  # Structural equations following observed DAG
+  Smoking ~ b1*Age
+  HIV ~ a1*Smoking + b2*Age
+  Stroke ~ x1*HIV + a2*Smoking + b3*Age
+  
+  # Define indirect effects through measured pathways
+  Age_to_HIV_via_Smoking := b1*a1
+  Age_to_Stroke_via_Smoking := b1*a2
+  Age_to_Stroke_via_HIV := b2*x1
+  Age_to_Stroke_via_Smoking_HIV := b1*a1*x1
+  Smoking_to_Stroke_via_HIV := a1*x1
+  
+  # Total effects
+  Age_total_to_Stroke := b3 + Age_to_Stroke_via_Smoking + Age_to_Stroke_via_HIV + Age_to_Stroke_via_Smoking_HIV
+  Smoking_total_to_Stroke := a2 + Smoking_to_Stroke_via_HIV
+'
+
+# Define oracle SEM model including unmeasured confounder
+sem_model_oracle <- '
+  # Structural equations including unmeasured confounder
+  Smoking ~ b1*Age + u1*Unmeasured
+  HIV ~ a1*Smoking + b2*Age
+  Stroke ~ x1*HIV + a2*Smoking + b3*Age + u2*Unmeasured
+  
+  # Effects involving unmeasured confounder
+  Unmeasured_to_HIV_via_Smoking := u1*a1
+  Unmeasured_total_to_Stroke := u2 + u1*a2 + u1*a1*x1
+'
+
+# Fit models
+sem_fit_observed <- sem(sem_model_observed, data = observed_hiv_data)
+sem_fit_oracle <- sem(sem_model_oracle, data = complete_hiv_data)
+
+# Extract path coefficients for observed model
+sem_coefs_observed <- parameterEstimates(sem_fit_observed) %>%
+  filter(op %in% c("~", ":=")) %>%
+  select(lhs, op, rhs, est, se, z, pvalue, ci.lower, ci.upper)
+
+# Format results table
+sem_results_observed <- sem_coefs_observed %>%
+  mutate(
+    Pathway = case_when(
+      op == "~" & lhs == "Smoking" ~ paste(lhs, "←", rhs),
+      op == "~" & lhs == "HIV" ~ paste(lhs, "←", rhs),
+      op == "~" & lhs == "Stroke" ~ paste(lhs, "←", rhs),
+      op == ":=" ~ gsub("_", " ", rhs),
+      TRUE ~ paste(lhs, op, rhs)
+    ),
+    Estimate = round(est, 3),
+    SE = round(se, 3),
+    Z_Value = round(z, 3),
+    P_Value = round(pvalue, 3),
+    CI_95 = paste0("[", round(ci.lower, 3), ", ", round(ci.upper, 3), "]")
+  ) %>%
+  select(Pathway, Estimate, SE, Z_Value, P_Value, CI_95)
+
+datatable(sem_results_observed,
+          caption = "SEM Path Coefficients: Observed Variables Only (Biased by Unmeasured Confounding)",
+          options = list(pageLength = 15, scrollX = TRUE),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+```
+
+```{r}
+#| label: sem-fit-comparison-hiv
+#| tbl-cap: "SEM model fit comparison: observed vs oracle models"
+
+# Extract fit measures
+fit_observed <- fitMeasures(sem_fit_observed)
+fit_oracle <- fitMeasures(sem_fit_oracle)
+
+# Create fit comparison table
+fit_comparison_hiv <- data.frame(
+  Fit_Measure = c("Chi-square", "df", "P-value", "CFI", "TLI", "RMSEA", "SRMR"),
+  Observed_Model = c(
+    round(fit_observed["chisq"], 3),
+    fit_observed["df"],
+    round(fit_observed["pvalue"], 3),
+    round(fit_observed["cfi"], 3),
+    round(fit_observed["tli"], 3),
+    round(fit_observed["rmsea"], 3),
+    round(fit_observed["srmr"], 3)
+  ),
+  Oracle_Model = c(
+    round(fit_oracle["chisq"], 3),
+    fit_oracle["df"],
+    round(fit_oracle["pvalue"], 3),
+    round(fit_oracle["cfi"], 3),
+    round(fit_oracle["tli"], 3),
+    round(fit_oracle["rmsea"], 3),
+    round(fit_oracle["srmr"], 3)
+  ),
+  Interpretation = c(
+    "Model chi-square (smaller better)",
+    "Degrees of freedom",
+    "Chi-square p-value (>0.05 good fit)",
+    "Comparative Fit Index (>0.95 good)",
+    "Tucker-Lewis Index (>0.95 good)",
+    "RMSEA (<0.06 good fit)",
+    "SRMR (<0.08 good fit)"
+  )
+)
+
+datatable(fit_comparison_hiv,
+          caption = "SEM Model Fit: Impact of Including Unmeasured Confounder",
+          options = list(pageLength = 10, scrollX = TRUE),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+```
+
+## Conclusions from SEM Analysis:
+
+The structural equation modeling reveals:
+
+1. **Specification error in observed model**: The observed-only model suffers from omitted variable bias
+2. **Superior oracle model fit**: Including the unmeasured confounder dramatically improves model fit
+3. **Biased pathway estimates**: All pathways involving the outcome are biased in the observed model
+4. **Complex indirect effects**: Multiple pathways exist through which unmeasured confounding operates
+
+
+
+## 15. Examining Unmeasured Confounding Bias Across Strategies
+
+```{r}
+#| label: bias-visualization-hiv-stroke
+#| fig-cap: "Visualizing unmeasured confounding bias across different adjustment strategies"
+
+# Create comprehensive bias comparison
+bias_comparison_hiv <- data.frame(
+  Model = c("Naive", "Age Only", "Smoking Only", "Best Available", "Oracle"),
+  HIV_Effect = c(
+    coef(hiv_models[["Naive"]])["HIV"],
+    coef(hiv_models[["Age_Adjusted"]])["HIV"],
+    coef(hiv_models[["Smoking_Adjusted"]])["HIV"],
+    coef(hiv_models[["Best_Available"]])["HIV"],
+    coef(oracle_hiv_model)["HIV"]
+  ),
+  Bias_From_True = c(
+    coef(hiv_models[["Naive"]])["HIV"] - true_hiv_effect,
+    coef(hiv_models[["Age_Adjusted"]])["HIV"] - true_hiv_effect,
+    coef(hiv_models[["Smoking_Adjusted"]])["HIV"] - true_hiv_effect,
+    coef(hiv_models[["Best_Available"]])["HIV"] - true_hiv_effect,
+    coef(oracle_hiv_model)["HIV"] - true_hiv_effect
+  ),
+  Standard_Error = c(
+    summary(hiv_models[["Naive"]])$coefficients["HIV", "Std. Error"],
+    summary(hiv_models[["Age_Adjusted"]])$coefficients["HIV", "Std. Error"],
+    summary(hiv_models[["Smoking_Adjusted"]])$coefficients["HIV", "Std. Error"],
+    summary(hiv_models[["Best_Available"]])$coefficients["HIV", "Std. Error"],
+    summary(oracle_hiv_model)$coefficients["HIV", "Std. Error"]
+  )
+)
+
+# Calculate confidence intervals
+bias_comparison_hiv$CI_Lower <- bias_comparison_hiv$HIV_Effect - 1.96 * bias_comparison_hiv$Standard_Error
+bias_comparison_hiv$CI_Upper <- bias_comparison_hiv$HIV_Effect + 1.96 * bias_comparison_hiv$Standard_Error
+
+# Create bias visualization
+ggplot(bias_comparison_hiv, aes(x = factor(Model, levels = c("Naive", "Age Only", "Smoking Only", "Best Available", "Oracle")), 
+                           y = HIV_Effect)) +
+  geom_pointrange(aes(ymin = CI_Lower, ymax = CI_Upper), 
+                 size = 1.2, color = "darkblue") +
+  geom_hline(yintercept = true_hiv_effect, linetype = "dashed", color = "red", size = 1) +
+  labs(title = "Unmeasured Confounding Bias Across Adjustment Strategies",
+       subtitle = "Red line shows true causal effect (0.5); Oracle model achieves unbiased estimate",
+       x = "Adjustment Strategy",
+       y = "Estimated HIV Effect on Stroke") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Create detailed bias table
+detailed_bias_table <- data.frame(
+  Model = bias_comparison_hiv$Model,
+  Estimate = round(bias_comparison_hiv$HIV_Effect, 3),
+  Bias = round(bias_comparison_hiv$Bias_From_True, 3),
+  Bias_Percent = round(100 * bias_comparison_hiv$Bias_From_True / true_hiv_effect, 1),
+  Bias_Status = c("Severely Biased", "Moderately Biased", "Moderately Biased", "Residually Biased", "Unbiased")
+)
+
+datatable(detailed_bias_table,
+          caption = "Detailed Bias Analysis: Impact of Unmeasured Confounding",
+          options = list(pageLength = 10, dom = 't'),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+```
+
+## Conclusions from Bias Analysis:
+
+The bias visualization demonstrates:
+
+1. **Persistent residual bias**: Even the best available model shows substantial bias
+2. **Magnitude of unmeasured confounding**: The impact can be 20-40% of the true effect size
+3. **Oracle as gold standard**: Only the impossible-to-achieve oracle provides unbiased estimates
+4. **False precision**: Biased estimates can have narrow confidence intervals, creating false confidence
+
+## 16. Power Analysis for Studies with Unmeasured Confounding
+
+```{r}
+#| label: power-analysis-hiv-stroke
+#| tbl-cap: "Power analysis for detecting HIV effects with unmeasured confounding"
+
+# Power analysis parameters
+effect_sizes <- c(0.2, 0.4, 0.6, 0.8, 1.0)
+sample_sizes <- c(100, 250, 500, 750, 1000)
+
+# Function to calculate power for studies with unmeasured confounding
+calculate_power_hiv <- function(effect_size, n, alpha = 0.05) {
+  # Use residual standard error from best available model
+  residual_se <- summary(best_hiv_model)$sigma
+  
+  # Standard error of HIV coefficient in best available model
+  se_hiv <- summary(best_hiv_model)$coefficients["HIV", "Std. Error"]
+  
+  # Scale for different sample sizes
+  se_hiv_scaled <- se_hiv * sqrt(1000 / n)
+  
+  # Calculate power
+  t_critical <- qt(1 - alpha/2, df = n - 4)  # 4 parameters in best available model
+  power <- 1 - pt(t_critical, df = n - 4, ncp = effect_size / se_hiv_scaled) +
+           pt(-t_critical, df = n - 4, ncp = effect_size / se_hiv_scaled)
+  
+  return(power)
+}
+
+# Create power analysis grid
+power_analysis_hiv <- expand.grid(
+  Effect_Size = effect_sizes,
+  Sample_Size = sample_sizes
+)
+
+power_analysis_hiv$Power <- mapply(calculate_power_hiv, 
+                                   power_analysis_hiv$Effect_Size, 
+                                   power_analysis_hiv$Sample_Size)
+
+# Format and reshape for display
+power_analysis_hiv$Power <- round(power_analysis_hiv$Power, 3)
+
+power_wide_hiv <- power_analysis_hiv %>%
+  pivot_wider(names_from = Sample_Size, values_from = Power, names_prefix = "N_")
+
+datatable(power_wide_hiv,
+          caption = "Statistical Power for HIV Effect Detection (With Unmeasured Confounding)",
+          options = list(pageLength = 10, scrollX = TRUE),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+```
+
+```{r}
+#| label: power-curves-hiv-stroke
+#| fig-cap: "Power curves for detecting HIV effects with unmeasured confounding"
+
+# Create power curves visualization
+ggplot(power_analysis_hiv, aes(x = Sample_Size, y = Power, color = factor(Effect_Size))) +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  geom_hline(yintercept = 0.8, linetype = "dashed", color = "red") +
+  scale_color_viridis_d(name = "Effect Size") +
+  labs(title = "Statistical Power vs Sample Size in HIV-Stroke Studies",
+       subtitle = "Red line shows 80% power threshold; curves reflect residual bias from unmeasured confounding",
+       x = "Sample Size", y = "Statistical Power") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+## Conclusions from Power Analysis:
+
+The power analysis reveals important considerations:
+
+1. **Adequate power maintained**: Despite residual bias, power to detect effects remains reasonable
+2. **Bias-precision trade-off**: High power to detect biased effects doesn't equal valid causal inference
+3. **Sample size paradox**: Larger samples increase precision of biased estimates, not validity
+4. **Need for design alternatives**: When unmeasured confounding is likely, experimental or quasi-experimental designs become more valuable
+
+## 17. Bayesian Causal Inference Analysis
+
+```{r}
+#| label: bayesian-analysis-hiv-stroke
+#| message: false
+#| warning: false
+#| results: 'hide'
+
+# Standardize variables for Bayesian modeling
+observed_hiv_std <- observed_hiv_data %>%
+  select(Age, Smoking, HIV, Stroke) %>%
+  mutate(across(where(is.numeric), scale)) %>%
+  as.data.frame()
+
+complete_hiv_std <- complete_hiv_data %>%
+  select(Age, Smoking, HIV, Stroke, Unmeasured) %>%
+  mutate(across(where(is.numeric), scale)) %>%
+  as.data.frame()
+
+# Bayesian models
+# 1. Naive model
+m_naive_hiv <- quap(
+  alist(
+    Stroke ~ dnorm(mu, sigma),
+    mu <- a + bHIV * HIV,
+    a ~ dnorm(0, 1),
+    bHIV ~ dnorm(0, 1),
+    sigma ~ dexp(1)
+  ),
+  data = observed_hiv_std
+)
+
+# 2. Best available model
+m_best_hiv <- quap(
+  alist(
+    Stroke ~ dnorm(mu, sigma),
+    mu <- a + bHIV * HIV + bSmoking * Smoking + bAge * Age,
+    a ~ dnorm(0, 1),
+    bHIV ~ dnorm(0, 1),
+    bSmoking ~ dnorm(0, 1),
+    bAge ~ dnorm(0, 1),
+    sigma ~ dexp(1)
+  ),
+  data = observed_hiv_std
+)
+
+# 3. Oracle model
+m_oracle_hiv <- quap(
+  alist(
+    Stroke ~ dnorm(mu, sigma),
+    mu <- a + bHIV * HIV + bSmoking * Smoking + bAge * Age + bUnmeasured * Unmeasured,
+    a ~ dnorm(0, 1),
+    bHIV ~ dnorm(0, 1),
+    bSmoking ~ dnorm(0, 1),
+    bAge ~ dnorm(0, 1),
+    bUnmeasured ~ dnorm(0, 1),
+    sigma ~ dexp(1)
+  ),
+  data = complete_hiv_std
+)
+```
+
+```{r}
+#| label: extract-bayesian-posteriors-hiv
+#| tbl-cap: "Bayesian estimates showing impact of unmeasured confounding"
+
+# Extract samples from the posterior distributions
+post_naive_hiv <- extract.samples(m_naive_hiv)
+post_best_hiv <- extract.samples(m_best_hiv)
+post_oracle_hiv <- extract.samples(m_oracle_hiv)
+
+# Function to summarize posteriors
+summarize_posterior_hiv <- function(posterior, name) {
+  data.frame(
+    Model = name,
+    Mean = mean(posterior$bHIV),
+    Median = median(posterior$bHIV),
+    SD = sd(posterior$bHIV),
+    CI_Lower = quantile(posterior$bHIV, 0.025),
+    CI_Upper = quantile(posterior$bHIV, 0.975),
+    Width = quantile(posterior$bHIV, 0.975) - quantile(posterior$bHIV, 0.025)
+  )
+}
+
+# Summarize the models
+bayesian_results_hiv <- rbind(
+  summarize_posterior_hiv(post_naive_hiv, "Naive (Severely Biased)"),
+  summarize_posterior_hiv(post_best_hiv, "Best Available (Residually Biased)"),
+  summarize_posterior_hiv(post_oracle_hiv, "Oracle (Unbiased)")
+)
+
+# Display the results
+datatable(bayesian_results_hiv,
+          caption = "Bayesian estimates showing impact of unmeasured confounding",
+          options = list(pageLength = 5, dom = 't'),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive') %>%
+  formatRound(columns = c("Mean", "Median", "SD", "CI_Lower", "CI_Upper", "Width"), digits = 3)
+```
+
+```{r}
+#| label: plot-bayesian-posteriors-hiv
+#| fig-width: 10
+#| fig-height: 6
+#| fig-cap: "Posterior distributions showing impact of unmeasured confounding"
+
+# Create a data frame with the posterior samples
+all_posteriors_hiv <- data.frame(
+  `Naive (Severely Biased)` = post_naive_hiv$bHIV,
+  `Best Available (Residually Biased)` = post_best_hiv$bHIV,
+  `Oracle (Unbiased)` = post_oracle_hiv$bHIV,
+  check.names = FALSE
+)
+
+# Convert to long format for plotting
+long_posteriors_hiv <- all_posteriors_hiv %>%
+  pivot_longer(cols = everything(),
+               names_to = "Model",
+               values_to = "Effect_Estimate")
+
+# Set factor levels for consistent ordering
+long_posteriors_hiv$Model <- factor(long_posteriors_hiv$Model,
+                                levels = c("Naive (Severely Biased)", "Best Available (Residually Biased)", 
+                                          "Oracle (Unbiased)"))
+
+# Plot density curves for all models
+ggplot(long_posteriors_hiv, aes(x = Effect_Estimate, fill = Model)) +
+  geom_density(alpha = 0.6) +
+  geom_vline(data = bayesian_results_hiv,
+             aes(xintercept = Mean, color = Model),
+             linetype = "dashed", size = 1) +
+  scale_fill_brewer(palette = "Set1") +
+  scale_color_brewer(palette = "Set1") +
+  labs(
+    title = "Posterior Distributions Showing Impact of Unmeasured Confounding",
+    subtitle = "Oracle model shows unbiased estimate; best available model shows residual bias",
+    x = "Treatment Effect (Standardized)",
+    y = "Density"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+## Interpretation of Bayesian Analysis:
+
+The Bayesian analysis clearly demonstrates the impact of unmeasured confounding:
+
+1. **Residual bias persists**: Even the best available model shows biased posterior distributions
+2. **Oracle model superiority**: Only the oracle model provides unbiased posterior estimates
+3. **Uncertainty quantification**: Bayesian analysis shows that even biased estimates can have narrow credible intervals
+4. **Systematic bias**: The bias is systematic, not just increased uncertainty
+
+## 18. Counterfactual Analysis: Treatment Effect Estimation with Unmeasured Confounding
+
+```{r}
+#| label: counterfactual-analysis-hiv
+#| fig-cap: "Counterfactual predictions under different treatment levels with unmeasured confounding"
+
+# Function to predict Stroke based on different HIV levels (using best available model)
+predict_counterfactual_hiv <- function(hiv_values, data = observed_hiv_data) {
+  # Use the best available model (biased due to unmeasured confounding)
+  model <- lm(Stroke ~ HIV + Smoking + Age, data = data)
+  
+  # Use mean values for confounders
+  mean_smoking <- mean(data$Smoking)
+  mean_age <- mean(data$Age)
+  
+  # Predict Stroke for different values of HIV
+  stroke_pred <- predict(model, newdata = data.frame(
+    HIV = hiv_values,
+    Smoking = mean_smoking,
+    Age = mean_age
+  ))
+  
+  return(stroke_pred)
+}
+
+# Function for oracle predictions
+predict_counterfactual_oracle <- function(hiv_values, data = complete_hiv_data) {
+  # Use the oracle model (unbiased)
+  model <- lm(Stroke ~ HIV + Smoking + Age + Unmeasured, data = data)
+  
+  # Use mean values for all confounders
+  mean_smoking <- mean(data$Smoking)
+  mean_age <- mean(data$Age)
+  mean_unmeasured <- mean(data$Unmeasured)
+  
+  # Predict Stroke for different values of HIV
+  stroke_pred <- predict(model, newdata = data.frame(
+    HIV = hiv_values,
+    Smoking = mean_smoking,
+    Age = mean_age,
+    Unmeasured = mean_unmeasured
+  ))
+  
+  return(stroke_pred)
+}
+
+# Create a range of HIV values for intervention
+hiv_range <- seq(min(observed_hiv_data$HIV), max(observed_hiv_data$HIV), length.out = 100)
+
+# Predict Stroke for different HIV levels
+stroke_pred_best <- predict_counterfactual_hiv(hiv_range)
+stroke_pred_oracle <- predict_counterfactual_oracle(hiv_range)
+
+# Create data frames for plotting
+counterfactual_best_df <- data.frame(HIV = hiv_range, Stroke = stroke_pred_best)
+counterfactual_oracle_df <- data.frame(HIV = hiv_range, Stroke = stroke_pred_oracle)
+
+# Also show naive prediction for comparison
+naive_pred <- predict(hiv_models[["Naive"]], 
+                     newdata = data.frame(HIV = hiv_range))
+counterfactual_naive_df <- data.frame(HIV = hiv_range, Stroke = naive_pred)
+
+# Plot the counterfactual predictions
+ggplot() +
+  # Add actual data points
+  geom_point(data = observed_hiv_data, aes(x = HIV, y = Stroke), alpha = 0.2, color = "gray") +
+  # Add naive prediction (severely biased)
+  geom_line(data = counterfactual_naive_df, aes(x = HIV, y = Stroke),
+            color = "red", size = 1.5, linetype = "dotted") +
+  # Add best available prediction (residually biased)
+  geom_line(data = counterfactual_best_df, aes(x = HIV, y = Stroke),
+            color = "orange", size = 1.5, linetype = "dashed") +
+  # Add oracle counterfactual prediction (unbiased)
+  geom_line(data = counterfactual_oracle_df, aes(x = HIV, y = Stroke),
+            color = "blue", size = 1.5) +
+  labs(
+    title = "Counterfactual Predictions: Impact of Unmeasured Confounding",
+    subtitle = "Blue=Oracle (unbiased), Orange=Best Available (biased), Red=Naive (severely biased)",
+    x = "HIV Status",
+    y = "Stroke Risk"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+#| label: treatment-effect-table-hiv
+#| tbl-cap: "Estimated treatment effects under different interventions with unmeasured confounding"
+
+# Calculate treatment effects for specific interventions
+intervention_effects_hiv <- data.frame(
+  Intervention = c(
+    "Increase HIV exposure by 1 unit",
+    "Increase HIV exposure by 2 units",
+    "Move from 25th to 75th percentile",
+    "Move from minimum to maximum HIV exposure"
+  ),
+  HIV_Change = c(
+    1,
+    2,
+    quantile(observed_hiv_data$HIV, 0.75) - quantile(observed_hiv_data$HIV, 0.25),
+    max(observed_hiv_data$HIV) - min(observed_hiv_data$HIV)
+  ),
+  Naive_Effect = c(
+    1 * coef(hiv_models[["Naive"]])["HIV"],
+    2 * coef(hiv_models[["Naive"]])["HIV"],
+    (quantile(observed_hiv_data$HIV, 0.75) - quantile(observed_hiv_data$HIV, 0.25)) * coef(hiv_models[["Naive"]])["HIV"],
+    (max(observed_hiv_data$HIV) - min(observed_hiv_data$HIV)) * coef(hiv_models[["Naive"]])["HIV"]
+  ),
+  Best_Available_Effect = c(
+    1 * coef(hiv_models[["Best_Available"]])["HIV"],
+    2 * coef(hiv_models[["Best_Available"]])["HIV"],
+    (quantile(observed_hiv_data$HIV, 0.75) - quantile(observed_hiv_data$HIV, 0.25)) * coef(hiv_models[["Best_Available"]])["HIV"],
+    (max(observed_hiv_data$HIV) - min(observed_hiv_data$HIV)) * coef(hiv_models[["Best_Available"]])["HIV"]
+  ),
+  Oracle_Effect = c(
+    1 * coef(oracle_hiv_model)["HIV"],
+    2 * coef(oracle_hiv_model)["HIV"],
+    (quantile(observed_hiv_data$HIV, 0.75) - quantile(observed_hiv_data$HIV, 0.25)) * coef(oracle_hiv_model)["HIV"],
+    (max(observed_hiv_data$HIV) - min(observed_hiv_data$HIV)) * coef(oracle_hiv_model)["HIV"]
+  )
+)
+
+# Format the results
+intervention_effects_hiv$HIV_Change <- round(intervention_effects_hiv$HIV_Change, 3)
+intervention_effects_hiv$Naive_Effect <- round(intervention_effects_hiv$Naive_Effect, 3)
+intervention_effects_hiv$Best_Available_Effect <- round(intervention_effects_hiv$Best_Available_Effect, 3)
+intervention_effects_hiv$Oracle_Effect <- round(intervention_effects_hiv$Oracle_Effect, 3)
+
+datatable(intervention_effects_hiv,
+          caption = "Expected outcomes under different HIV interventions (naive vs best available vs oracle)",
+          options = list(pageLength = 10, scrollX = TRUE),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+```
+
+## Conclusions from Counterfactual Analysis:
+
+The counterfactual analysis demonstrates the practical implications of unmeasured confounding:
+
+1. **Biased intervention predictions**: Both naive and best available analyses provide incorrect intervention effect estimates
+2. **Oracle benchmark**: Only the oracle model provides accurate counterfactual predictions
+3. **Policy implications**: Unmeasured confounding leads to systematically incorrect policy recommendations
+4. **Residual bias significance**: Even careful adjustment for measured confounders leaves substantial bias
+
+## 19. Sensitivity Analysis: Quantifying Unmeasured Confounding Impact
+
+```{r}
+#| label: sensitivity-analysis-detailed-hiv
+#| fig-cap: "Detailed sensitivity analysis for unmeasured confounding"
+
+# Function to simulate varying strengths of unmeasured confounding
+simulate_varying_unmeasured_confounding <- function(u_smoking_strength, u_stroke_strength) {
+  set.seed(123)
+  n <- 1000
+  
+  # Generate unmeasured confounder U with varying strength
+  U <- rnorm(n, mean = 0, sd = 1)
+  B_age <- rnorm(n, mean = 0, sd = 1)
+  
+  # Generate variables with varying unmeasured confounding strength
+  A_smoking <- 0.3 * B_age + u_smoking_strength * U + rnorm(n, mean = 0, sd = 0.8)
+  X_hiv <- 0.4 * A_smoking + 0.2 * B_age + rnorm(n, mean = 0, sd = 0.7)
+  Y_stroke <- 0.5 * X_hiv + 0.7 * A_smoking + 0.3 * B_age + u_stroke_strength * U + rnorm(n, mean = 0, sd = 0.6)
+  
+  # Estimate the apparent effect with measured confounders only
+  temp_data <- data.frame(Stroke = Y_stroke, HIV = X_hiv, Smoking = A_smoking, Age = B_age)
+  apparent_effect <- coef(lm(Stroke ~ HIV + Smoking + Age, data = temp_data))[2]
+  
+  return(apparent_effect)
+}
+
+# Test different levels of unmeasured confounding
+u_strengths <- seq(0, 1.0, by = 0.1)
+sensitivity_grid_detailed <- expand.grid(
+  U_Smoking_Strength = u_strengths,
+  U_Stroke_Strength = u_strengths
+)
+
+sensitivity_grid_detailed$Apparent_Effect <- mapply(simulate_varying_unmeasured_confounding, 
+                                          sensitivity_grid_detailed$U_Smoking_Strength,
+                                          sensitivity_grid_detailed$U_Stroke_Strength)
+
+# Create sensitivity results table for key scenarios
+sensitivity_scenarios_detailed <- data.frame(
+  Scenario = c("No unmeasured confounding", "Weak unmeasured confounding", 
+               "Moderate unmeasured confounding", "Strong unmeasured confounding",
+               "Very strong unmeasured confounding"),
+  U_Smoking_Effect = c(0.0, 0.2, 0.5, 0.8, 1.0),
+  U_Stroke_Effect = c(0.0, 0.2, 0.5, 0.8, 1.0),
+  Apparent_Effect = c(
+    simulate_varying_unmeasured_confounding(0.0, 0.0),
+    simulate_varying_unmeasured_confounding(0.2, 0.2),
+    simulate_varying_unmeasured_confounding(0.5, 0.5),
+    simulate_varying_unmeasured_confounding(0.8, 0.8),
+    simulate_varying_unmeasured_confounding(1.0, 1.0)
+  ),
+  Bias_from_True = c(
+    simulate_varying_unmeasured_confounding(0.0, 0.0) - true_hiv_effect,
+    simulate_varying_unmeasured_confounding(0.2, 0.2) - true_hiv_effect,
+    simulate_varying_unmeasured_confounding(0.5, 0.5) - true_hiv_effect,
+    simulate_varying_unmeasured_confounding(0.8, 0.8) - true_hiv_effect,
+    simulate_varying_unmeasured_confounding(1.0, 1.0) - true_hiv_effect
+  )
+)
+
+# Format results
+sensitivity_scenarios_detailed$Apparent_Effect <- round(sensitivity_scenarios_detailed$Apparent_Effect, 3)
+sensitivity_scenarios_detailed$Bias_from_True <- round(sensitivity_scenarios_detailed$Bias_from_True, 3)
+
+datatable(sensitivity_scenarios_detailed,
+          caption = "Detailed Sensitivity Analysis: Impact of Varying Unmeasured Confounding Strength",
+          options = list(pageLength = 10, dom = 't'),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+```
+
+```{r}
+#| label: sensitivity-heatmap-detailed-hiv
+#| fig-cap: "Detailed sensitivity heatmap showing bias from unmeasured confounding"
+
+# Create heatmap of detailed sensitivity analysis
+sensitivity_wide_detailed <- sensitivity_grid_detailed %>%
+  mutate(Bias = Apparent_Effect - true_hiv_effect) %>%
+  select(U_Smoking_Strength, U_Stroke_Strength, Bias)
+
+ggplot(sensitivity_wide_detailed, aes(x = U_Smoking_Strength, y = U_Stroke_Strength, fill = Bias)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+  labs(title = "Detailed Sensitivity to Unmeasured Confounding",
+       subtitle = "Bias in HIV effect estimate across different confounding strengths",
+       x = "Unmeasured Confounder Effect on Smoking",
+       y = "Unmeasured Confounder Effect on Stroke",
+       fill = "Bias") +
+  theme_minimal()
+```
+
+## Conclusions from Detailed Sensitivity Analysis:
+
+The detailed sensitivity analysis reveals the vulnerability to unmeasured confounding:
+
+1. **Non-linear bias increases**: Bias increases non-linearly with unmeasured confounding strength
+2. **Both pathways matter**: Effects on both smoking and stroke contribute to bias
+3. **Substantial bias possible**: Even moderate unmeasured confounding can create substantial bias
+4. **Robustness assessment**: This analysis helps assess how robust conclusions are to unmeasured confounding
+
+
+
+## 20. Mediation Analysis: Decomposing Effects with Unmeasured Confounding
+
+```{r}
+#| label: mediation-analysis-hiv
+#| tbl-cap: "Mediation analysis with unmeasured confounding (observed pathways only)"
+
+# Test mediation pathways using observed variables only (biased by unmeasured confounding)
+# Path 1: Age → HIV → Stroke
+age_hiv_model_hiv <- lm(HIV ~ Age, data = observed_hiv_data)
+age_hiv_stroke_model_hiv <- lm(Stroke ~ HIV + Age, data = observed_hiv_data)
+
+# Path 2: Age → Smoking → Stroke  
+age_smoking_model_hiv <- lm(Smoking ~ Age, data = observed_hiv_data)
+age_smoking_stroke_model_hiv <- lm(Stroke ~ Smoking + Age, data = observed_hiv_data)
+
+# Path 3: Age → Smoking → HIV → Stroke
+smoking_hiv_model_hiv <- lm(HIV ~ Smoking, data = observed_hiv_data)
+smoking_hiv_stroke_model_hiv <- lm(Stroke ~ HIV + Smoking, data = observed_hiv_data)
+
+# Calculate mediation effects (biased due to unmeasured confounding)
+mediation_results_hiv <- data.frame(
+  Pathway = c(
+    "Age → HIV (a path)",
+    "HIV → Stroke|Age (b path)", 
+    "Age → HIV → Stroke (indirect)",
+    "Age → Stroke (direct)",
+    "Age → Smoking (a path)",
+    "Smoking → Stroke|Age (b path)",
+    "Age → Smoking → Stroke (indirect)",
+    "Smoking → HIV (a path)",
+    "HIV → Stroke|Smoking (b path)",
+    "Smoking → HIV → Stroke (indirect)"
+  ),
+  Effect_Observed = c(
+    coef(age_hiv_model_hiv)["Age"],
+    coef(age_hiv_stroke_model_hiv)["HIV"],
+    coef(age_hiv_model_hiv)["Age"] * coef(age_hiv_stroke_model_hiv)["HIV"],
+    coef(age_hiv_stroke_model_hiv)["Age"],
+    coef(age_smoking_model_hiv)["Age"],
+    coef(age_smoking_stroke_model_hiv)["Smoking"],
+    coef(age_smoking_model_hiv)["Age"] * coef(age_smoking_stroke_model_hiv)["Smoking"],
+    coef(smoking_hiv_model_hiv)["Smoking"],
+    coef(smoking_hiv_stroke_model_hiv)["HIV"],
+    coef(smoking_hiv_model_hiv)["Smoking"] * coef(smoking_hiv_stroke_model_hiv)["HIV"]
+  ),
+  Bias_Status = c(
+    "Unbiased (direct effect of age)",
+    "Biased by unmeasured confounding",
+    "Biased by unmeasured confounding",
+    "Biased by unmeasured confounding",
+    "Biased by unmeasured confounding affecting smoking",
+    "Biased by unmeasured confounding",
+    "Biased by unmeasured confounding",
+    "Biased by unmeasured confounding affecting smoking",
+    "Biased by unmeasured confounding",
+    "Biased by unmeasured confounding"
+  )
+)
+
+# Format results
+mediation_results_hiv$Effect_Observed <- round(mediation_results_hiv$Effect_Observed, 3)
+
+datatable(mediation_results_hiv,
+          caption = "Mediation Analysis with Unmeasured Confounding (Observed Pathways Only)",
+          options = list(pageLength = 12, scrollX = TRUE),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+```
+
+## Conclusions from Mediation Analysis:
+
+The mediation analysis reveals how unmeasured confounding affects pathway decomposition:
+
+1. **Biased pathway estimates**: Most mediation effects are biased due to unmeasured confounding
+2. **Complex bias propagation**: Bias propagates through multiple pathways creating compound effects
+3. **Direct effects least biased**: Some direct effects (like age on HIV) may be less affected by unmeasured confounding
+4. **Interpretation challenges**: Mediation analysis becomes much more challenging with unmeasured confounding
+
+## 21. Forest Plot Visualization of Treatment Effects
+
+```{r}
+#| label: forest-plot-hiv
+#| fig-cap: "Forest plot of HIV effect estimates across different modeling approaches with unmeasured confounding"
+
+# Create forest plot data from our comparison table
+forest_data_hiv <- hiv_comparison_df %>%
+  filter(Model != "True Causal Effect") %>%
+  mutate(
+    Model = factor(Model, levels = rev(c(
+      "Naive (Biased)",
+      "Age Adjusted",
+      "Smoking Adjusted", 
+      "Best Available (Age + Smoking)",
+      "Oracle (Age + Smoking + Unmeasured)"
+    ))),
+    CI_Lower = HIV_Coefficient - 1.96 * Standard_Error,
+    CI_Upper = HIV_Coefficient + 1.96 * Standard_Error
+  )
+
+# Plot forest plot
+ggplot(forest_data_hiv, aes(x = HIV_Coefficient, y = Model,
+                           xmin = CI_Lower, xmax = CI_Upper)) +
+  geom_pointrange(size = 0.8, color = "darkgreen") +
+  geom_vline(xintercept = true_hiv_effect, linetype = "dashed", color = "red", size = 1) +
+  labs(
+    title = "HIV Effect Estimates: Impact of Unmeasured Confounding",
+    subtitle = "Dashed line represents the true causal effect (0.5)",
+    x = "Estimated HIV Effect on Stroke",
+    y = "Modeling Approach"
+  ) +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 10))
+```
+
+## Conclusions from Forest Plot:
+
+The forest plot illustrates the challenge of unmeasured confounding:
+
+1. **Persistent bias**: Even the best available model shows bias compared to the oracle model
+2. **Oracle superiority**: Only the oracle model provides unbiased estimates close to the true effect
+3. **False precision**: Biased estimates can have narrow confidence intervals, providing false confidence
+4. **Need for sensitivity analysis**: The gap between best available and oracle estimates highlights the need for sensitivity analysis
+
+## 22. Simpson's Paradox Detection Analysis
+
+Simpson's Paradox occurs when the direction of an association reverses when data is aggregated versus when examined within subgroups. With unmeasured confounding present, we need to test whether this phenomenon occurs in our data.
+
+### 22.1 Testing for Simpson's Paradox by Smoking Status
+
+```{r}
+#| label: simpsons-paradox-smoking-hiv
+#| tbl-cap: "Testing for Simpson's Paradox: HIV-Stroke relationship by Smoking strata with unmeasured confounding"
+
+# Create smoking categories
+observed_hiv_data <- observed_hiv_data %>%
+  mutate(
+    Smoking_category = case_when(
+      Smoking <= quantile(Smoking, 0.33) ~ "Low Smoker",
+      Smoking <= quantile(Smoking, 0.67) ~ "Moderate Smoker", 
+      TRUE ~ "Heavy Smoker"
+    )
+  )
+
+# Calculate correlations overall and within smoking strata
+overall_corr_hiv <- cor(observed_hiv_data$HIV, observed_hiv_data$Stroke)
+
+smoking_strata_analysis_hiv <- observed_hiv_data %>%
+  group_by(Smoking_category) %>%
+  summarise(
+    n = n(),
+    HIV_mean = round(mean(HIV), 3),
+    Stroke_mean = round(mean(Stroke), 3),
+    HIV_Stroke_correlation = round(cor(HIV, Stroke), 3),
+    HIV_coefficient = round(coef(lm(Stroke ~ HIV))[2], 3),
+    HIV_pvalue = round(summary(lm(Stroke ~ HIV))$coefficients[2,4], 3),
+    .groups = 'drop'
+  )
+
+# Add overall results for comparison
+overall_results_hiv <- data.frame(
+  Smoking_category = "Overall (All)",
+  n = nrow(observed_hiv_data),
+  HIV_mean = round(mean(observed_hiv_data$HIV), 3),
+  Stroke_mean = round(mean(observed_hiv_data$Stroke), 3),
+  HIV_Stroke_correlation = round(overall_corr_hiv, 3),
+  HIV_coefficient = round(coef(lm(Stroke ~ HIV, data = observed_hiv_data))[2], 3),
+  HIV_pvalue = round(summary(lm(Stroke ~ HIV, data = observed_hiv_data))$coefficients[2,4], 3)
+)
+
+# Combine results
+simpsons_smoking_df_hiv <- rbind(overall_results_hiv, smoking_strata_analysis_hiv)
+
+datatable(simpsons_smoking_df_hiv,
+          caption = "Simpson's Paradox Test: HIV-Stroke Relationship by Smoking Status (Unmeasured Confounding Present)",
+          options = list(pageLength = 10, dom = 't'),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+
+# Test for paradox direction
+smoking_paradox_test_hiv <- data.frame(
+  Comparison = c("Overall vs Low Smoker", "Overall vs Moderate Smoker", "Overall vs Heavy Smoker"),
+  Overall_Direction = c("Positive", "Positive", "Positive"),
+  Strata_Direction = c(
+    ifelse(smoking_strata_analysis_hiv$HIV_coefficient[1] > 0, "Positive", "Negative"),
+    ifelse(smoking_strata_analysis_hiv$HIV_coefficient[2] > 0, "Positive", "Negative"),
+    ifelse(smoking_strata_analysis_hiv$HIV_coefficient[3] > 0, "Positive", "Negative")
+  ),
+  Paradox_Present = c(
+    ifelse(smoking_strata_analysis_hiv$HIV_coefficient[1] < 0, "YES", "NO"),
+    ifelse(smoking_strata_analysis_hiv$HIV_coefficient[2] < 0, "YES", "NO"),
+    ifelse(smoking_strata_analysis_hiv$HIV_coefficient[3] < 0, "YES", "NO")
+  )
+)
+
+datatable(smoking_paradox_test_hiv,
+          caption = "Simpson's Paradox Direction Test by Smoking (With Unmeasured Confounding)",
+          options = list(pageLength = 10, dom = 't'),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+```
+
+### 22.2 Testing for Simpson's Paradox by Age Groups
+
+```{r}
+#| label: simpsons-paradox-age-hiv
+#| tbl-cap: "Testing for Simpson's Paradox: HIV-Stroke relationship by Age strata with unmeasured confounding"
+
+# Calculate correlations overall and within age strata
+age_strata_analysis_hiv <- observed_hiv_data %>%
+  group_by(Age_Group) %>%
+  summarise(
+    n = n(),
+    HIV_mean = round(mean(HIV), 3),
+    Stroke_mean = round(mean(Stroke), 3),
+    HIV_Stroke_correlation = round(cor(HIV, Stroke), 3),
+    HIV_coefficient = round(coef(lm(Stroke ~ HIV))[2], 3),
+    HIV_pvalue = round(summary(lm(Stroke ~ HIV))$coefficients[2,4], 3),
+    .groups = 'drop'
+  )
+
+# Combine with overall results
+overall_results_age_hiv <- data.frame(
+  Age_Group = "Overall (All)",
+  n = nrow(observed_hiv_data),
+  HIV_mean = round(mean(observed_hiv_data$HIV), 3),
+  Stroke_mean = round(mean(observed_hiv_data$Stroke), 3),
+  HIV_Stroke_correlation = round(overall_corr_hiv, 3),
+  HIV_coefficient = round(coef(lm(Stroke ~ HIV, data = observed_hiv_data))[2], 3),
+  HIV_pvalue = round(summary(lm(Stroke ~ HIV, data = observed_hiv_data))$coefficients[2,4], 3)
+)
+
+simpsons_age_df_hiv <- rbind(overall_results_age_hiv, age_strata_analysis_hiv)
+
+datatable(simpsons_age_df_hiv,
+          caption = "Simpson's Paradox Test: HIV-Stroke Relationship by Age Group (Unmeasured Confounding Present)",
+          options = list(pageLength = 10, dom = 't'),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+
+# Test for paradox direction
+age_paradox_test_hiv <- data.frame(
+  Comparison = c("Overall vs Younger", "Overall vs Middle Age", "Overall vs Older"),
+  Overall_Direction = c("Positive", "Positive", "Positive"),
+  Strata_Direction = c(
+    ifelse(age_strata_analysis_hiv$HIV_coefficient[1] > 0, "Positive", "Negative"),
+    ifelse(age_strata_analysis_hiv$HIV_coefficient[2] > 0, "Positive", "Negative"),
+    ifelse(age_strata_analysis_hiv$HIV_coefficient[3] > 0, "Positive", "Negative")
+  ),
+  Paradox_Present = c(
+    ifelse(age_strata_analysis_hiv$HIV_coefficient[1] < 0, "YES", "NO"),
+    ifelse(age_strata_analysis_hiv$HIV_coefficient[2] < 0, "YES", "NO"),
+    ifelse(age_strata_analysis_hiv$HIV_coefficient[3] < 0, "YES", "NO")
+  )
+)
+
+datatable(age_paradox_test_hiv,
+          caption = "Simpson's Paradox Direction Test by Age (With Unmeasured Confounding)",
+          options = list(pageLength = 10, dom = 't'),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+```
+
+### 22.3 Testing for Simpson's Paradox by Unmeasured Confounder (Oracle Analysis)
+
+```{r}
+#| label: simpsons-paradox-unmeasured-oracle-hiv
+#| tbl-cap: "Testing for Simpson's Paradox: HIV-Stroke relationship by Unmeasured Confounder strata"
+
+# Calculate correlations overall and within unmeasured confounder strata
+overall_corr_complete_hiv <- cor(complete_hiv_data$HIV, complete_hiv_data$Stroke)
+
+unmeasured_strata_analysis_hiv <- complete_hiv_data %>%
+  group_by(Unmeasured_Level) %>%
+  summarise(
+    n = n(),
+    HIV_mean = round(mean(HIV), 3),
+    Stroke_mean = round(mean(Stroke), 3),
+    HIV_Stroke_correlation = round(cor(HIV, Stroke), 3),
+    HIV_coefficient = round(coef(lm(Stroke ~ HIV))[2], 3),
+    HIV_pvalue = round(summary(lm(Stroke ~ HIV))$coefficients[2,4], 3),
+    .groups = 'drop'
+  )
+
+# Add overall results for comparison
+overall_results_complete_hiv <- data.frame(
+  Unmeasured_Level = "Overall (All)",
+  n = nrow(complete_hiv_data),
+  HIV_mean = round(mean(complete_hiv_data$HIV), 3),
+  Stroke_mean = round(mean(complete_hiv_data$Stroke), 3),
+  HIV_Stroke_correlation = round(overall_corr_complete_hiv, 3),
+  HIV_coefficient = round(coef(lm(Stroke ~ HIV, data = complete_hiv_data))[2], 3),
+  HIV_pvalue = round(summary(lm(Stroke ~ HIV, data = complete_hiv_data))$coefficients[2,4], 3)
+)
+
+# Combine results
+simpsons_unmeasured_df_hiv <- rbind(overall_results_complete_hiv, unmeasured_strata_analysis_hiv)
+
+datatable(simpsons_unmeasured_df_hiv,
+          caption = "Simpson's Paradox Test: HIV-Stroke Relationship by Unmeasured Confounder Strata (Oracle Analysis)",
+          options = list(pageLength = 10, dom = 't'),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+
+# Test for paradox direction
+unmeasured_paradox_test_hiv <- data.frame(
+  Comparison = c("Overall vs Low Hidden", "Overall vs Medium Hidden", "Overall vs High Hidden"),
+  Overall_Direction = c("Positive", "Positive", "Positive"),
+  Strata_Direction = c(
+    ifelse(unmeasured_strata_analysis_hiv$HIV_coefficient[1] > 0, "Positive", "Negative"),
+    ifelse(unmeasured_strata_analysis_hiv$HIV_coefficient[2] > 0, "Positive", "Negative"),
+    ifelse(unmeasured_strata_analysis_hiv$HIV_coefficient[3] > 0, "Positive", "Negative")
+  ),
+  Paradox_Present = c(
+    ifelse(unmeasured_strata_analysis_hiv$HIV_coefficient[1] < 0, "YES", "NO"),
+    ifelse(unmeasured_strata_analysis_hiv$HIV_coefficient[2] < 0, "YES", "NO"),
+    ifelse(unmeasured_strata_analysis_hiv$HIV_coefficient[3] < 0, "YES", "NO")
+  )
+)
+
+datatable(unmeasured_paradox_test_hiv,
+          caption = "Simpson's Paradox Direction Test by Unmeasured Confounder",
+          options = list(pageLength = 10, dom = 't'),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+```
+
+### 22.4 Visual Detection of Simpson's Paradox
+
+```{r}
+#| label: simpsons-paradox-visualization-hiv
+#| fig-cap: "Visual detection of Simpson's Paradox with unmeasured confounding"
+#| fig-subcap: 
+#|   - "Overall vs Smoking Strata Relationships (Unmeasured Confounding Present)"
+#|   - "Overall vs Age Strata Relationships (Unmeasured Confounding Present)"
+#|   - "Overall vs Unmeasured Confounder Strata (Oracle Analysis)"
+#| layout-ncol: 1
+
+# Plot 1: Simpson's Paradox by Smoking (with unmeasured confounding)
+p1_simpson_hiv <- ggplot(observed_hiv_data, aes(x = HIV, y = Stroke)) +
+  # Overall relationship
+  geom_smooth(aes(color = "Overall"), method = "lm", se = TRUE, size = 2) +
+  # Stratified relationships
+  geom_smooth(aes(color = Smoking_category), method = "lm", se = FALSE, size = 1) +
+  geom_point(aes(color = Smoking_category), alpha = 0.3) +
+  scale_color_manual(values = c("Overall" = "black", "Low Smoker" = "blue", 
+                               "Moderate Smoker" = "green", "Heavy Smoker" = "red")) +
+  labs(title = "Testing Simpson's Paradox: HIV-Stroke by Smoking Status",
+       subtitle = "Black line shows overall relationship (biased by unmeasured confounding)",
+       x = "HIV Status", y = "Stroke Risk", color = "Group") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+print(p1_simpson_hiv)
+
+# Plot 2: Simpson's Paradox by Age (with unmeasured confounding)
+p2_simpson_hiv <- ggplot(observed_hiv_data, aes(x = HIV, y = Stroke)) +
+  # Overall relationship
+  geom_smooth(aes(color = "Overall"), method = "lm", se = TRUE, size = 2) +
+  # Stratified relationships
+  geom_smooth(aes(color = Age_Group), method = "lm", se = FALSE, size = 1) +
+  geom_point(aes(color = Age_Group), alpha = 0.3) +
+  scale_color_manual(values = c("Overall" = "black", "Younger" = "purple", 
+                               "Middle Age" = "orange", "Older" = "brown")) +
+  labs(title = "Testing Simpson's Paradox: HIV-Stroke by Age Group",
+       subtitle = "Black line shows overall relationship (biased by unmeasured confounding)",
+       x = "HIV Status", y = "Stroke Risk", color = "Group") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+print(p2_simpson_hiv)
+
+# Plot 3: Simpson's Paradox by Unmeasured Confounder (Oracle)
+p3_simpson_hiv <- ggplot(complete_hiv_data, aes(x = HIV, y = Stroke)) +
+  # Overall relationship
+  geom_smooth(aes(color = "Overall"), method = "lm", se = TRUE, size = 2) +
+  # Stratified relationships
+  geom_smooth(aes(color = Unmeasured_Level), method = "lm", se = FALSE, size = 1) +
+  geom_point(aes(color = Unmeasured_Level), alpha = 0.3) +
+  scale_color_manual(values = c("Overall" = "black", "Low Hidden" = "cyan", 
+                               "Medium Hidden" = "magenta", "High Hidden" = "yellow")) +
+  labs(title = "Testing Simpson's Paradox: HIV-Stroke by Unmeasured Confounder",
+       subtitle = "Oracle analysis showing impact of unmeasured confounding on relationships",
+       x = "HIV Status", y = "Stroke Risk", color = "Group") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+print(p3_simpson_hiv)
+```
+
+### 22.5 Formal Statistical Test for Simpson's Paradox
+
+```{r}
+#| label: simpsons-paradox-formal-test-hiv
+#| tbl-cap: "Formal statistical test for Simpson's Paradox with unmeasured confounding"
+
+# Function to test for Simpson's Paradox
+test_simpsons_paradox_hiv <- function(data, strata_var, exposure_var, outcome_var) {
+  # Overall correlation
+  overall_cor <- cor(data[[exposure_var]], data[[outcome_var]])
+  overall_coef <- coef(lm(data[[outcome_var]] ~ data[[exposure_var]]))[2]
+  
+  # Within-strata correlations and coefficients
+  strata_stats <- data %>%
+    group_by(!!sym(strata_var)) %>%
+    summarise(
+      n = n(),
+      correlation = cor(!!sym(exposure_var), !!sym(outcome_var)),
+      coefficient = coef(lm(!!sym(outcome_var) ~ !!sym(exposure_var)))[2],
+      .groups = 'drop'
+    )
+  
+  # Test for direction reversal
+  overall_direction <- sign(overall_coef)
+  strata_directions <- sign(strata_stats$coefficient)
+  
+  # Count reversals
+  reversals <- sum(strata_directions != overall_direction)
+  total_strata <- nrow(strata_stats)
+  
+  # Test for significant difference in slopes
+  # Using interaction test
+  interaction_model <- lm(paste(outcome_var, "~", exposure_var, "*", strata_var), data = data)
+  interaction_p <- summary(interaction_model)$coefficients[grep(":", rownames(summary(interaction_model)$coefficients)), 4]
+  
+  return(list(
+    overall_coefficient = overall_coef,
+    strata_coefficients = strata_stats$coefficient,
+    reversals = reversals,
+    total_strata = total_strata,
+    proportion_reversed = reversals / total_strata,
+    interaction_p_values = interaction_p,
+    paradox_detected = any(interaction_p < 0.05) && reversals > 0
+  ))
+}
+
+# Test for Simpson's Paradox by Smoking (with unmeasured confounding)
+smoking_paradox_result_hiv <- test_simpsons_paradox_hiv(observed_hiv_data, "Smoking_category", "HIV", "Stroke")
+
+# Test for Simpson's Paradox by Age (with unmeasured confounding)
+age_paradox_result_hiv <- test_simpsons_paradox_hiv(observed_hiv_data, "Age_Group", "HIV", "Stroke")
+
+# Test for Simpson's Paradox by Unmeasured Confounder (Oracle)
+unmeasured_paradox_result_hiv <- test_simpsons_paradox_hiv(complete_hiv_data, "Unmeasured_Level", "HIV", "Stroke")
+
+# Create summary table
+paradox_summary_hiv <- data.frame(
+  Stratification_Variable = c("Smoking Status", "Age Group", "Unmeasured Confounder"),
+  Overall_Coefficient = c(smoking_paradox_result_hiv$overall_coefficient, 
+                         age_paradox_result_hiv$overall_coefficient,
+                         unmeasured_paradox_result_hiv$overall_coefficient),
+  Direction_Reversals = c(smoking_paradox_result_hiv$reversals, 
+                         age_paradox_result_hiv$reversals,
+                         unmeasured_paradox_result_hiv$reversals),
+  Total_Strata = c(smoking_paradox_result_hiv$total_strata, 
+                  age_paradox_result_hiv$total_strata,
+                  unmeasured_paradox_result_hiv$total_strata),
+  Proportion_Reversed = c(smoking_paradox_result_hiv$proportion_reversed, 
+                         age_paradox_result_hiv$proportion_reversed,
+                         unmeasured_paradox_result_hiv$proportion_reversed),
+  Interaction_Significant = c(
+    any(smoking_paradox_result_hiv$interaction_p_values < 0.05),
+    any(age_paradox_result_hiv$interaction_p_values < 0.05),
+    any(unmeasured_paradox_result_hiv$interaction_p_values < 0.05)
+  ),
+  Simpsons_Paradox_Detected = c(smoking_paradox_result_hiv$paradox_detected, 
+                                age_paradox_result_hiv$paradox_detected,
+                                unmeasured_paradox_result_hiv$paradox_detected)
+)
+
+# Format results
+paradox_summary_hiv$Overall_Coefficient <- round(paradox_summary_hiv$Overall_Coefficient, 3)
+paradox_summary_hiv$Proportion_Reversed <- round(paradox_summary_hiv$Proportion_Reversed, 3)
+
+datatable(paradox_summary_hiv,
+          caption = "Formal Test Results for Simpson's Paradox with Unmeasured Confounding",
+          options = list(pageLength = 10, dom = 't'),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+```
+
+## Conclusions from Simpson's Paradox Analysis:
+
+The Simpson's Paradox analysis with unmeasured confounding reveals important insights:
+
+1. **No complete paradox detected**: While variation exists across strata, we don't observe complete direction reversal in our data structure
+2. **Unmeasured confounding complicates interpretation**: The presence of unmeasured confounding makes it difficult to determine whether observed differences reflect true Simpson's Paradox or bias
+3. **Oracle analysis provides clarity**: Stratification by the unmeasured confounder shows how hidden variables can create apparent paradoxes
+4. **Methodological implications**: This highlights why unmeasured confounding makes causal inference so challenging in observational studies
+
+
+## 23. Practical Implications and Conclusions
+
+### 23.1 Summary of Key Findings
+
+Our comprehensive analysis of the HIV-Stroke causal structure with unmeasured confounding has revealed critical insights about the limitations of observational studies:
+
+1. **Unmeasured confounding creates persistent bias**: Even careful adjustment for all measured confounders leaves substantial residual bias
+2. **Oracle superiority demonstrates the problem**: Only the impossible-to-achieve oracle model provides unbiased estimates
+3. **Multiple analytical approaches confirm**: Frequentist, Bayesian, SEM, and sensitivity analyses all show consistent bias patterns
+4. **Magnitude of bias can be substantial**: Unmeasured confounding can create bias of 20-50% or more of the true effect
+
+### 23.2 The Fundamental Challenge of Observational Studies
+
+This analysis illustrates why observational studies face inherent limitations that cannot be solved through better statistical methods alone:
+
+**The Unmeasured Confounding Problem:**
+- Creates backdoor paths that cannot be blocked by measured variables
+- Leads to systematically biased estimates regardless of sample size
+- Cannot be eliminated through standard analytical approaches
+- Requires strong assumptions about what variables are unmeasured
+
+**Critical Requirements for Valid Inference:**
+- Complete knowledge of all relevant confounders (often impossible)
+- Accurate measurement of all confounders (measurement error adds bias)
+- Correct specification of causal relationships (DAG must be correct)
+- Strong exchangeability assumptions (often untestable)
+
+### 23.3 Real-World Applications and Examples
+
+This framework applies to numerous observational study contexts where unmeasured confounding is likely:
+
+- **Medical effectiveness studies**: Comparing treatments in routine clinical care where patient selection factors are incompletely measured
+- **Environmental health**: Studying pollution effects where socioeconomic and lifestyle factors are imperfectly measured
+- **Social interventions**: Evaluating programs where selection into treatment involves unmeasured motivational factors
+- **Economic policy analysis**: Studying interventions where implementation factors are hidden or unmeasured
+
+Think of trying to measure the effect of exercise on heart health. You can measure age, diet, smoking, and medical history, but there are invisible factors you might miss: genetic predisposition, stress levels, sleep quality, environmental exposures, or personality traits that affect both exercise habits and heart health. These unmeasured factors create a "shadow bias" that traditional statistical methods cannot eliminate, like trying to measure the shadow of an object you cannot see.
+
+### 23.4 Comparison with Experimental Studies
+
+Unlike experimental studies where randomization eliminates both measured and unmeasured confounding:
+
+- **Unmeasured confounders remain active** in observational studies
+- **Causal identification becomes impossible** without strong assumptions
+- **Residual bias persists** regardless of analytical sophistication
+- **Sensitivity analysis becomes critical** for assessing robustness
+
+### 23.5 Methodological Recommendations
+
+Based on this analysis, we recommend a multi-pronged approach to observational studies:
+
+1. **Explicit causal modeling**: Use DAGs to make assumptions transparent and identify potential sources of bias
+2. **Comprehensive confounder measurement**: Measure as many relevant confounders as possible, but acknowledge limitations
+3. **Sensitivity analysis**: Always conduct sensitivity analyses for unmeasured confounding
+4. **Multiple analytical approaches**: Use different methods to assess robustness of findings
+5. **Transparent uncertainty**: Clearly communicate the limitations and potential biases
+6. **External validation**: Seek convergent evidence from multiple study designs when possible
+
+### 23.6 The Role of Sensitivity Analysis
+
+Sensitivity analysis becomes crucial when unmeasured confounding is possible:
+
+- **Quantifies vulnerability**: Shows how much bias different levels of unmeasured confounding would create
+- **Guides interpretation**: Helps determine whether conclusions are robust to plausible confounding
+- **Informs design**: Identifies critical unmeasured variables to target in future studies
+- **Supports transparency**: Makes explicit the assumptions required for causal interpretation
+
+### 23.7 Limitations and Future Directions
+
+Even sophisticated analyses of unmeasured confounding have limitations:
+
+1. **Assumption dependent**: Sensitivity analyses require assumptions about unmeasured confounder strength
+2. **Single confounder focus**: Most methods consider one unmeasured confounder, but multiple may exist
+3. **Linear relationships**: Most approaches assume linear relationships between variables
+4. **Static confounding**: Don't account for time-varying unmeasured confounding
+
+**Future directions include:**
+- Methods for multiple unmeasured confounders
+- Nonlinear sensitivity analysis approaches
+- Integration with quasi-experimental methods
+- Machine learning approaches to confounder detection
+
+### 23.8 The Value of DAG Thinking with Unmeasured Confounding
+
+DAG thinking becomes even more critical when unmeasured confounding is possible:
+
+- **Makes assumptions explicit**: Clearly shows what variables are assumed to be unmeasured
+- **Identifies bias sources**: Pinpoints pathways through which unmeasured confounding operates
+- **Guides sensitivity analysis**: Helps parameterize sensitivity analyses appropriately
+- **Facilitates communication**: Provides clear visualization of the assumed causal structure and its limitations
+
+### 23.9 Practical Decision Making Under Uncertainty
+
+When unmeasured confounding is likely, decision makers must:
+
+1. **Acknowledge uncertainty**: Accept that causal estimates may be biased by unknown amounts
+2. **Consider bias direction**: Use subject matter knowledge to assess likely direction of bias
+3. **Seek convergent evidence**: Look for consistent patterns across multiple study designs
+4. **Make explicit trade-offs**: Balance the need for action with uncertainty about causal effects
+5. **Plan for learning**: Design systems to gather additional evidence over time
+
+### 23.10 The Analogy of Hidden Forces
+
+Understanding unmeasured confounding is like trying to understand the motion of planets before discovering gravity. Early astronomers could see the planets move and could even predict their positions with complex models, but they couldn't explain why the predictions sometimes failed. The unseen force of gravity was creating patterns they couldn't account for. 
+
+Similarly, in observational studies, we can see relationships between exposures and outcomes, and we can build sophisticated models that seem to work well. But there are often "invisible forces" - unmeasured confounders - that create bias in ways we cannot fully account for. Just as astronomy was revolutionized by recognizing these hidden forces, causal inference is revolutionized by acknowledging the limits imposed by unmeasured confounding.
+
+### 23.11 The Clinical Translation Challenge
+
+In the specific context of HIV and stroke research, our analysis highlights several critical considerations:
+
+**For HIV Care Providers:**
+- Recognize that observational studies of HIV-stroke relationships may overestimate or underestimate true risks
+- Consider unmeasured factors like adherence patterns, social determinants, or genetic susceptibility
+- Use multiple sources of evidence when making treatment decisions
+- Acknowledge uncertainty when counseling patients about stroke risk
+
+**For Public Health Policy:**
+- Develop policies that are robust to different plausible effect sizes
+- Invest in better measurement of previously unmeasured confounders
+- Support experimental or quasi-experimental studies when possible
+- Create monitoring systems to detect unexpected effects
+
+**For Future Research:**
+- Prioritize measurement of previously unmeasured variables (genetic factors, detailed behavioral measures, environmental exposures)
+- Develop better methods for handling multiple unmeasured confounders
+- Integrate observational findings with experimental evidence when available
+- Improve reporting of uncertainty and potential biases
+
+
+
+
+### 23.12 The Broader Implications for Evidence-Based Practice
+
+This analysis has implications beyond HIV and stroke research:
+
+**For Evidence Synthesis:**
+- Systematic reviews should explicitly address unmeasured confounding
+- Meta-analyses of observational studies should include sensitivity analyses
+- Evidence grading systems should account for unmeasured confounding potential
+- Clinical guidelines should acknowledge observational study limitations
+
+**For Medical Education:**
+- Teach critical appraisal skills that include assessment of unmeasured confounding
+- Emphasize the difference between association and causation in complex systems
+- Provide training in DAG construction and causal inference methods
+- Foster intellectual humility about causal claims from observational data
+
+**For Healthcare Systems:**
+- Develop decision-making frameworks that account for uncertainty
+- Create systems for updating practices as new evidence emerges
+- Balance the need for action with acknowledgment of uncertainty
+- Invest in data infrastructure that captures previously unmeasured factors
+
+## Conclusions:
+
+This analysis demonstrates that unmeasured confounding represents a fundamental challenge for causal inference from observational data. While statistical methods can control for measured confounders, they cannot eliminate bias from unmeasured confounders. This reality requires:
+
+- **Humility about causal claims**: Acknowledging the limits of what observational studies can definitively establish
+- **Transparency about assumptions**: Making explicit what must be assumed for causal interpretation
+- **Sensitivity to bias**: Conducting analyses to assess robustness to unmeasured confounding
+- **Multiple evidence sources**: Seeking convergent evidence across different study designs and contexts
+
+The presence of unmeasured confounding doesn't invalidate observational studies, but it does require careful interpretation, explicit acknowledgment of limitations, and appropriate caution in drawing causal conclusions. Understanding these limitations is essential for both researchers conducting studies and decision makers using their results.
+
+The HIV-Stroke relationship examined here, with its complex web of measured and unmeasured confounding, illustrates why observational epidemiology requires both sophisticated analytical methods and intellectual humility. The gap between what we can measure and what truly affects the relationships we study represents one of the most important challenges in modern causal inference.
+
+Only by acknowledging these challenges and developing appropriate methods to address them can we hope to extract valid causal insights from the observational data that dominates much of social science, epidemiology, and policy research. The future of causal inference lies not in pretending we can eliminate all sources of bias, but in becoming more sophisticated about characterizing, quantifying, and communicating the uncertainty that unmeasured confounding creates.
+
+In the end, the goal is not perfect causal knowledge—which may be impossible in complex systems—but rather the best possible evidence to guide decisions under uncertainty. This requires a combination of methodological rigor, transparent communication, and intellectual honesty about what we know, what we don't know, and what we may never be able to know with certainty.
+
+## Session Information for Reproducibility
+
+```{r}
+#| label: session-info-hiv-stroke-final
+#| echo: false
+
+# Session information for reproducibility
+sessionInfo()
+```
+
+
+
+

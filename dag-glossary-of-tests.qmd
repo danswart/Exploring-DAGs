@@ -1,0 +1,101 @@
+## DAG Analysis Glossary
+
+### Key DAG Terms and Concepts
+
+**DAG (Directed Acyclic Graph)**: A graphical representation of causal relationships where arrows indicate the direction of causality, and no variable can cause itself through any path (hence "acyclic").
+
+**Exposure**: The variable whose causal effect we want to estimate (often called the treatment or independent variable).
+
+**Outcome**: The variable we are interested in measuring the effect on (often called the dependent variable).
+
+**Confounder**: A variable that influences both the exposure and the outcome, potentially creating a spurious association between them.
+
+**Mediator**: A variable that lies on the causal pathway between the exposure and outcome (exposure → mediator → outcome).
+
+**Collider**: A variable that is influenced by both the exposure and the outcome, or by two variables on a path (e.g., A → C ← B).
+
+**Backdoor path**: Any non-causal path connecting the exposure to the outcome that creates a spurious association.
+
+### Understanding the Analysis Tables
+
+#### 1. Key Properties Table
+
+This table provides a high-level overview of the DAG structure and key causal features:
+
+- **Acyclic DAG**: Confirms the graph has no cycles (a prerequisite for valid causal analysis)
+- **Causal effect identifiable**: Indicates whether the causal effect can be estimated from observational data
+- **Number of paths**: Total number of paths connecting exposure and outcome
+- **Number of backdoor paths**: Paths creating potential confounding that need to be blocked
+- **Direct effect exists**: Whether there is a direct causal link from exposure to outcome
+- **Potential mediators**: Variables that may mediate the causal effect
+- **Number of adjustment sets**: How many different sets of variables could be adjusted for
+- **Minimal adjustment sets**: The smallest sets of variables that block all backdoor paths
+
+#### 2. Conditional Independencies Table
+
+Shows the implied conditional independencies in the DAG - pairs of variables that should be statistically independent when conditioning on specific other variables. These can be used to test the validity of your DAG against observed data.
+
+#### 3. Paths Analysis Table
+
+Enumerates all paths connecting the exposure to the outcome:
+
+- **Path**: The specific variables and connections in each path
+- **Length**: Number of edges in the path
+- **IsBackdoor**: Whether this is a backdoor path (potential source of confounding)
+- **IsDirected**: Whether this is a directed path from exposure to outcome
+
+Testing whether these paths are open or closed under different conditioning strategies is crucial for causal inference.
+
+#### 4. Ancestors and Descendants Table
+
+Shows which variables can causally affect (ancestors) or be affected by (descendants) each variable in the DAG:
+
+- Understanding ancestry relationships helps identify potential confounders
+- Descendants should not be controlled for as this may introduce bias
+
+#### 5. D-Separation Results Table
+
+Shows whether exposure and outcome are conditionally independent (d-separated) when conditioning on different variable sets:
+
+- **Is_D_Separated = Yes**: This set of conditioning variables blocks all non-causal paths
+- **Is_D_Separated = No**: Some non-causal association remains
+
+This helps identify sufficient adjustment sets for estimating causal effects.
+
+#### 6. Impact of Adjustments Table
+
+Shows how different adjustment strategies affect the identification of causal effects:
+
+- **Total_Paths**: Total number of paths between exposure and outcome
+- **Open_Paths**: Number of paths that remain open after adjustment
+  
+Ideally, adjusting for the right variables leaves only the causal paths open.
+
+#### 7. Unmeasured Confounding Impact Table
+
+Simulates the effect of being unable to measure certain variables:
+
+- **Original_Adjustment_Sets**: Number of valid adjustment sets with all variables measured
+- **Adjusted_Sets_When_Unmeasured**: Number of valid adjustment sets when this variable is unmeasured
+
+This helps identify which variables are most critical to measure for valid causal inference.
+
+#### 8. Instrumental Variables Table
+
+Lists potential instrumental variables - variables that affect the exposure but have no direct effect on the outcome except through the exposure. These are useful for causal inference when confounding is present, especially in methods like instrumental variable estimation.
+
+### How to Use This Analysis for Causal Inference
+
+1. **Identify minimal sufficient adjustment sets**: These are the variables you should control for in your analysis to remove confounding.
+
+2. **Avoid conditioning on colliders**: This can introduce bias. Check the paths and d-separation results to ensure your adjustment strategy doesn't open non-causal paths.
+
+3. **Validate your DAG**: Use the implied conditional independencies to test your causal assumptions against observed data.
+
+4. **Assess sensitivity to unmeasured confounding**: The unmeasured confounding analysis helps understand how robust your conclusions might be.
+
+5. **Consider mediation analysis**: If mediators are present, you might want to decompose total effects into direct and indirect components.
+
+6. **Look for instrumental variables**: These can help establish causality even in the presence of unmeasured confounding.
+
+Remember that the validity of any causal inference depends on the correctness of your DAG - it represents your causal assumptions about the data-generating process, which should be based on substantive domain knowledge.

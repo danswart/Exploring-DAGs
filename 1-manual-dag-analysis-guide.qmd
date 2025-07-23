@@ -1,0 +1,452 @@
+---
+title: "Analyzing DAGs Manually: A Practical Guide"
+author: "Dan Swart and Claude 3.7 Sonnet"
+format: 
+  html:
+    toc: true
+    toc-float: true
+    page-layout: article
+    embed-resources: true
+    code-fold: true
+    code-summary: "Show the code"
+    code-tools: true
+    code-overflow: wrap
+    code-block-bg: "#FAEBD7"
+    code-block-border-left: "#31BAE9"
+    code-link: true          # This adds individual buttons
+    fig-width: 8
+    fig-height: 6
+    fig-align: center
+    html-math-method: katex
+    css: swart-20250327.css
+  pdf:
+    toc: true
+    number-sections: true
+    colorlinks: true
+    papersize: letter
+    geometry:
+      - margin=1in
+    fig-width: 8
+    fig-height: 6
+    fig-pos: 'H'
+  typst:
+    toc: true
+    fig-width: 8
+    fig-height: 6
+    keep-tex: true
+    prefer-html: true
+---
+
+```{r setup, include=FALSE}
+#| label: setup
+#| include: false
+knitr::opts_chunk$set(echo = TRUE, FALSE, message = TRUE, warning = TRUE)
+
+library(tidyverse)  # For dplyr, ggplot, and friends
+library(ggdag)      # For plotting DAGs
+library(dagitty)    # For working with DAG logic
+library(DiagrammeR) # For complete control of the layout
+library(knitr)      # For controlling rendering
+library(kableExtra) # For tables summarizing results
+library(DT)         # For rendering content that kableExtra cannot (symbols)
+
+```
+
+## Introduction to Manual DAG Path Analysis
+
+When working with complex Directed Acyclic Graphs (DAGs), especially those containing unmeasured confounders, automatic path detection algorithms often fail or produce incomplete results. In these cases, manual path analysis becomes essential for accurate causal inference. This document outlines a structured approach to manually identify, categorize, and analyze paths in complex DAGs.
+
+## Why Manual Path Analysis Is Necessary
+
+1. **Algorithmic limitations**: Functions like `dagitty::paths()` can fail with complex structures
+2. **Unmeasured confounders**: Paths involving unmeasured variables are often missed by automated tools
+3. **Complete understanding**: Manual analysis ensures you fully grasp the causal structure
+4. **Explicit documentation**: Manual specification makes your causal assumptions transparent
+
+## Step-by-Step Manual Path Analysis
+
+### 1. Visualize Your DAG
+
+First, create a clear visualization of your DAG:
+
+```{r dag-visualization}
+# Example: HIV-Stroke DAG with unmeasured confounder
+dag <- dagitty("dag {
+  X -> Y
+  A -> X
+  A -> Y
+  B -> X
+  B -> Y
+  B -> A
+  U -> A
+  U -> Y
+  
+  X [exposure]
+  Y [outcome]
+}")
+
+# Set coordinates for better visualization
+coordinates(dag) <- list(
+  x = c(X = 2, Y = 3, A = 1, B = 1, U = 2.5),
+  y = c(X = 2, Y = 2, A = 3, B = 1, U = 3)
+)
+
+# Plot with DiagrammeR for a clearer view
+grViz("
+  digraph DAG {
+    # Graph settings
+    graph [layout=neato, rankdir=TB] 
+    
+    # Node settings
+    node [shape=plaintext, fontsize=14, fontname=\"Arial\"]
+    
+    # Edge settings
+    edge [penwidth=1.0, color=\"darkblue\", arrowsize=1.0]
+    
+    # Nodes with exact coordinates
+    X [label=\"HIV\", pos=\"2.0, 2.0!\", fontcolor=\"dodgerblue\"]
+    Y [label=\"Stroke\", pos=\"3.0, 2.0!\", fontcolor=\"dodgerblue\"]
+    A [label=\"Smoking\", pos=\"1.0, 3.0!\", fontcolor=\"black\"]
+    B [label=\"Age\", pos=\"1.0, 1.0!\", fontcolor=\"purple\"]
+    U [label=\"Unmeasured\nConfounder\", pos=\"2.5, 3.0!\", fontcolor=\"red\"]
+    
+    # Edges
+    X -> Y
+    A -> Y
+    B -> Y
+    A -> X
+    B -> X
+    B -> A
+    U -> A
+    U -> Y
+  }
+")
+
+# Also show with ggdag for reference
+ggdag(dag) + 
+  theme_dag() +
+  geom_dag_point(color = "grey80") +
+  geom_dag_text(color = "black") + 
+  geom_dag_edges(edge_colour = "blue") +
+  labs(title = "HIV-Stroke DAG with Unmeasured Confounder")
+```
+
+### 2. Identify Exposure and Outcome
+
+In our example, X (HIV) is the exposure and Y (Stroke) is the outcome.
+
+### 3. Trace All Possible Paths Manually
+
+Starting from exposure X, trace every possible path leading to outcome Y:
+
+```{r manual-path-tracing, echo=FALSE}
+# Create a table to demonstrate manual path tracing
+path_tracing <- tibble(
+  Step = c("Step 1", "Step 2", "Step 3", "Step 4", "Step 5"),
+  Question = c(
+    "Can I go directly from X to Y?",
+    "Can I go from X to A and then to Y?",
+    "Can I go from X to B and then to Y?",
+    "Can I go from X to B to A to Y?",
+    "Are there paths through U?"
+  ),
+  Path_found = c(
+    "X → Y",
+    "X ← A → Y",
+    "X ← B → Y",
+    "X ← B → A → Y",
+    "X ← A ← U → Y"
+  ),
+  Visual_tracing = c(
+    "Start at X, follow arrow to Y",
+    "Start at X, go backward to A, then forward to Y",
+    "Start at X, go backward to B, then forward to Y",
+    "Start at X, go backward to B, forward to A, forward to Y",
+    "Start at X, go backward to A, backward to U, forward to Y"
+  )
+)
+
+knitr::kable(path_tracing, caption = "Process of Manually Tracing All Paths")
+```
+
+### 4. Categorize Each Path
+
+For each path you've identified, categorize it based on key characteristics:
+
+```{r path-categorization}
+# Create a data frame of paths with their properties
+paths_df <- data.frame(
+  Path = c(
+    "X → Y",                      # Direct effect
+    "X ← A → Y",                  # Confounding through smoking
+    "X ← B → Y",                  # Confounding through age
+    "X ← B → A → Y",              # Complex confounding (age → smoking)
+    "X ← A ← U → Y"               # Unmeasured confounding path
+  ),
+  Length = c(1, 2, 2, 3, 3),
+  IsBackdoor = c(FALSE, TRUE, TRUE, TRUE, TRUE),  # First arrow points into X?
+  IsDirected = c(TRUE, FALSE, FALSE, FALSE, FALSE)  # All arrows point away from X?
+)
+
+knitr::kable(paths_df, caption = "Manual Categorization of All Paths")
+```
+
+### 5. Use Manual Paths in Analysis Code
+
+Once you've manually identified and categorized all paths, incorporate this knowledge into your analysis:
+
+```{r analysis-with-manual-paths}
+# Function that uses manual path definitions
+display_dag_analysis <- function(dag) {
+  
+  # Initialize results list
+  results <- list()
+  
+  # Standard DAG analysis components (skipped for brevity)...
+  
+  # 4. Use manual path specification instead of automatic detection
+  paths_manual <- data.frame(
+    paths = c(
+      "X -> Y",                      # Direct effect
+      "X <- A -> Y",                 # Confounding through smoking
+      "X <- B -> Y",                 # Confounding through age
+      "X <- B -> A -> Y",            # Complex confounding (age -> smoking)
+      "X <- A <- U -> Y"             # Unmeasured confounding path
+    ),
+    length = c(1, 2, 2, 3, 3)
+  )
+  
+  results$paths <- paths_manual
+  
+  # 8. Manually identify backdoor paths
+  results$backdoor_paths <- c(
+    "X <- A -> Y",                 
+    "X <- B -> Y",                 
+    "X <- B -> A -> Y",            
+    "X <- A <- U -> Y"             
+  )
+  
+  # 10. Manually specify d-separation results
+  results$d_sep_results <- list(
+    XY_given_nothing = FALSE, 
+    XY_given_A = FALSE,      
+    XY_given_B = FALSE,      
+    XY_given_AB = FALSE,     
+    XY_given_U = FALSE,      
+    XY_given_AU = FALSE,     
+    XY_given_BU = FALSE,     
+    XY_given_ABU = TRUE      
+  )
+  
+  # Return all results
+  return(results)
+}
+
+# When creating tables, use fixed counts:
+properties_df <- data.frame(
+  Property = c(
+    "Number of paths from X to Y",
+    "Number of backdoor paths"
+    # Removed trailing comma that was causing the error
+  ),
+  Value = c(
+    "5",  # Manual count from your paths_df
+    "4"   # Manual count of backdoor paths
+    # Removed trailing comma that was causing the error
+  )
+)
+
+# Example of displaying paths table
+DT::datatable(
+  paths_df,
+  rownames = FALSE,
+  options = list(
+    pageLength = 10,
+    ordering = TRUE,
+    searching = FALSE
+  ),
+  caption = "All Paths Between X and Y"
+)
+```
+
+## When to Use Manual vs. Automatic Path Analysis
+
+### Use Automatic Path Detection When:
+
+- DAG is simple with few variables
+- No unmeasured confounders exist 
+- All pathways are straightforward
+- You need to verify your manual analysis
+
+```{r automatic-detection-example}
+# Simple DAG example where automatic path detection works well
+simple_dag <- dagitty("dag { X -> Y; A -> X; A -> Y }")
+auto_paths <- dagitty::paths(simple_dag, from = "X", to = "Y")
+auto_paths
+```
+
+### Use Manual Path Analysis When:
+
+- DAG contains unmeasured confounders
+- Complex causal structures are present
+- Automatic detection fails or gives incomplete results
+- You need complete control and transparency
+
+## Common Patterns to Watch For
+
+When manually analyzing paths, be particularly attentive to these patterns:
+
+### 1. Backdoor Paths
+
+Backdoor paths create confounding and require adjustment. Visually, these are paths where:
+- The path starts with an arrow pointing INTO the exposure (X ←)
+- The path eventually reaches the outcome
+
+```{r backdoor-pattern}
+# Visual highlighting of a backdoor path
+grViz("
+  digraph BackdoorPath {
+    graph [rankdir=LR] 
+    node [shape=plaintext]
+    
+    A [label=\"Confounder\"]
+    X [label=\"Exposure\"]
+    Y [label=\"Outcome\"]
+    
+    A -> X [color=\"red\", penwidth=2.0]
+    A -> Y [color=\"red\", penwidth=2.0]
+    X -> Y
+    
+    label = \"Classic Backdoor Path: X ← A → Y\"
+    labelloc = \"t\"
+  }
+")
+```
+
+### 2. Unmeasured Confounding Paths
+
+These often involve multiple variables and at least one unmeasured variable:
+
+```{r unmeasured-pattern}
+# Visual highlighting of unmeasured confounding path
+grViz("
+  digraph UnmeasuredPath {
+    graph [rankdir=LR] 
+    node [shape=plaintext]
+    
+    U [label=\"Unmeasured\nConfounder\", fontcolor=\"red\"]
+    A [label=\"Measured\nVariable\"]
+    X [label=\"Exposure\"]
+    Y [label=\"Outcome\"]
+    
+    U -> A [color=\"red\", penwidth=2.0]
+    U -> Y [color=\"red\", penwidth=2.0]
+    A -> X [color=\"red\", penwidth=2.0]
+    X -> Y
+    
+    label = \"Unmeasured Confounding Path: X ← A ← U → Y\"
+    labelloc = \"t\"
+  }
+")
+```
+
+### 3. Complex Mediation Chains
+
+Paths with multiple mediators can be difficult to detect automatically:
+
+```{r mediation-pattern}
+# Visual highlighting of complex mediation
+grViz("
+  digraph MediationPath {
+    graph [rankdir=LR] 
+    node [shape=plaintext]
+    
+    X [label=\"Exposure\"]
+    M1 [label=\"Mediator 1\"]
+    M2 [label=\"Mediator 2\"]
+    Y [label=\"Outcome\"]
+    
+    X -> M1 [color=\"blue\", penwidth=2.0]
+    M1 -> M2 [color=\"blue\", penwidth=2.0]
+    M2 -> Y [color=\"blue\", penwidth=2.0]
+    
+    label = \"Complex Mediation Path: X → M1 → M2 → Y\"
+    labelloc = \"t\"
+  }
+")
+```
+
+## Step-By-Step Example on a New DAG
+
+Let's work through a complete example with a different DAG structure:
+
+```{r new-dag-example}
+# A different DAG for demonstration
+new_dag <- dagitty("dag {
+  X -> M -> Y
+  A -> X
+  A -> Y
+  B -> A
+  B -> Y
+  U -> M
+  U -> Y
+}")
+
+# Improved coordinates to minimize crossing arrows
+coordinates(new_dag) <- list(
+  x = c(X = 1, M = 2, Y = 3, A = 1.5, B = 2, U = 2.5),
+  y = c(X = 1, M = 1, Y = 1, A = 2.0, B = 3, U = 0)
+)
+
+ggdag(new_dag) + 
+  theme_dag() +
+  geom_dag_point(color = "lightblue") +
+  geom_dag_text(color = "black") + 
+  geom_dag_edges(edge_colour = "blue") +
+  labs(title = "Example DAG for Manual Path Analysis")
+
+# Manual path analysis steps:
+new_paths <- data.frame(
+  Path = c(
+    "X -> M -> Y",       # Mediated path
+    "X <- A -> Y",       # Confounding through A
+    "X <- A <- B -> Y",  # Confounding through B
+    "X -> M <- U -> Y"   # Path with unmeasured confounder
+  ),
+  Length = c(2, 2, 3, 3),
+  IsBackdoor = c(FALSE, TRUE, TRUE, FALSE),
+  IsDirected = c(TRUE, FALSE, FALSE, FALSE),
+  Type = c("Mediated", "Confounding", "Complex confounding", "Mixed with unmeasured")
+)
+
+knitr::kable(new_paths, caption = "Manual Path Analysis for New DAG")
+```
+
+## Practical Tips
+
+1. **Draw the DAG**: Always start by drawing or visualizing the DAG clearly
+
+2. **Work systematically**: Trace paths methodically rather than randomly searching
+
+3. **Check for completeness**: Ask yourself if you've considered all possible connections
+
+4. **Verify path properties**:
+   - Length: Count every arrow
+   - Backdoor status: Check if first arrow points into X
+   - Directed status: Check if all arrows point away from X
+
+5. **Use color coding**: In your diagram, color different types of paths (direct, backdoor, etc.)
+
+6. **Document your process**: Make notes about how you identified paths
+
+## Conclusion
+
+Manual path analysis is an essential skill when working with complex DAGs, especially those containing unmeasured confounders. While it may initially seem less efficient than automated approaches, the accuracy and depth of understanding it provides are invaluable for proper causal inference. By systematically tracing and categorizing paths by hand, you ensure your analysis is based on the complete causal structure, even when automated tools fall short.
+
+---
+
+### References
+
+- Pearl, J. (2009). Causality: Models, Reasoning, and Inference. Cambridge University Press.
+- Greenland, S., Pearl, J., & Robins, J. M. (1999). Causal diagrams for epidemiologic research. Epidemiology, 10(1), 37-48.
+- Hernán, M. A., & Robins, J. M. (2020). Causal Inference: What If. Boca Raton: Chapman & Hall/CRC.

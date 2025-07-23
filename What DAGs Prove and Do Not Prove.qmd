@@ -1,0 +1,133 @@
+---
+title: "What DAGs Prove, or Don't Prove About Causation"
+author: "Claude 3.7 Sonnet"
+format: 
+  html:
+    toc: true
+    toc-float: true
+    page-layout: article
+    embed-resources: true
+    code-fold: true
+    code-summary: "Show the code"
+    code-tools: true
+    code-overflow: wrap
+    code-block-bg: "#FAEBD7"
+    code-block-border-left: "#31BAE9"
+    code-link: true          # This adds individual buttons
+    fig-width: 8
+    fig-height: 6
+    fig-align: center
+    html-math-method: katex
+    css: swart-20250327.css
+  pdf:
+    toc: true
+    number-sections: true
+    colorlinks: true
+    papersize: letter
+    geometry:
+      - margin=1in
+    fig-width: 8
+    fig-height: 6
+    fig-pos: 'H'
+  typst:
+    toc: true
+    fig-width: 8
+    fig-height: 6
+    keep-tex: true
+    prefer-html: true
+---
+
+
+
+The battery of tests we perform on our DAGs don't actually prove causation - they assume causation based on our causal model and then test whether the data is consistent with that model.
+<br>
+
+## What These Tests Really Show
+
+### Consistency with assumptions: 
+
+The tests demonstrate that our data is consistent with the causal structure we've specified. When we control for Z and obtain an estimate close to the true parameter value, this shows our adjustment strategy works if our DAG is correct.
+
+### Identification of causal effects: 
+
+If (and this is a big if) our DAG correctly represents the true causal structure, then these tests help us identify and estimate the magnitude of causal effects.
+
+### Robustness checks: 
+
+The sensitivity analysis shows how our estimates would change if our assumptions about unmeasured confounding are incorrect, providing a measure of reliability.
+<br>
+
+## Fundamental Limitations
+
+### Assumption-dependent: 
+
+The validity of any causal claim rests entirely on the correctness of the DAG. Our tests can't verify that the DAG itself is true - that comes from substantive domain knowledge.
+
+
+### Correlation vs. causation: 
+
+Even perfect statistical control of all specified variables doesn't logically prove causation. What we're doing is estimating the association between variables after removing the influence of other variables we believe are confounders.
+
+### Untestable assumptions: 
+
+Some critical causal assumptions are fundamentally untestable with observational data alone - such as the absence of unmeasured confounders.
+<br>
+
+## "Influence" vs. Prediction
+
+The distinction between "influence" and "prediction" is key. What these methods provide is:
+
+1.  A predictive relationship that is robust to conditioning on other variables.  
+An estimate of the magnitude of causal effect if our causal assumptions are correct
+
+But this is quite different from definitively proving that X causes Y in the sense of direct physical influence. 
+
+In our coffee example, even if we perfectly control for age (Z), we're still just showing that coffee consumption predicts heart disease in a way that isn't explained by age differences.
+
+<br>
+
+## When Can We Make Stronger Causal Claims?
+
+Stronger causal claims require additional evidence beyond what DAG testing provides:
+
+### Experimental evidence: 
+
+Randomized experiments can provide stronger causal evidence by directly manipulating the exposure variable.
+
+
+### Mechanism: 
+
+Understanding the biological or physical mechanism through which X affects Y strengthens causal claims.
+
+
+### Multiple lines of evidence: 
+
+Consistent findings across different study designs, populations, and methodologies strengthen causal inference.
+
+
+### Natural experiments/quasi-experimental designs: 
+
+Methods like instrumental variables, regression discontinuity, or difference-in-differences can provide stronger causal evidence in certain settings.
+
+<br>
+
+## The Pragmatic View
+
+In practice, DAG-based approaches are valuable because they:
+
+1.  Make our causal assumptions explicit and testable
+
+1.  Provide a formal framework for identifying the correct adjustment sets
+
+1.  Allow us to quantify potential bias from unmeasured confounding
+
+1.  Enable prediction of intervention effects if our causal model is correct
+
+<br>
+
+
+## Conclusion
+
+These tests should be viewed as one piece of a larger body of evidence rather than definitive proof of causation.  The tests themselves demonstrate consistency with a specified causal structure, not the truth of that structure.
+
+

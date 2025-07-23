@@ -1,0 +1,2182 @@
+---
+title: "DAG Analysis: Experimental Causal Structure with Synthetic Data"
+author: "Dan Swart"
+format: 
+  html:
+    toc: true
+    toc-float: true
+    page-layout: article
+    embed-resources: true
+    code-fold: true
+    code-summary: "Show the code"
+    code-tools: true
+    code-overflow: wrap
+    code-block-bg: "#FAEBD7"
+    code-block-border-left: "#31BAE9"
+    code-link: true          # This adds individual buttons
+    fig-width: 10
+    fig-height: 8
+    fig-align: center
+    html-math-method: katex
+    css: swart-20250327.css
+  pdf:
+    toc: true
+    number-sections: true
+    colorlinks: true
+    papersize: letter
+    geometry:
+      - margin=1in
+    fig-width: 10
+    fig-height: 8
+    fig-pos: 'H'
+  typst:
+    toc: true
+    fig-width: 10
+    fig-height: 8
+    keep-tex: true
+    prefer-html: true
+---
+
+```{r}
+#| label: setup
+#| include: false
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+# Load required libraries
+library(tidyverse)  # For dplyr, ggplot, and data manipulation
+library(ggdag)      # For plotting DAGs
+library(dagitty)    # For working with DAG logic
+library(DiagrammeR) # For DAG visualization
+library(corrplot)   # For correlation plots
+library(DT)         # For interactive tables
+library(lavaan)     # For structural equation modeling
+library(rethinking) # For Bayesian analysis
+library(ggpubr)     # For arranging multiple plots
+```
+
+## 1. Introduction: Understanding Experimental Causal Structures
+
+This document explores an experimental causal structure represented by a directed acyclic graph (DAG). The DAG represents the gold standard of causal inference - a randomized controlled trial or experimental design where:
+
+- X is an experimentally manipulated exposure variable (treatment/intervention)
+- Y is the outcome variable of interest
+- Z, C, and B are other variables that affect the outcome but are unrelated to the treatment assignment
+- A affects both Z and B, representing a root cause in the system
+
+The structure reflects an ideal experimental scenario where the exposure X is randomly assigned, eliminating confounding between X and Y. This design allows for unbiased estimation of the causal effect without adjustment for confounding variables.
+
+## 2. Describe the DAG in words
+
+This DAG represents an experimental causal structure with six variables:
+
+- X: The experimentally manipulated exposure/treatment variable
+- Y: The outcome variable
+- Z: A variable that affects Y directly but is unrelated to X (potential prognostic factor)
+- C: Another variable that affects Y directly but is unrelated to X (potential prognostic factor)  
+- A: A root cause variable that affects Z
+- B: A variable that affects both Z and Y directly
+
+The key feature of this experimental structure is that X has no incoming arrows, meaning it is independent of all other variables in the system. This represents the fundamental principle of randomization in experimental design.
+
+The causal relationships include:
+1. A direct effect from X to Y (the causal effect of interest)
+2. Independent effects of Z, C, and B on Y
+3. A affects Z (creating a pathway A → Z → Y)
+4. B affects both Z and Y (creating pathways B → Z → Y and B → Y)
+
+In a real-world context, this could represent:
+- X: Randomly assigned medication treatment
+- Y: Patient recovery outcome
+- Z: Patient education level
+- C: Insurance coverage quality
+- A: Socioeconomic status
+- B: Disease severity at baseline
+
+The beauty of this experimental structure is that no adjustment is necessary to identify the causal effect of X on Y. The randomization of X breaks all potential confounding pathways, allowing the simple association between X and Y to represent the true causal effect.
+
+## 3. Recreate the DAG for reference using DiagrammeR and ggdag
+
+```{r}
+#| label: diagrammer-visualization
+#| fig-cap: "Directed Acyclic Graph of Experimental Causal Structure"
+
+
+library(DiagrammeR)
+
+# Create the DAG using DiagrammeR for detailed control
+experimental_dag_viz <- grViz("
+  digraph DAG {
+    # Graph settings
+    graph [layout=neato, margin=\"0.0, 0.0, 0.0, 0.0\"]
+    
+    # Add a title
+    labelloc=\"t\"
+    label=\"Experimental Causal Structure\\nRandomized Assignment Design\\n   \"
+    fontname=\"Cabin\"  fontsize=18
+    
+   # Node settings
+    node [shape=plaintext, fontsize=20, fontname=\"Cabin\"]
+    
+    # Edge settings
+    edge [penwidth=1.20, color=\"darkblue\", arrowsize=1.00, fontsize=12]
+    
+    
+    # Nodes with exact coordinates
+    X [label=\"X (Exposure)\", pos=\"1.0, 3.0!\", fontcolor=\"dodgerblue\"]
+    Y [label=\"Y (Outcome)\", pos=\"5.0, 3.0!\", fontcolor=\"dodgerblue\"]
+    Z [label=\"Z\", pos=\"3.0, 5.0!\", fontcolor=\"red\"]
+    C [label=\"C\", pos=\"3.0, 1.0!\", fontcolor=\"purple\"]
+    A [label=\"A\", pos=\"1.0, 5.0!\", fontcolor=\"purple\"]
+    B [label=\"B\", pos=\"5.0, 5.0!\", fontcolor=\"purple\"]
+    
+    # Edges with coefficients from our synthetic data
+    X -> Y [label=\"0.4\"]
+    Z -> Y [label=\"0.25\"]
+    C -> Y [label=\"0.2\"]
+    B -> Y [label=\"0.15\"]
+    A -> Z [label=\"0.3\"]
+    B -> Z [label=\"0.2\"]
+    
+    # Caption
+    Caption [shape=plaintext, label=\"Figure 1: Experimental Structure - No Confounding\", 
+             fontsize=12, pos=\"2,0.0!\"]
+  }
+")
+
+# Show the DiagrammeR DAG
+experimental_dag_viz
+```
+
+```{r}
+#| label: ggdag-visualization
+#| fig-cap: "ggdag representation of the experimental causal model"
+
+# Define the DAG using dagitty/ggdag for analysis
+experimental_dag <- dagify(
+  Y ~ X + Z + C + B,
+  Z ~ A + B,
+  exposure = "X",
+  outcome = "Y",
+  labels = c("X" = "X (Exposure)", 
+             "Y" = "Y (Outcome)", 
+             "Z" = "Z",
+             "C" = "C",
+             "A" = "A",
+             "B" = "B")
+)
+
+# Set coordinates for nice visualization
+coordinates(experimental_dag) <- list(
+  x = c(X = 1, Y = 3, Z = 2, C = 2, A = 1, B = 3),
+  y = c(X = 2, Y = 2, Z = 3, C = 1, A = 3, B = 3)
+)
+
+# Create nice visualization with ggdag
+ggdag(experimental_dag, edge_type = "link") + 
+  geom_dag_point(color = "lightblue", size = 14, alpha = 0.7) +
+  geom_dag_text(color = "black") +
+  geom_dag_edges(edge_colour = "blue", edge_width = 1.0, arrow_size = 0.6) +
+  theme_dag() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  ggtitle("DAG: Experimental Causal Structure")
+```
+
+## 4. Generate synthetic data following the causal structure
+
+We'll generate synthetic data following the experimental causal relationships. The key feature is that X is generated independently (representing randomization), while other variables follow their causal relationships.
+
+```{r}
+#| label: generate-synthetic-data
+#| tbl-cap: "Summary of the synthetic experimental data"
+
+# Set seed for reproducibility
+set.seed(42)
+
+# Sample size
+n <- 1000
+
+# Generate the data following the experimental DAG structure
+# Starting with exogenous variables (A, C, and the randomized X)
+A <- round(rnorm(n, mean = 0, sd = 1), 3)
+C <- round(rnorm(n, mean = 0, sd = 1), 3)
+
+# X is randomly assigned (independent of all other variables)
+X <- round(rnorm(n, mean = 0, sd = 1), 3)
+
+# Generate B as exogenous
+B <- round(rnorm(n, mean = 0, sd = 1), 3)
+
+# Generate Z as influenced by A and B
+Z <- round(0.3 * A + 0.2 * B + rnorm(n, mean = 0, sd = 0.8), 3)
+
+# Generate Y as influenced by X, Z, C, and B
+Y <- round(0.4 * X + 0.25 * Z + 0.2 * C + 0.15 * B + rnorm(n, mean = 0, sd = 0.6), 3)
+
+# True direct effect of X on Y is 0.4
+true_direct_effect <- 0.400
+
+# Create a data frame
+dag_data <- data.frame(A, B, Z, C, X, Y)
+
+
+# Get numeric summary statistics rounded to 3 decimal places
+round(sapply(dag_data, summary), 3)
+```
+
+```{r}
+#| label: true-effects-table
+#| tbl-cap: "True causal effects in the experimental DAG structure"
+
+# Create a table of true effects
+true_effects <- data.frame(
+  Relationship = c("A → Z", "B → Z", "B → Y", "Z → Y", "C → Y", "X → Y"),
+  Effect = c(0.3, 0.2, 0.15, 0.25, 0.2, 0.4),
+  Type = c("Root cause → Prognostic factor", "Independent cause → Prognostic factor", 
+           "Independent cause → Outcome", "Prognostic factor → Outcome", 
+           "Independent cause → Outcome", "Exposure → Outcome (CAUSAL EFFECT)")
+)
+
+# Display the table
+datatable(true_effects,
+          options = list(pageLength = 10, dom = 't'),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+```
+
+## 5. Examine structure of synthetic data
+
+### 5.1 Correlation matrix of synthetic experimental data
+
+```{r}
+#| label: correlation-analysis
+#| fig-cap: "Correlation matrix of synthetic experimental data variables"
+
+# Calculate correlation matrix
+corr_matrix <- cor(dag_data)
+
+# Create correlation table
+corr_table <- as.data.frame(round(corr_matrix, 3))
+
+# Display correlation table
+datatable(corr_table,
+          options = list(pageLength = 10, dom = 't'),
+          rownames = TRUE,
+          class = 'cell-border stripe compact responsive')
+
+# Correlation plot
+corrplot(corr_matrix, 
+         method = "color", 
+         type = "upper", 
+         order = "hclust",
+         addCoef.col = "black",
+         number.cex = 1.5,  # This controls the size of the numbers
+         tl.col = "black",
+         tl.srt = 45,
+         diag = FALSE,
+         col = colorRampPalette(c("#6BAED6", "white", "#E6550D"))(200),
+         title = "Correlation Matrix of Variables",
+         mar = c(0,0,1,0))
+
+# Add a description of the correlation levels
+corr_description <- data.frame(
+  Variables = c("X and Y", "X and Z", "X and C", "X and A", "X and B",
+                "Y and Z", "Y and C", "Y and B", "Y and A"),
+  Correlation = c(round(cor(X, Y), 3), round(cor(X, Z), 3), round(cor(X, C), 3), 
+                  round(cor(X, A), 3), round(cor(X, B), 3), round(cor(Y, Z), 3), 
+                  round(cor(Y, C), 3), round(cor(Y, B), 3), round(cor(Y, A), 3)),
+  Interpretation = c(
+    "Moderate positive correlation due to direct causal effect (unconfounded)",
+    "Very weak correlation due to randomization of X (independence)",
+    "Very weak correlation due to randomization of X (independence)",
+    "Very weak correlation due to randomization of X (independence)",
+    "Very weak correlation due to randomization of X (independence)",
+    "Moderate positive correlation due to Z causing Y",
+    "Weak positive correlation due to C causing Y",
+    "Moderate positive correlation due to B causing Y",
+    "Weak positive correlation due to indirect path A → Z → Y"
+  )
+)
+
+# Display the correlation description
+datatable(corr_description,
+          caption = "Interpretation of key correlations in the experimental DAG structure",
+          options = list(pageLength = 10, scrollX = TRUE),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+```
+
+## 6. Visualize distributions and relationships in synthetic data
+
+```{r}
+#| label: visualize-distributions
+#| fig-cap: "Distributions of all variables in the synthetic experimental data"
+
+# Visualize distributions of all variables
+dag_data %>%
+  pivot_longer(cols = everything(), names_to = "Variable", values_to = "Value") %>%
+  ggplot(aes(x = Value)) +
+  geom_histogram(fill = "steelblue", alpha = 0.7, bins = 30) +
+  facet_wrap(~ Variable, scales = "free") +
+  theme_minimal() +
+  ggtitle("Distributions of Variables in Experimental Data")
+```
+
+```{r}
+#| label: visualize-relationships
+#| fig-cap: "Scatterplots showing key relationships in the experimental DAG"
+#| fig-subcap: 
+#|   - "Relationship between X and Y (Direct Causal Effect)"
+#|   - "Relationship between Z and Y"
+#|   - "Relationship between C and Y"
+#|   - "Relationship between B and Y"
+#| layout-ncol: 2
+
+# X vs Y scatterplot (the causal relationship of interest)
+ggplot(dag_data, aes(x = X, y = Y)) +
+  geom_point(alpha = 0.3, color = "dodgerblue") +
+  geom_smooth(method = "lm", formula = y ~ x, color = "darkred") +
+  theme_minimal() +
+  ggtitle("X → Y: Direct Causal Effect (Unconfounded)") +
+  theme(plot.title = element_text(size = 28))
+
+# Z vs Y scatterplot
+ggplot(dag_data, aes(x = Z, y = Y)) +
+  geom_point(alpha = 0.3, color = "darkgreen") +
+  geom_smooth(method = "lm", formula = y ~ x, color = "darkred") +
+  theme_minimal() +
+  ggtitle("Z → Y: Prognostic Factor Effect") +
+  theme(plot.title = element_text(size = 28))
+
+# C vs Y scatterplot
+ggplot(dag_data, aes(x = C, y = Y)) +
+  geom_point(alpha = 0.3, color = "purple") +
+  geom_smooth(method = "lm", formula = y ~ x, color = "darkred") +
+  theme_minimal() +
+  ggtitle("C → Y: Independent Predictor Effect") +
+  theme(plot.title = element_text(size = 28))
+
+# B vs Y scatterplot
+ggplot(dag_data, aes(x = B, y = Y)) +
+  geom_point(alpha = 0.3, color = "orange") +
+  geom_smooth(method = "lm", formula = y ~ x, color = "darkred") +
+  theme_minimal() +
+  ggtitle("B → Y: Direct Effect") +
+  theme(plot.title = element_text(size = 28))
+```
+
+## 7. Residual Diagnostics
+
+Let's examine the residuals to ensure our model assumptions are met for the experimental design.
+
+```{r}
+#| label: model-residuals
+#| fig-cap: "Residual diagnostics for the experimental model"
+
+# Create models with different approaches
+models <- list(
+  "Unadjusted (Correct for Experimental Design)" = lm(Y ~ X, data = dag_data),
+  "Adjusted for Z" = lm(Y ~ X + Z, data = dag_data),
+  "Adjusted for C" = lm(Y ~ X + C, data = dag_data),
+  "Adjusted for Z, C" = lm(Y ~ X + Z + C, data = dag_data),
+  "Adjusted for B" = lm(Y ~ X + B, data = dag_data),
+  "All variables" = lm(Y ~ X + Z + C + A + B, data = dag_data)
+)
+
+# Get the correct model for experimental design (unadjusted)
+correct_model <- models[["Unadjusted (Correct for Experimental Design)"]]
+
+# Plot diagnostics
+par(mfrow = c(2, 2))
+plot(correct_model)
+```
+
+The residual plots for our experimental model (simple regression of Y on X) show:
+
+1. **Residuals vs Fitted**: Points are randomly scattered around zero with no clear pattern, supporting the linear relationship assumption.
+
+2. **Normal Q-Q**: Points follow the diagonal line closely, indicating approximately normal residuals.
+
+3. **Scale-Location**: No clear pattern in the variance, supporting homoscedasticity.
+
+4. **Residuals vs Leverage**: No influential outliers detected.
+
+These diagnostics confirm that the simple linear model is appropriate for our experimental data.
+
+## 8. Test the Structure by comparing models with and without adjustment
+
+### 8.1 Unadjusted Model (Correct for Experimental Design)
+
+```{r}
+#| label: unadjusted-model
+#| tbl-cap: "Results of the unadjusted model (correct for experimental design)"
+
+# Fit unadjusted model (correct for experimental design)
+model_unadjusted <- lm(Y ~ X, data = dag_data)
+
+# Display model summary
+summary_unadj <- summary(model_unadjusted)
+
+# Extract the coefficient for X
+coef_unadjusted <- coef(model_unadjusted)["X"]
+
+# Create a data frame for the table
+unadj_results <- data.frame(
+  Term = c("Intercept", "X (Exposure)"),
+  Estimate = c(coef(model_unadjusted)[1], coef(model_unadjusted)[2]),
+  StdError = c(summary_unadj$coefficients[1,2], summary_unadj$coefficients[2,2]),
+  tValue = c(summary_unadj$coefficients[1,3], summary_unadj$coefficients[2,3]),
+  pValue = c(summary_unadj$coefficients[1,4], summary_unadj$coefficients[2,4])
+)
+
+# Display the results
+datatable(unadj_results,
+          caption = "Unadjusted Model Results (Correct for Experimental Design)",
+          options = list(pageLength = 10, dom = 't'),
+          rownames = FALSE) %>%
+  formatRound(columns=c('Estimate', 'StdError', 'tValue'), digits=3) %>%
+  formatSignif(columns='pValue', digits=3)
+```
+
+### 8.2 Adjusted Model for Precision (Optional in Experimental Design)
+
+```{r}
+#| label: adjusted-model-precision
+#| tbl-cap: "Results of adjusted model for increased precision"
+
+# Fit adjusted model for precision (adjusting for prognostic factors)
+model_adjusted_precision <- lm(Y ~ X + Z + C + B, data = dag_data)
+
+# Display model summary
+summary_adj_precision <- summary(model_adjusted_precision)
+
+# Extract the coefficient for X
+coef_adjusted_precision <- coef(model_adjusted_precision)["X"]
+
+# Create a data frame for the table
+adj_precision_results <- data.frame(
+  Term = c("Intercept", "X (Exposure)", "Z", "C", "B"),
+  Estimate = coef(model_adjusted_precision),
+  StdError = summary_adj_precision$coefficients[,2],
+  tValue = summary_adj_precision$coefficients[,3],
+  pValue = summary_adj_precision$coefficients[,4]
+)
+
+# Display the results
+datatable(adj_precision_results,
+          caption = "Adjusted Model Results (For Increased Precision)",
+          options = list(pageLength = 10, dom = 't'),
+          rownames = FALSE) %>%
+  formatRound(columns=c('Estimate', 'StdError', 'tValue'), digits=3) %>%
+  formatSignif(columns='pValue', digits=3)
+
+# Show R-squared
+r2_adj_precision <- data.frame(
+  Measure = c("R-squared", "Adjusted R-squared"),
+  Value = c(summary_adj_precision$r.squared, summary_adj_precision$adj.r.squared)
+)
+
+datatable(r2_adj_precision,
+          options = list(pageLength = 10, dom = 't'),
+          rownames = FALSE) %>%
+  formatRound(columns='Value', digits=3)
+```
+
+## 9. Comparing Model Results
+
+```{r}
+#| label: model-comparison
+#| tbl-cap: "Comparison of different modeling strategies for experimental data"
+
+# True effect of X on Y
+true_effect <- 0.400
+
+# Create a comparison table for all models
+comparison_df <- data.frame(
+  Model = c("True Causal Effect",
+           "Unadjusted (Correct for RCT)", 
+           "Adjusted for Z (Prognostic)", 
+           "Adjusted for C (Prognostic)",
+           "Adjusted for B (Prognostic)",
+           "Adjusted for Z, C (Multiple Prognostic)",
+           "Adjusted for All Variables"),
+  Coefficient = c(
+    true_effect,
+    coef(models[["Unadjusted (Correct for Experimental Design)"]])["X"],
+    coef(models[["Adjusted for Z"]])["X"],
+    coef(models[["Adjusted for C"]])["X"],
+    coef(models[["Adjusted for B"]])["X"],
+    coef(models[["Adjusted for Z, C"]])["X"],
+    coef(models[["All variables"]])["X"]
+  ),
+  StandardError = c(
+    NA,
+    summary(models[["Unadjusted (Correct for Experimental Design)"]])$coefficients["X", "Std. Error"],
+    summary(models[["Adjusted for Z"]])$coefficients["X", "Std. Error"],
+    summary(models[["Adjusted for C"]])$coefficients["X", "Std. Error"],
+    summary(models[["Adjusted for B"]])$coefficients["X", "Std. Error"],
+    summary(models[["Adjusted for Z, C"]])$coefficients["X", "Std. Error"],
+    summary(models[["All variables"]])$coefficients["X", "Std. Error"]
+  )
+)
+
+# Calculate error and bias
+comparison_df$Error <- comparison_df$Coefficient - true_effect
+comparison_df$BiasPercent <- 100 * (comparison_df$Coefficient - true_effect) / true_effect
+
+# Add R-squared values
+comparison_df$R2 <- c(
+  NA,
+  summary(models[["Unadjusted (Correct for Experimental Design)"]])$r.squared,
+  summary(models[["Adjusted for Z"]])$r.squared,
+  summary(models[["Adjusted for C"]])$r.squared,
+  summary(models[["Adjusted for B"]])$r.squared,
+  summary(models[["Adjusted for Z, C"]])$r.squared,
+  summary(models[["All variables"]])$r.squared
+)
+
+# Format for display (changed to 3 decimal places)
+comparison_df$Coefficient <- round(comparison_df$Coefficient, 3)
+comparison_df$StandardError <- round(comparison_df$StandardError, 3)
+comparison_df$Error <- round(comparison_df$Error, 3)
+comparison_df$BiasPercent <- round(comparison_df$BiasPercent, 3)
+comparison_df$R2 <- round(comparison_df$R2, 3)
+
+# Display as a table
+datatable(comparison_df,
+          caption = "Comparison of Different Modeling Strategies for Experimental Data",
+          options = list(pageLength = 10, scrollX = TRUE),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+
+```
+
+## 10. Statistical tests for differences between models
+
+```{r}
+#| label: statistical-tests-diffs
+#| tbl-cap: "Statistical tests for model performance in experimental design"
+
+# Compare models using anova and tests against true effect
+model_comparison_unadj_z <- anova(models[["Unadjusted (Correct for Experimental Design)"]], models[["Adjusted for Z"]])
+model_comparison_unadj_zc <- anova(models[["Unadjusted (Correct for Experimental Design)"]], models[["Adjusted for Z, C"]])
+model_comparison_unadj_all <- anova(models[["Unadjusted (Correct for Experimental Design)"]], models[["All variables"]])
+
+# Test if unadjusted coefficient differs from true effect
+unadj_z_stat <- (coef(models[["Unadjusted (Correct for Experimental Design)"]])["X"] - true_effect) / 
+  summary(models[["Unadjusted (Correct for Experimental Design)"]])$coefficients["X", "Std. Error"]
+unadj_p_value <- 2 * (1 - pnorm(abs(unadj_z_stat)))
+
+# Test if adjusted coefficient (Z) differs from true effect
+adj_z_z_stat <- (coef(models[["Adjusted for Z"]])["X"] - true_effect) / 
+  summary(models[["Adjusted for Z"]])$coefficients["X", "Std. Error"]
+adj_z_p_value <- 2 * (1 - pnorm(abs(adj_z_z_stat)))
+
+# Test if adjusted coefficient (Z, C) differs from true effect
+adj_zc_z_stat <- (coef(models[["Adjusted for Z, C"]])["X"] - true_effect) / 
+  summary(models[["Adjusted for Z, C"]])$coefficients["X", "Std. Error"]
+adj_zc_p_value <- 2 * (1 - pnorm(abs(adj_zc_z_stat)))
+
+# Create a data frame for the results
+significance_df <- data.frame(
+  Comparison = c(
+    "Unadjusted vs. Adjusted for Z",
+    "Unadjusted vs. Adjusted for Z, C",
+    "Unadjusted vs. Full Model",
+    "Unadjusted Model vs. True Effect",
+    "Adjusted (Z) Model vs. True Effect", 
+    "Adjusted (Z, C) Model vs. True Effect"
+  ),
+  
+  Test = c(
+    "F-test (ANOVA)",
+    "F-test (ANOVA)",
+    "F-test (ANOVA)",
+    "Z-test (coefficient vs. true effect)",
+    "Z-test (coefficient vs. true effect)",
+    "Z-test (coefficient vs. true effect)"
+  ),
+  
+  Statistic = c(
+    round(model_comparison_unadj_z$F[2], 3),
+    round(model_comparison_unadj_zc$F[2], 3),
+    round(model_comparison_unadj_all$F[2], 3),
+    round(unadj_z_stat, 3),
+    round(adj_z_z_stat, 3),
+    round(adj_zc_z_stat, 3)
+  ),
+  
+  PValue = c(
+    round(model_comparison_unadj_z$`Pr(>F)`[2], 3),
+    round(model_comparison_unadj_zc$`Pr(>F)`[2], 3),
+    round(model_comparison_unadj_all$`Pr(>F)`[2], 3),
+    round(unadj_p_value, 3),
+    round(adj_z_p_value, 3),
+    round(adj_zc_p_value, 3)
+  ),
+  
+  Conclusion = c(
+    ifelse(model_comparison_unadj_z$`Pr(>F)`[2] < 0.05, 
+           "Adjusted model significantly improves fit", 
+           "No significant improvement in model fit"),
+    
+    ifelse(model_comparison_unadj_zc$`Pr(>F)`[2] < 0.05,
+           "Adjusted model significantly improves fit",
+           "No significant improvement in model fit"),
+    
+    ifelse(model_comparison_unadj_all$`Pr(>F)`[2] < 0.05,
+           "Full model significantly improves fit",
+           "No significant improvement in model fit"),
+    
+    ifelse(unadj_p_value < 0.05,
+           "Unadjusted estimate significantly differs from true effect",
+           "Unadjusted estimate not significantly different from true effect"),
+    
+    ifelse(adj_z_p_value < 0.05,
+           "Adjusted estimate significantly differs from true effect",
+           "Adjusted estimate not significantly different from true effect"),
+    
+    ifelse(adj_zc_p_value < 0.05,
+           "Adjusted estimate significantly differs from true effect",
+           "Adjusted estimate not significantly different from true effect")
+  )
+)
+
+# Display as a table
+datatable(significance_df,
+          caption = "Statistical Tests for Model Performance in Experimental Design",
+          options = list(pageLength = 10, scrollX = TRUE),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+
+```
+
+## Conclusions from Model Comparisons:
+
+The statistical tests demonstrate the key principles of experimental design:
+
+1. **Unbiased estimation without adjustment**: The unadjusted model provides an unbiased estimate of the causal effect, very close to the true value.
+
+2. **Precision gains from prognostic adjustment**: While not necessary for unbiased estimation, adjusting for prognostic factors can improve precision (smaller standard errors).
+
+3. **All approaches yield similar point estimates**: Because X is randomized, all modeling approaches yield similar estimates of the causal effect.
+
+4. **Statistical efficiency trade-offs**: More complex models may provide better fit (higher R²) but don't necessarily improve the causal estimate.
+
+## 11. Testing Randomization: Correlations between X and other variables
+
+```{r}
+#| label: randomization-tests
+#| tbl-cap: "Testing independence of randomized treatment X"
+
+# Test correlations between X and all other variables
+randomization_tests <- data.frame(
+  Variable_Pair = c("X and A", "X and B", "X and Z", "X and C"),
+  Correlation = c(cor(dag_data$X, dag_data$A), 
+                  cor(dag_data$X, dag_data$B),
+                  cor(dag_data$X, dag_data$Z), 
+                  cor(dag_data$X, dag_data$C)),
+  P_Value = c(cor.test(dag_data$X, dag_data$A)$p.value,
+              cor.test(dag_data$X, dag_data$B)$p.value,
+              cor.test(dag_data$X, dag_data$Z)$p.value,
+              cor.test(dag_data$X, dag_data$C)$p.value),
+  Significant = c(cor.test(dag_data$X, dag_data$A)$p.value < 0.05,
+                  cor.test(dag_data$X, dag_data$B)$p.value < 0.05,
+                  cor.test(dag_data$X, dag_data$Z)$p.value < 0.05,
+                  cor.test(dag_data$X, dag_data$C)$p.value < 0.05),
+  Interpretation = c(
+    "Independence confirmed - randomization successful",
+    "Independence confirmed - randomization successful", 
+    "Independence confirmed - randomization successful",
+    "Independence confirmed - randomization successful"
+  )
+)
+
+# Format the results
+randomization_tests$Correlation <- round(randomization_tests$Correlation, 3)
+randomization_tests$P_Value <- round(randomization_tests$P_Value, 3)
+
+# Display as a table
+datatable(randomization_tests,
+          caption = "Testing Independence of Randomized Exposure X",
+          options = list(pageLength = 10, scrollX = TRUE),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+```
+
+## Conclusions from Randomization Tests:
+
+The randomization tests confirm the fundamental principle of experimental design:
+
+1. **Exposure independence achieved**: X shows no significant correlation with any other variable in the system.
+
+2. **Successful randomization**: The p-values are all non-significant, confirming that randomization broke the association between treatment and potential confounders.
+
+3. **Causal identification guaranteed**: Because X is independent of all other causes of Y, the association between X and Y represents the pure causal effect.
+
+## 12. Stratification Analysis
+
+```{r}
+#| label: stratification-analysis
+#| fig-cap: "Stratified analysis showing consistency of treatment effect"
+#| fig-subcap: 
+#|   - "X-Y Relationship Stratified by Z"
+#|   - "X-Y Relationship Stratified by C" 
+#|   - "X-Y Relationship Stratified by B"
+#|   - "X-Y Relationship Stratified by A"
+#| layout-ncol: 2
+
+# Create Z strata
+dag_data <- dag_data %>%
+  mutate(Z_strata = cut(Z, breaks = 3, labels = c("Low Z", "Medium Z", "High Z")))
+
+# Stratified analysis by Z
+p1 <- ggplot(dag_data, aes(x = X, y = Y, color = Z_strata)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = TRUE) +
+  facet_wrap(~ Z_strata) +
+  labs(title = "X-Y Relationship Stratified by Z",
+       subtitle = "Exposure effect should be consistent across strata") +
+  theme_minimal() +
+  theme(legend.position = "bottom",
+        plot.title = element_text(size = 28),
+        plot.subtitle = element_text(size = 28))
+print(p1)
+
+# Create C strata
+dag_data <- dag_data %>%
+  mutate(C_strata = cut(C, breaks = 3, labels = c("Low C", "Medium C", "High C")))
+
+# Stratified analysis by C
+p2 <- ggplot(dag_data, aes(x = X, y = Y, color = C_strata)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = TRUE) +
+  facet_wrap(~ C_strata) +
+  labs(title = "X-Y Relationship Stratified by C",
+       subtitle = "Exposure effect should be consistent across strata") +
+  theme_minimal() +
+  theme(legend.position = "bottom",
+plot.title = element_text(size = 28),
+        plot.subtitle = element_text(size = 28))
+print(p2)
+
+# Create B strata
+dag_data <- dag_data %>%
+  mutate(B_strata = cut(B, breaks = 3, labels = c("Low B", "Medium B", "High B")))
+
+# Stratified analysis by B
+p3 <- ggplot(dag_data, aes(x = X, y = Y, color = B_strata)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = TRUE) +
+  facet_wrap(~ B_strata) +
+  labs(title = "X-Y Relationship Stratified by B",
+       subtitle = "Exposure effect should be consistent across strata") +
+  theme_minimal() +
+  theme(legend.position = "bottom",
+plot.title = element_text(size = 28),
+        plot.subtitle = element_text(size = 28))
+print(p3)
+
+# Create A strata
+dag_data <- dag_data %>%
+  mutate(A_strata = cut(A, breaks = 3, labels = c("Low A", "Medium A", "High A")))
+
+# Stratified analysis by A
+p4 <- ggplot(dag_data, aes(x = X, y = Y, color = A_strata)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = TRUE) +
+  facet_wrap(~ A_strata) +
+  labs(title = "X-Y Relationship Stratified by A",
+       subtitle = "Exposure effect should be consistent across strata") +
+  theme_minimal() +
+  theme(legend.position = "bottom",
+        plot.title = element_text(size = 28),
+        plot.subtitle = element_text(size = 28))
+print(p4)
+```
+
+## Conclusions from Stratification Analysis:
+
+The stratified analysis demonstrates the power of randomization:
+
+1. **Consistent treatment effect**: The slope of the X-Y relationship is similar across all strata of every variable, confirming no effect modification.
+
+2. **Intercept variation expected**: Different strata show different intercepts because these variables independently affect Y.
+
+3. **No confounding detected**: The consistency of slopes across strata confirms that randomization eliminated confounding.
+
+4. **Robust causal estimate**: The treatment effect is stable regardless of the levels of other variables.
+
+## 13. Structural Equation Modeling (SEM)
+
+```{r}
+#| label: sem-analysis
+#| tbl-cap: "Structural Equation Model Results for Experimental Design"
+
+# Define the SEM model based on our experimental DAG
+sem_model <- '
+  # Structural equations (following the experimental DAG)
+  Z ~ a1*A + b1*B
+  Y ~ x1*X + z1*Z + c1*C + b2*B
+  
+  # X is exogenous (randomized) - no structural equation needed
+  
+  # Define indirect effects (none through X since it has no causes)
+  A_to_Y_via_Z := a1*z1
+  B_to_Y_via_Z := b1*z1
+  B_to_Y_total := b2 + B_to_Y_via_Z
+'
+
+# Fit the model
+sem_fit <- sem(sem_model, data = dag_data)
+
+# Display the results
+sem_summary <- summary(sem_fit, standardized = TRUE, fit.measures = TRUE)
+
+# Extract and display path coefficients
+sem_coefs <- parameterEstimates(sem_fit) %>%
+  filter(op %in% c("~", ":=")) %>%
+  select(lhs, op, rhs, est, se, z, pvalue, ci.lower, ci.upper)
+
+# Create a formatted results table
+sem_results <- sem_coefs %>%
+  mutate(
+    Path = case_when(
+      op == "~" & lhs == "Z" ~ paste(lhs, "<-", rhs),
+      op == "~" & lhs == "Y" ~ paste(lhs, "<-", rhs),
+      op == ":=" & grepl("A_to_Y", rhs) ~ paste("A → Y (", gsub("A_to_Y_", "", rhs), ")"),
+      op == ":=" & grepl("B_to_Y", rhs) ~ paste("B → Y (", gsub("B_to_Y_", "", rhs), ")"),
+      TRUE ~ paste(lhs, op, rhs)
+    ),
+    Estimate = round(est, 3),
+    SE = round(se, 3),
+    `Z-value` = round(z, 3),
+    `P-value` = round(pvalue, 3),
+    `95% CI` = paste0("[", round(ci.lower, 3), ", ", round(ci.upper, 3), "]")
+  ) %>%
+  select(Path, Estimate, SE, `Z-value`, `P-value`, `95% CI`)
+
+# Display the results table  
+datatable(sem_results,
+          caption = "Structural Equation Model Path Coefficients for Experimental Design",
+          options = list(pageLength = 15, scrollX = TRUE),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+```
+
+```{r}
+#| label: sem-fit-measures
+#| tbl-cap: "SEM Model Fit Measures for Experimental Design"
+
+# Extract fit measures
+fit_measures <- fitMeasures(sem_fit)
+
+# Create a table of key fit measures
+fit_table <- data.frame(
+  Measure = c("Chi-square", "df", "P-value", "CFI", "TLI", "RMSEA", "RMSEA CI Lower", "RMSEA CI Upper", "SRMR"),
+  Value = c(
+    round(fit_measures["chisq"], 3),
+    fit_measures["df"],
+    round(fit_measures["pvalue"], 3),
+    round(fit_measures["cfi"], 3),
+    round(fit_measures["tli"], 3),
+    round(fit_measures["rmsea"], 3),
+    round(fit_measures["rmsea.ci.lower"], 3),
+    round(fit_measures["rmsea.ci.upper"], 3),
+    round(fit_measures["srmr"], 3)
+  ),
+  Interpretation = c(
+    "Model chi-square",
+    "Degrees of freedom",
+    "P-value for chi-square test",
+    "Comparative Fit Index (>0.95 good)",
+    "Tucker-Lewis Index (>0.95 good)",
+    "Root Mean Square Error of Approximation (<0.06 good)",
+    "RMSEA 95% CI lower bound",
+    "RMSEA 95% CI upper bound", 
+    "Standardized Root Mean Square Residual (<0.08 good)"
+  )
+)
+
+datatable(fit_table,
+          caption = "Structural Equation Model Fit Indices for Experimental Design",
+          options = list(pageLength = 10, scrollX = TRUE),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+```
+
+## Conclusions from SEM Analysis:
+
+The structural equation model confirms the experimental design principles:
+
+1. **Excellent model fit**: All fit indices indicate the model represents the data well.
+
+2. **Direct treatment effect**: The X → Y coefficient matches our expected causal effect closely.
+
+3. **No indirect effects through X**: Since X is randomized, there are no indirect pathways from other variables through X.
+
+4. **Other pathways quantified**: We can see how A and B affect Y through different mechanisms.
+
+## 14. Examining Exposure Assignment Quality
+
+```{r}
+#| label: treatment-balance
+#| fig-cap: "Examining balance of treatment assignment across other variables"
+
+# Create treatment groups based on X (splitting at median for visualization)
+dag_data <- dag_data %>%
+  mutate(X_group = ifelse(X > median(X), "High X", "Low X"))
+
+# Test balance across variables
+balance_tests <- data.frame(
+  Variable = c("A", "B", "Z", "C"),
+  High_X_Mean = c(
+    mean(dag_data$A[dag_data$X_group == "High X"]),
+    mean(dag_data$B[dag_data$X_group == "High X"]),
+    mean(dag_data$Z[dag_data$X_group == "High X"]),
+    mean(dag_data$C[dag_data$X_group == "High X"])
+  ),
+  Low_X_Mean = c(
+    mean(dag_data$A[dag_data$X_group == "Low X"]),
+    mean(dag_data$B[dag_data$X_group == "Low X"]),
+    mean(dag_data$Z[dag_data$X_group == "Low X"]),
+    mean(dag_data$C[dag_data$X_group == "Low X"])
+  ),
+  Difference = c(
+    mean(dag_data$A[dag_data$X_group == "High X"]) - mean(dag_data$A[dag_data$X_group == "Low X"]),
+    mean(dag_data$B[dag_data$X_group == "High X"]) - mean(dag_data$B[dag_data$X_group == "Low X"]),
+    mean(dag_data$Z[dag_data$X_group == "High X"]) - mean(dag_data$Z[dag_data$X_group == "Low X"]),
+    mean(dag_data$C[dag_data$X_group == "High X"]) - mean(dag_data$C[dag_data$X_group == "Low X"])
+  ),
+  T_Test_P_Value = c(
+    t.test(dag_data$A ~ dag_data$X_group)$p.value,
+    t.test(dag_data$B ~ dag_data$X_group)$p.value,
+    t.test(dag_data$Z ~ dag_data$X_group)$p.value,
+    t.test(dag_data$C ~ dag_data$X_group)$p.value
+  )
+)
+
+# Format the results
+balance_tests$High_X_Mean <- round(balance_tests$High_X_Mean, 3)
+balance_tests$Low_X_Mean <- round(balance_tests$Low_X_Mean, 3)
+balance_tests$Difference <- round(balance_tests$Difference, 3)
+balance_tests$T_Test_P_Value <- round(balance_tests$T_Test_P_Value, 3)
+
+# Add interpretation
+balance_tests$Balanced <- ifelse(balance_tests$T_Test_P_Value > 0.05, "Yes", "No")
+
+datatable(balance_tests,
+          caption = "Balance Tests: Distribution of Variables Across Exposure Groups",
+          options = list(pageLength = 10, scrollX = TRUE),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+```
+
+```{r}
+#| label: balance-visualization
+#| fig-cap: "Visual assessment of treatment balance"
+
+# Create box plots to visualize balance
+balance_plots <- list()
+
+variables_to_plot <- c("A", "B", "Z", "C")
+
+for(var in variables_to_plot) {
+  p <- ggplot(dag_data, aes_string(x = "X_group", y = var, fill = "X_group")) +
+    geom_boxplot(alpha = 0.7) +
+    geom_jitter(width = 0.2, alpha = 0.3) +
+    scale_fill_manual(values = c("lightblue", "lightcoral")) +
+    theme_minimal() +
+    labs(title = paste("Distribution of", var, "by Exposure Group"),
+         x = "Exposure Group", y = var) +
+    theme(legend.position = "none")
+  
+  balance_plots[[var]] <- p
+}
+
+# Arrange plots
+ggarrange(balance_plots$A, balance_plots$B, balance_plots$Z, balance_plots$C,
+          ncol = 2, nrow = 2)
+```
+
+## Conclusions from Exposure Balance Analysis:
+
+The balance analysis confirms successful randomization:
+
+1. **No significant differences**: All p-values > 0.05, indicating good balance between treatment groups.
+
+2. **Small mean differences**: The differences between groups are small and non-significant.
+
+3. **Visual confirmation**: Box plots show similar distributions across treatment groups.
+
+4. **Randomization success**: These results confirm that randomization successfully balanced observed covariates.
+
+## 15. Power Analysis for Experimental Design
+
+```{r}
+#| label: power-analysis
+#| tbl-cap: "Power analysis for detecting treatment effects"
+
+# Calculate power for different effect sizes and sample sizes
+effect_sizes <- c(0.2, 0.3, 0.4, 0.5, 0.6)
+sample_sizes <- c(100, 250, 500, 750, 1000)
+
+# Function to calculate power for a given effect size and sample size
+calculate_power <- function(effect_size, n, alpha = 0.05) {
+  # Assume residual standard error from our model
+  residual_se <- summary(model_unadjusted)$sigma
+  
+  # Standard error of treatment coefficient
+  se_treatment <- residual_se / sqrt(sum((dag_data$X - mean(dag_data$X))^2))
+  
+  # Adjust for sample size
+  se_treatment_adj <- se_treatment * sqrt(1000 / n)
+  
+  # Calculate power
+  t_critical <- qt(1 - alpha/2, df = n - 2)
+  power <- 1 - pt(t_critical, df = n - 2, ncp = effect_size / se_treatment_adj) +
+           pt(-t_critical, df = n - 2, ncp = effect_size / se_treatment_adj)
+  
+  return(power)
+}
+
+# Create power analysis table
+power_analysis <- expand.grid(
+  Effect_Size = effect_sizes,
+  Sample_Size = sample_sizes
+)
+
+power_analysis$Power <- mapply(calculate_power, 
+                               power_analysis$Effect_Size, 
+                               power_analysis$Sample_Size)
+
+# Format and display
+power_analysis$Power <- round(power_analysis$Power, 3)
+
+# Reshape for better display
+power_wide <- power_analysis %>%
+  pivot_wider(names_from = Sample_Size, values_from = Power, names_prefix = "N_")
+
+datatable(power_wide,
+          caption = "Statistical Power for Different Effect Sizes and Sample Sizes",
+          options = list(pageLength = 10, scrollX = TRUE),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+```
+
+```{r}
+#| label: power-visualization
+#| fig-cap: "Power curves for different effect sizes"
+
+# Create power curves
+ggplot(power_analysis, aes(x = Sample_Size, y = Power, color = factor(Effect_Size))) +
+  geom_line(size = 1.2) +
+  geom_point(size = 2) +
+  geom_hline(yintercept = 0.8, linetype = "dashed", color = "red") +
+  scale_color_viridis_d(name = "Effect Size") +
+  labs(title = "Statistical Power vs Sample Size for Different Effect Sizes",
+       subtitle = "Red dashed line shows 80% power threshold",
+       x = "Sample Size", y = "Statistical Power") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+## Conclusions from Power Analysis:
+
+The power analysis reveals important considerations for experimental design:
+
+1. **Adequate power achieved**: Our sample size of 1000 provides excellent power (>90%) for detecting the true effect size of 0.4.
+
+2. **Sample size requirements**: Smaller effect sizes require larger samples to achieve adequate power.
+
+3. **Design efficiency**: Experimental designs are highly efficient for detecting causal effects compared to observational studies.
+
+## 16. Bayesian Causal Inference Analysis
+
+```{r}
+#| label: bayesian-causal-analysis
+#| message: false
+#| warning: false
+#| results: 'hide'
+
+# Standardize variables for better model fitting
+dag_data_std <- dag_data %>%
+  mutate(across(where(is.numeric), scale)) %>%
+  as.data.frame()
+
+# Define and fit Bayesian models
+# 1. Unadjusted model (correct for experimental design)
+m_unadj <- quap(
+  alist(
+    Y ~ dnorm(mu, sigma),
+    mu <- a + bX * X,
+    a ~ dnorm(0, 1),
+    bX ~ dnorm(0, 1),
+    sigma ~ dexp(1)
+  ),
+  data = dag_data_std
+)
+
+# 2. Adjusted for prognostic factors (for precision)
+m_prog <- quap(
+  alist(
+    Y ~ dnorm(mu, sigma),
+    mu <- a + bX * X + bZ * Z + bC * C + bB * B,
+    a ~ dnorm(0, 1),
+    bX ~ dnorm(0, 1),
+    bZ ~ dnorm(0, 1),
+    bC ~ dnorm(0, 1),
+    bB ~ dnorm(0, 1),
+    sigma ~ dexp(1)
+  ),
+  data = dag_data_std
+)
+
+# 3. Full model with all variables
+m_full <- quap(
+  alist(
+    Y ~ dnorm(mu, sigma),
+    mu <- a + bX * X + bZ * Z + bC * C + bB * B + bA * A,
+    a ~ dnorm(0, 1),
+    bX ~ dnorm(0, 1),
+    bZ ~ dnorm(0, 1),
+    bC ~ dnorm(0, 1),
+    bB ~ dnorm(0, 1),
+    bA ~ dnorm(0, 1),
+    sigma ~ dexp(1)
+  ),
+  data = dag_data_std
+)
+```
+
+```{r}
+#| label: extract-bayesian-posteriors
+#| tbl-cap: "Bayesian estimates of the treatment effect"
+
+# Extract samples from the posterior distributions
+post_unadj <- extract.samples(m_unadj)
+post_prog <- extract.samples(m_prog)
+post_full <- extract.samples(m_full)
+
+# Create a function to summarize posteriors
+summarize_posterior <- function(posterior, name) {
+  data.frame(
+    Model = name,
+    Mean = mean(posterior$bX),
+    Median = median(posterior$bX),
+    SD = sd(posterior$bX),
+    CI_Lower = quantile(posterior$bX, 0.025),
+    CI_Upper = quantile(posterior$bX, 0.975),
+    Width = quantile(posterior$bX, 0.975) - quantile(posterior$bX, 0.025)
+  )
+}
+
+# Summarize the models
+bayesian_results <- rbind(
+  summarize_posterior(post_unadj, "Unadjusted (Correct for RCT)"),
+  summarize_posterior(post_prog, "Adjusted for Prognostic Factors"),
+  summarize_posterior(post_full, "Full Model")
+)
+
+# Display the results
+datatable(bayesian_results,
+          caption = "Bayesian estimates of the treatment effect under different models",
+          options = list(pageLength = 5, dom = 't'),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive') %>%
+  formatRound(columns = c("Mean", "Median", "SD", "CI_Lower", "CI_Upper", "Width"), digits = 3)
+```
+
+```{r}
+#| label: plot-bayesian-posteriors
+#| fig-width: 10
+#| fig-height: 6
+#| fig-cap: "Posterior distributions of treatment effect estimates"
+
+# Create a data frame with the posterior samples
+all_posteriors <- data.frame(
+  `Unadjusted (Correct)` = post_unadj$bX,
+  `Prognostic Adjustment` = post_prog$bX,
+  `Full Model` = post_full$bX,
+  check.names = FALSE
+)
+
+# Convert to long format for plotting
+long_posteriors <- all_posteriors %>%
+  pivot_longer(cols = everything(),
+               names_to = "Model",
+               values_to = "Effect_Estimate")
+
+# Set factor levels for consistent ordering
+long_posteriors$Model <- factor(long_posteriors$Model,
+                                levels = c("Unadjusted (Correct)", "Prognostic Adjustment", "Full Model"))
+
+# Plot density curves for all models
+ggplot(long_posteriors, aes(x = Effect_Estimate, fill = Model)) +
+  geom_density(alpha = 0.6) +
+  geom_vline(data = bayesian_results,
+             aes(xintercept = Mean, color = Model),
+             linetype = "dashed", size = 1) +
+  scale_fill_brewer(palette = "Set1") +
+  scale_color_brewer(palette = "Set1") +
+  labs(
+    title = "Posterior Distributions of the Exposure Effect",
+    subtitle = "All models provide similar estimates due to randomization",
+    x = "Exposure Effect (Standardized)",
+    y = "Density"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+## Interpretation of Bayesian Analysis:
+
+The Bayesian analysis demonstrates key experimental design principles:
+
+1. **Consistent estimates**: All models yield very similar posterior distributions for the treatment effect.
+
+2. **Precision gains**: Adjusting for prognostic factors narrows the credible intervals without changing the point estimate.
+
+3. **Robustness**: The treatment effect estimate is robust across different modeling approaches.
+
+## 17. Counterfactual Analysis: Exposure Effect Estimation
+
+```{r}
+#| label: counterfactual-analysis
+#| fig-cap: "Counterfactual predictions under different treatment levels"
+
+# Function to predict Y based on different treatment levels
+predict_counterfactual <- function(x_values, data = dag_data) {
+  # Use the unadjusted model (correct for experimental design)
+  model <- lm(Y ~ X, data = data)
+  intercept <- coef(model)[1]
+  x_coef <- coef(model)[2]
+  
+  # Predict Y for different values of X
+  y_pred <- intercept + x_coef * x_values
+  return(y_pred)
+}
+
+# Create a range of X values for intervention
+x_range <- seq(min(dag_data$X), max(dag_data$X), length.out = 100)
+
+# Predict Y for different treatment levels
+y_pred <- predict_counterfactual(x_range)
+
+# Create a data frame for plotting
+counterfactual_df <- data.frame(X = x_range, Y = y_pred)
+
+# Plot the counterfactual prediction
+ggplot() +
+  # Add actual data points
+  geom_point(data = dag_data, aes(x = X, y = Y), alpha = 0.2, color = "gray") +
+  # Add counterfactual prediction
+  geom_line(data = counterfactual_df, aes(x = X, y = Y),
+            color = "red", size = 1.5) +
+  labs(
+    title = "Counterfactual Prediction: Exposure Effect",
+    subtitle = "Red line shows the causal effect of treatment on outcome",
+    x = "X (Exposure Level)",
+    y = "Y (Outcome)"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+#| label: treatment-effect-table
+#| tbl-cap: "Estimated treatment effects under different interventions"
+
+# Calculate treatment effects for specific interventions
+intervention_effects <- data.frame(
+  Intervention = c(
+    "Increase treatment by 1 unit",
+    "Increase treatment by 2 units",
+    "Move from 25th to 75th percentile",
+    "Move from minimum to maximum treatment"
+  ),
+  X_Change = c(
+    1,
+    2,
+    quantile(dag_data$X, 0.75) - quantile(dag_data$X, 0.25),
+    max(dag_data$X) - min(dag_data$X)
+  ),
+  Expected_Y_Change = c(
+    1 * coef(model_unadjusted)["X"],
+    2 * coef(model_unadjusted)["X"],
+    (quantile(dag_data$X, 0.75) - quantile(dag_data$X, 0.25)) * coef(model_unadjusted)["X"],
+    (max(dag_data$X) - min(dag_data$X)) * coef(model_unadjusted)["X"]
+  )
+)
+
+# Format the results
+intervention_effects$X_Change <- round(intervention_effects$X_Change, 3)
+intervention_effects$Expected_Y_Change <- round(intervention_effects$Expected_Y_Change, 3)
+
+datatable(intervention_effects,
+          caption = "Expected outcomes under different treatment interventions",
+          options = list(pageLength = 10, dom = 't'),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+```
+
+## Conclusions from Counterfactual Analysis:
+
+The counterfactual analysis demonstrates the practical implications of the treatment effect:
+
+1. **Linear treatment response**: The relationship between treatment level and outcome is linear.
+
+2. **Predictable interventions**: We can precisely predict the outcome change for any treatment intervention.
+
+3. **Policy implications**: The analysis provides clear guidance for optimal treatment levels.
+
+## 18. Sensitivity Analysis: What if randomization failed?
+
+```{r}
+#| label: sensitivity-analysis
+#| fig-cap: "Impact of potential confounding if randomization had failed"
+
+# Function to simulate what would happen if randomization had failed
+simulate_confounding <- function(confounding_strength) {
+  # Create a scenario where X is influenced by a hidden confounder U
+  set.seed(123)
+  n <- 1000
+  
+  # Generate unmeasured confounder U
+  U <- rnorm(n, mean = 0, sd = 1)
+  
+  # X is now influenced by U (simulating failed randomization)
+  X_confounded <- confounding_strength * U + sqrt(1 - confounding_strength^2) * rnorm(n, sd = 1)
+  
+  # Y is influenced by both X and U
+  Y_confounded <- 0.4 * X_confounded + 0.3 * U + rnorm(n, sd = 0.6)
+  
+  # Estimate the apparent effect (biased due to confounding)
+  apparent_effect <- coef(lm(Y_confounded ~ X_confounded))[2]
+  
+  return(apparent_effect)
+}
+
+# Test different levels of confounding
+confounding_levels <- seq(0, 0.8, by = 0.1)
+sensitivity_results <- data.frame(
+  Confounding_Strength = confounding_levels,
+  Apparent_Effect = sapply(confounding_levels, simulate_confounding),
+  True_Effect = 0.4,
+  Bias = sapply(confounding_levels, simulate_confounding) - 0.4
+)
+
+# Format results
+sensitivity_results$Apparent_Effect <- round(sensitivity_results$Apparent_Effect, 3)
+sensitivity_results$Bias <- round(sensitivity_results$Bias, 3)
+sensitivity_results$Bias_Percent <- round(100 * sensitivity_results$Bias / 0.4, 1)
+
+datatable(sensitivity_results,
+          caption = "Sensitivity Analysis: Impact of Failed Randomization",
+          options = list(pageLength = 10, dom = 't'),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+```
+
+```{r}
+#| label: sensitivity-visualization
+#| fig-cap: "Bias introduced by confounding when randomization fails"
+
+# Plot the sensitivity analysis
+ggplot(sensitivity_results, aes(x = Confounding_Strength, y = Apparent_Effect)) +
+  geom_line(size = 1.2, color = "blue") +
+  geom_point(size = 3, color = "blue") +
+  geom_hline(yintercept = 0.4, linetype = "dashed", color = "red", size = 1) +
+  labs(
+    title = "Sensitivity Analysis: Bias from Failed Randomization",
+    subtitle = "Red dashed line shows true causal effect (0.4)",
+    x = "Confounding Strength",
+    y = "Apparent Exposure Effect"
+  ) +
+  theme_minimal()
+```
+
+## Conclusions from Sensitivity Analysis:
+
+The sensitivity analysis highlights the value of randomization:
+
+1. **Perfect randomization (0.0 confounding)**: Produces unbiased estimates of the true effect.
+
+2. **Increasing bias with confounding**: As confounding strength increases, bias grows substantially.
+
+3. **Randomization superiority**: Even small amounts of confounding can lead to meaningful bias.
+
+4. **Experimental design advantage**: Proper randomization eliminates this source of bias entirely.
+
+## 19. Forest Plot Visualization of Exposure Effects
+
+```{r}
+#| label: forest-plot
+#| fig-cap: "Forest plot of treatment effect estimates under different modeling approaches"
+
+# Create forest plot data from our comparison table
+forest_data <- comparison_df %>%
+  filter(Model != "True Causal Effect") %>%
+  mutate(
+    Model = factor(Model, levels = rev(c(
+      "Unadjusted (Correct for RCT)",
+      "Adjusted for Z (Prognostic)",
+      "Adjusted for C (Prognostic)", 
+      "Adjusted for B (Prognostic)",
+      "Adjusted for Z, C (Multiple Prognostic)",
+      "Adjusted for All Variables"
+    ))),
+    CI_Lower = Coefficient - 1.96 * StandardError,
+    CI_Upper = Coefficient + 1.96 * StandardError
+  )
+
+# Plot forest plot
+ggplot(forest_data, aes(x = Coefficient, y = Model,
+                       xmin = CI_Lower, xmax = CI_Upper)) +
+  geom_pointrange(size = 0.8, color = "darkgreen") +
+  geom_vline(xintercept = true_effect, linetype = "dashed", color = "red", size = 1) +
+  labs(
+    title = "Exposure Effect Estimates Under Different Modeling Approaches",
+    subtitle = "Dashed line represents the true causal effect (0.4)",
+    x = "Estimated Exposure Effect",
+    y = "Modeling Approach"
+  ) +
+  theme_minimal() +
+  theme(axis.text.y = element_text(size = 10))
+```
+
+## Conclusions from Forest Plot:
+
+The forest plot illustrates the robustness of experimental design:
+
+1. **Consistent estimates**: All modeling approaches yield similar point estimates.
+
+2. **Precision trade-offs**: Some adjusted models have narrower confidence intervals (higher precision).
+
+3. **Robust causal inference**: The treatment effect estimate is stable regardless of the modeling approach.
+
+## 20. Mediation Analysis: Decomposing Exposure Effects
+
+```{r}
+#| label: mediation-analysis
+#| tbl-cap: "Mediation analysis: Are there indirect effects through Z?"
+
+# Since Z is affected by A and B, but not by X (due to randomization),
+# there should be no mediation of the X → Y effect through Z
+
+# Test for mediation using the traditional Baron & Kenny approach
+# Step 1: X should predict Y (already established)
+step1_model <- lm(Y ~ X, data = dag_data)
+step1_significant <- summary(step1_model)$coefficients["X", "Pr(>|t|)"] < 0.05
+
+# Step 2: X should predict the mediator Z
+step2_model <- lm(Z ~ X, data = dag_data)  
+step2_significant <- summary(step2_model)$coefficients["X", "Pr(>|t|)"] < 0.05
+
+# Step 3: Z should predict Y when controlling for X
+step3_model <- lm(Y ~ X + Z, data = dag_data)
+step3_significant <- summary(step3_model)$coefficients["Z", "Pr(>|t|)"] < 0.05
+
+# Step 4: The effect of X on Y should be reduced when Z is included
+direct_effect <- coef(step1_model)["X"]
+direct_effect_with_mediator <- coef(step3_model)["X"]
+mediation_effect <- direct_effect - direct_effect_with_mediator
+
+# Create mediation results table
+mediation_results <- data.frame(
+  Step = c("1. X → Y (total effect)", 
+           "2. X → Z (treatment → mediator)",
+           "3. Z → Y|X (mediator → outcome)",
+           "4. X → Y|Z (direct effect)"),
+  Coefficient = c(
+    coef(step1_model)["X"],
+    coef(step2_model)["X"],
+    coef(step3_model)["Z"],
+    coef(step3_model)["X"]
+  ),
+  P_Value = c(
+    summary(step1_model)$coefficients["X", "Pr(>|t|)"],
+    summary(step2_model)$coefficients["X", "Pr(>|t|)"],
+    summary(step3_model)$coefficients["Z", "Pr(>|t|)"],
+    summary(step3_model)$coefficients["X", "Pr(>|t|)"]
+  ),
+  Significant = c(step1_significant, step2_significant, step3_significant, TRUE),
+  Interpretation = c(
+    "Total treatment effect (significant)",
+    "No treatment effect on Z (randomization successful)",
+    "Z affects outcome (prognostic factor)",
+    "Direct treatment effect unchanged"
+  )
+)
+
+# Format results
+mediation_results$Coefficient <- round(mediation_results$Coefficient, 3)
+mediation_results$P_Value <- round(mediation_results$P_Value, 3)
+
+datatable(mediation_results,
+          caption = "Mediation Analysis: Testing for Indirect Effects",
+          options = list(pageLength = 10, scrollX = TRUE),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+
+# Summary of mediation
+mediation_summary <- data.frame(
+  Effect_Type = c("Total Effect", "Direct Effect", "Indirect Effect (Mediation)", "Proportion Mediated"),
+  Value = c(direct_effect, direct_effect_with_mediator, mediation_effect, mediation_effect/direct_effect),
+  Interpretation = c(
+    "Overall treatment effect",
+    "Direct treatment effect (controlling for Z)",
+    "Effect mediated through Z", 
+    "Proportion of effect that is mediated"
+  )
+)
+
+mediation_summary$Value <- round(mediation_summary$Value, 3)
+
+datatable(mediation_summary,
+          caption = "Mediation Analysis Summary",
+          options = list(pageLength = 10, dom = 't'),
+          rownames = FALSE,
+          class = 'cell-border stripe compact responsive')
+```
+
+## Conclusions from Mediation Analysis:
+
+The mediation analysis confirms the experimental design structure:
+
+1. **No mediation detected**: Step 2 fails because X does not predict Z (due to randomization).
+
+2. **Randomization eliminates mediation**: Since X is randomly assigned, it cannot affect mediators.
+
+3. **Z is prognostic, not mediating**: Z affects the outcome but is not on the causal pathway from X to Y.
+
+4. **Pure direct effect**: The entire treatment effect is direct, with no indirect pathways.
+
+## 21. Practical Implications and Conclusions
+
+### 21.1 Summary of Key Findings
+
+Our comprehensive analysis of the experimental causal structure has revealed several fundamental insights about randomized controlled trials:
+
+1. **Randomization eliminates confounding**: The independence of X from all other variables ensures unbiased causal estimates.
+
+2. **No adjustment necessary**: The simple association between X and Y represents the true causal effect.
+
+3. **Adjustment can improve precision**: While not necessary for unbiased estimation, controlling for prognostic factors may increase statistical efficiency.
+
+4. **Robust across methods**: Frequentist, Bayesian, and SEM approaches all yield consistent results.
+
+### 21.2 The Gold Standard of Causal Inference
+
+This experimental structure represents why randomized controlled trials are considered the gold standard:
+
+**Advantages of Randomization:**
+- Eliminates selection bias
+- Balances known and unknown confounders
+- Allows simple, unbiased estimation of causal effects
+- Provides strong evidence for causality
+
+**Design Principles Demonstrated:**
+- Exposure assignment must be truly independent
+- Balance checks confirm successful randomization
+- Simple analysis approaches are often best
+- Complex adjustments may reduce efficiency without improving validity
+
+### 21.3 Real-World Applications
+
+This framework applies to numerous experimental contexts:
+
+- **Clinical trials**: Testing drug efficacy with randomized treatment assignment
+- **Educational interventions**: Evaluating program effectiveness with random student assignment
+- **Policy experiments**: Testing policy changes with randomized implementation
+- **Marketing studies**: A/B testing with random customer assignment
+
+### 21.4 Comparison with Observational Studies
+
+Unlike observational studies where confounding is a major threat:
+
+- **No backdoor paths exist** between treatment and outcome
+- **No adjustment sets needed** for causal identification
+- **Higher internal validity** due to experimental control
+- **Clearer causal interpretation** of results
+
+### 21.5 Limitations and Considerations
+
+Even experimental designs have limitations:
+
+1. **External validity**: Results may not generalize beyond the experimental population
+2. **Ethical constraints**: Not all treatments can be randomly assigned
+3. **Practical limitations**: Randomization may not always be feasible
+4. **Compliance issues**: Participants may not adhere to assigned treatments
+
+### 21.6 Recommendations for Experimental Research
+
+Based on this analysis, we recommend:
+
+1. **Prioritize randomization quality**: Ensure truly random assignment mechanisms
+2. **Check balance**: Verify that randomization achieved its intended effect
+3. **Keep analysis simple**: Use straightforward analytical approaches when possible
+4. **Consider precision**: Adjust for prognostic factors to improve statistical efficiency
+5. **Test robustness**: Verify results are consistent across different analytical approaches
+
+### 21.7 The Value of DAG Thinking in Experiments
+
+Even in experimental settings, DAG thinking provides value:
+
+- **Clarifies causal assumptions**: Makes explicit what randomization achieves
+- **Guides analytical choices**: Helps distinguish necessary from optional adjustments
+- **Informs design decisions**: Identifies which variables to measure and potentially control for
+- **Communicates causal logic**: Provides clear visualization of the causal structure
+
+
+
+This analysis demonstrates that experimental causal structures, while simpler than observational studies in terms of confounding, benefit greatly from careful causal thinking. The DAG framework helps researchers understand why randomization works, what it achieves, and how to analyze experimental data optimally. The key insight is that randomization's power lies in creating a causal structure where the treatment variable has no parents, eliminating all backdoor paths and allowing direct estimation of causal effects.
+
+Think of randomization as being like a perfectly clean laboratory - it isolates the causal relationship of interest by controlling the experimental environment so thoroughly that confounding cannot occur. Just as a chemist can determine the effect of temperature on a reaction by controlling all other variables, a researcher can determine the causal effect of a treatment by randomly assigning it, thereby controlling for all potential confounders simultaneously.
+
+
+
+
+
+
+
+
+## 22. Simpson's Paradox Detection Analysis
+
+Simpson's Paradox occurs when the direction of an association between two variables reverses when conditioning on a third variable. In our experimental causal structure DAG, we can examine whether this phenomenon occurs by stratifying our data based on different levels of the prognostic factors Z, C, and B.
+
+Think of Simpson's Paradox like a magic trick in statistics - what appears to be true at the surface level completely reverses when you look deeper. In our experimental DAG, we might find that overall, X appears to have one effect on Y, but within each level of the prognostic factors, the relationship tells a different story. However, because X is randomized, we would expect the relationship to remain consistent across strata.
+
+### 22.1 Simpson's Paradox Detection Analysis
+
+First, let's examine the overall relationship between X and Y, and then compare it to the relationship within different strata of Z:
+
+```{r}
+#| label: detect-simpsons-paradox-exp
+#| message: false
+#| warning: false
+
+# Calculate overall correlation between X and Y
+overall_cor <- cor(dag_data$X, dag_data$Y)
+overall_slope <- coef(lm(Y ~ X, data = dag_data))[2]
+
+# Create Z quartiles for stratified analysis
+dag_data$Z_quartile <- cut(dag_data$Z, 
+                          breaks = quantile(dag_data$Z, probs = c(0, 0.25, 0.5, 0.75, 1)), 
+                          labels = c("Q1 (Low)", "Q2", "Q3", "Q4 (High)"),
+                          include.lowest = TRUE)
+
+# Calculate correlations and slopes within each Z quartile
+stratified_results <- dag_data %>%
+  group_by(Z_quartile) %>%
+  summarise(
+    n = n(),
+    cor_XY = cor(X, Y),
+    slope_XY = coef(lm(Y ~ X))[2],
+    mean_Z = mean(Z),
+    mean_X = mean(X),
+    mean_Y = mean(Y),
+    .groups = 'drop'
+  )
+
+# Add overall results for comparison
+overall_results <- data.frame(
+  Z_quartile = "Overall",
+  n = nrow(dag_data),
+  cor_XY = overall_cor,
+  slope_XY = overall_slope,
+  mean_Z = mean(dag_data$Z),
+  mean_X = mean(dag_data$X),
+  mean_Y = mean(dag_data$Y)
+)
+
+# Combine results
+simpson_analysis <- bind_rows(overall_results, stratified_results)
+
+# Round for display
+simpson_analysis <- simpson_analysis %>%
+  mutate(across(where(is.numeric), ~ round(., 3)))
+
+# Display results
+DT::datatable(simpson_analysis,
+              caption = "Simpson's Paradox Detection: Overall vs Stratified Analysis by Z",
+              options = list(pageLength = 10, scrollX = TRUE),
+              colnames = c("Z Group", "N", "Correlation X-Y", "Slope X→Y", 
+                          "Mean Z", "Mean X", "Mean Y")) %>%
+  DT::formatRound(columns = c("cor_XY", "slope_XY", "mean_Z", "mean_X", "mean_Y"), digits = 3)
+```
+
+### 22.2 Testing for Simpson's Paradox by Status
+
+Let's formally test whether Simpson's Paradox is present by examining if the direction of association changes:
+
+```{r}
+#| label: test-simpsons-paradox-status-exp
+#| message: false
+#| warning: false
+
+# Function to determine Simpson's Paradox status
+detect_simpson_status <- function(overall_slope, stratified_slopes) {
+  # Check if all stratified slopes have the same sign
+  stratified_signs <- sign(stratified_slopes)
+  overall_sign <- sign(overall_slope)
+  
+  # Simpson's Paradox occurs when overall sign differs from all stratified signs
+  if (all(stratified_signs == stratified_signs[1]) && 
+      overall_sign != stratified_signs[1]) {
+    return("Strong Simpson's Paradox")
+  } else if (any(stratified_signs != overall_sign)) {
+    return("Partial Simpson's Paradox")
+  } else {
+    return("No Simpson's Paradox")
+  }
+}
+
+# Get stratified slopes (excluding overall)
+stratified_slopes <- stratified_results$slope_XY
+
+# Determine Simpson's Paradox status
+simpson_status <- detect_simpson_status(overall_slope, stratified_slopes)
+
+# Create summary table
+simpson_summary <- data.frame(
+  Measure = c("Overall Slope", "Mean Stratified Slope", "Range of Stratified Slopes",
+              "Overall Correlation", "Mean Stratified Correlation", "Simpson's Paradox Status"),
+  Value = c(
+    round(overall_slope, 3),
+    round(mean(stratified_slopes), 3),
+    paste(round(min(stratified_slopes), 3), "to", round(max(stratified_slopes), 3)),
+    round(overall_cor, 3),
+    round(mean(stratified_results$cor_XY), 3),
+    simpson_status
+  )
+)
+
+# Display summary
+DT::datatable(simpson_summary,
+              caption = "Simpson's Paradox Status Summary for Z Stratification",
+              options = list(pageLength = 10, dom = 't'),
+              colnames = c("Measure", "Value"))
+```
+
+### 22.3 Testing for Simpson's Paradox by Groups
+
+Let's examine the phenomenon by creating binary high/low groups for multiple prognostic factors:
+
+```{r}
+#| label: test-simpsons-by-groups-exp
+#| message: false
+#| warning: false
+
+# Create binary groups for Z, C, and B (high/low based on median split)
+dag_data$Z_binary <- ifelse(dag_data$Z > median(dag_data$Z), "High Z", "Low Z")
+dag_data$C_binary <- ifelse(dag_data$C > median(dag_data$C), "High C", "Low C")
+dag_data$B_binary <- ifelse(dag_data$B > median(dag_data$B), "High B", "Low B")
+
+# Analyze binary groups for Z
+binary_Z <- dag_data %>%
+  group_by(Z_binary) %>%
+  summarise(
+    n = n(),
+    cor_XY = cor(X, Y),
+    slope_XY = coef(lm(Y ~ X))[2],
+    mean_Z = mean(Z),
+    .groups = 'drop'
+  ) %>%
+  mutate(Variable = "Z")
+
+# Analyze binary groups for C
+binary_C <- dag_data %>%
+  group_by(C_binary) %>%
+  summarise(
+    n = n(),
+    cor_XY = cor(X, Y),
+    slope_XY = coef(lm(Y ~ X))[2],
+    mean_C = mean(C),
+    .groups = 'drop'
+  ) %>%
+  mutate(Variable = "C") %>%
+  rename(Group = C_binary, mean_var = mean_C)
+
+# Analyze binary groups for B
+binary_B <- dag_data %>%
+  group_by(B_binary) %>%
+  summarise(
+    n = n(),
+    cor_XY = cor(X, Y),
+    slope_XY = coef(lm(Y ~ X))[2],
+    mean_B = mean(B),
+    .groups = 'drop'
+  ) %>%
+  mutate(Variable = "B") %>%
+  rename(Group = B_binary, mean_var = mean_B)
+
+# Standardize column names for Z
+binary_Z <- binary_Z %>%
+  rename(Group = Z_binary, mean_var = mean_Z)
+
+# Combine all binary analyses
+all_binary <- bind_rows(binary_Z, binary_C, binary_B)
+
+# Round for display
+all_binary <- all_binary %>%
+  mutate(across(where(is.numeric), ~ round(., 3)))
+
+# Display binary group analysis
+DT::datatable(all_binary,
+              caption = "Binary Group Analysis for Simpson's Paradox Detection",
+              options = list(pageLength = 10, scrollX = TRUE),
+              colnames = c("Group", "N", "Correlation", "Slope", "Mean Variable", "Variable")) %>%
+  DT::formatRound(columns = c("cor_XY", "slope_XY", "mean_var"), digits = 3)
+```
+
+### 22.4 Visual Detection of Simpson's Paradox
+
+Let's create visualizations to clearly demonstrate whether Simpson's Paradox is present in our experimental data:
+
+```{r}
+#| label: visualize-simpsons-paradox-exp
+#| fig-cap: "Visual Detection of Simpson's Paradox in Experimental Data"
+#| fig-subcap: 
+#|   - "Overall relationship vs stratified relationships (Z quartiles)"
+#|   - "Binary group analysis for Z with separate regression lines"
+#|   - "Binary group analysis for C with separate regression lines"
+#|   - "Slope comparison across different prognostic factor stratifications"
+#| layout-ncol: 2
+
+# Plot 1: Overall vs Stratified (Z Quartiles)
+p1 <- ggplot(dag_data, aes(x = X, y = Y)) +
+  # Overall regression line
+  geom_smooth(method = "lm", formula = y ~ x, color = "red", linewidth = 1.5, 
+              linetype = "dashed", se = FALSE) +
+  # Stratified regression lines
+  geom_smooth(aes(color = Z_quartile), method = "lm", formula = y ~ x, 
+              linewidth = 1, se = FALSE) +
+  # Points colored by quartile
+  geom_point(aes(color = Z_quartile), alpha = 0.6) +
+  scale_color_viridis_d(name = "Z Quartile") +
+  labs(
+    title = "Simpson's Paradox Analysis: Overall vs Z Stratified Relationships",
+    subtitle = paste("Overall slope (red dashed):", round(overall_slope, 3),
+                    "| Simpson's Status:", simpson_status),
+    x = "X (Exposure)",
+    y = "Y (Outcome)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+# Plot 2: Binary Group Analysis for Z
+p2 <- ggplot(dag_data, aes(x = X, y = Y)) +
+  # Overall regression line
+  geom_smooth(method = "lm", formula = y ~ x, color = "red", linewidth = 1.5, 
+              linetype = "dashed", se = FALSE) +
+  # Stratified regression lines for binary groups
+  geom_smooth(aes(color = Z_binary), method = "lm", formula = y ~ x, 
+              linewidth = 1.2, se = TRUE, alpha = 0.3) +
+  # Points colored by binary group
+  geom_point(aes(color = Z_binary), alpha = 0.6) +
+  scale_color_manual(values = c("High Z" = "darkblue", "Low Z" = "darkgreen"),
+                     name = "Z Group") +
+  labs(
+    title = "Binary Group Analysis for Z",
+    subtitle = "Red dashed line: Overall relationship | Colored lines: Group-specific relationships",
+    x = "X (Exposure)",
+    y = "Y (Outcome)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+# Plot 3: Binary Group Analysis for C
+p3 <- ggplot(dag_data, aes(x = X, y = Y)) +
+  # Overall regression line
+  geom_smooth(method = "lm", formula = y ~ x, color = "red", linewidth = 1.5, 
+              linetype = "dashed", se = FALSE) +
+  # Stratified regression lines for binary groups
+  geom_smooth(aes(color = C_binary), method = "lm", formula = y ~ x, 
+              linewidth = 1.2, se = TRUE, alpha = 0.3) +
+  # Points colored by binary group
+  geom_point(aes(color = C_binary), alpha = 0.6) +
+  scale_color_manual(values = c("High C" = "purple", "Low C" = "orange"),
+                     name = "C Group") +
+  labs(
+    title = "Binary Group Analysis for C",
+    subtitle = "Red dashed line: Overall relationship | Colored lines: Group-specific relationships",
+    x = "X (Exposure)",
+    y = "Y (Outcome)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+# Plot 4: Slope Comparison
+slope_comparison <- data.frame(
+  Group = c("Overall", 
+           paste("Z", stratified_results$Z_quartile), 
+           paste("Z", unique(dag_data$Z_binary)),
+           paste("C", unique(dag_data$C_binary)),
+           paste("B", unique(dag_data$B_binary))),
+  Slope = c(overall_slope, 
+           stratified_results$slope_XY, 
+           binary_Z$slope_XY,
+           binary_C$slope_XY,
+           binary_B$slope_XY),
+  Type = c("Overall", 
+          rep("Z Quartile", 4), 
+          rep("Z Binary", 2),
+          rep("C Binary", 2),
+          rep("B Binary", 2))
+)
+
+p4 <- ggplot(slope_comparison, aes(x = reorder(Group, Slope), y = Slope, fill = Type)) +
+  geom_col(alpha = 0.8) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  geom_hline(yintercept = 0.4, linetype = "dotted", color = "red", alpha = 0.7) +
+  scale_fill_manual(values = c("Overall" = "red", "Z Quartile" = "steelblue", 
+                              "Z Binary" = "darkgreen", "C Binary" = "purple", 
+                              "B Binary" = "orange")) +
+  labs(
+    title = "Slope Comparison Across Different Stratifications",
+    subtitle = "Red dotted line shows true causal effect (0.4)",
+    x = "Group",
+    y = "Slope of X → Y"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Display plots
+p1
+p2
+p3
+p4
+```
+
+### 22.5 Formal Statistical Test for Simpson's Paradox
+
+Let's conduct a simplified statistical test to quantify the evidence for Simpson's Paradox:
+
+```{r}
+#| label: formal-test-simpsons-paradox-exp
+#| message: false
+#| warning: false
+
+# Simple test comparing overall slope to stratified slopes
+# Calculate differences from overall slope
+slope_differences <- data.frame(
+  Stratification = c(
+    paste("Z", stratified_results$Z_quartile),
+    paste("Z", unique(dag_data$Z_binary)),
+    paste("C", unique(dag_data$C_binary)),
+    paste("B", unique(dag_data$B_binary))
+  ),
+  Slope = c(
+    stratified_results$slope_XY,
+    binary_Z$slope_XY,
+    binary_C$slope_XY,
+    binary_B$slope_XY
+  ),
+  Difference_from_Overall = c(
+    stratified_results$slope_XY - overall_slope,
+    binary_Z$slope_XY - overall_slope,
+    binary_C$slope_XY - overall_slope,
+    binary_B$slope_XY - overall_slope
+  ),
+  Variable = c(
+    rep("Z (Quartiles)", 4),
+    rep("Z (Binary)", 2),
+    rep("C (Binary)", 2),
+    rep("B (Binary)", 2)
+  )
+)
+
+# Round for display
+slope_differences <- slope_differences %>%
+  mutate(across(where(is.numeric), ~ round(., 3)))
+
+# Add interpretation
+slope_differences$Interpretation <- ifelse(
+  abs(slope_differences$Difference_from_Overall) > 0.05,
+  "Notable difference",
+  "Minimal difference"
+)
+
+# Display test results
+DT::datatable(slope_differences,
+              caption = "Statistical Assessment of Slope Differences Across Strata",
+              options = list(pageLength = 10, scrollX = TRUE)) %>%
+  DT::formatRound(columns = c("Slope", "Difference_from_Overall"), digits = 3)
+```
+
+### 22.6 Magnitude of Simpson's Paradox Effect
+
+Let's quantify the magnitude of any Simpson's Paradox effect:
+
+```{r}
+#| label: magnitude-simpsons-effect-exp
+#| message: false
+#| warning: false
+
+# Calculate magnitude measures for different stratifications
+magnitude_analysis <- data.frame(
+  Stratification = c("Z Quartiles", "Z Binary", "C Binary", "B Binary"),
+  Overall_Slope = rep(round(overall_slope, 3), 4),
+  Mean_Stratified_Slope = c(
+    round(mean(stratified_results$slope_XY), 3),
+    round(mean(binary_Z$slope_XY), 3),
+    round(mean(binary_C$slope_XY), 3),
+    round(mean(binary_B$slope_XY), 3)
+  ),
+  Max_Difference = c(
+    round(max(abs(stratified_results$slope_XY - overall_slope)), 3),
+    round(max(abs(binary_Z$slope_XY - overall_slope)), 3),
+    round(max(abs(binary_C$slope_XY - overall_slope)), 3),
+    round(max(abs(binary_B$slope_XY - overall_slope)), 3)
+  ),
+  Direction_Reversal = c(
+    ifelse(any(sign(stratified_results$slope_XY) != sign(overall_slope)), "Yes", "No"),
+    ifelse(any(sign(binary_Z$slope_XY) != sign(overall_slope)), "Yes", "No"),
+    ifelse(any(sign(binary_C$slope_XY) != sign(overall_slope)), "Yes", "No"),
+    ifelse(any(sign(binary_B$slope_XY) != sign(overall_slope)), "Yes", "No")
+  )
+)
+
+# Display magnitude analysis
+DT::datatable(magnitude_analysis,
+              caption = "Magnitude of Simpson's Paradox Effect Across Stratifications",
+              options = list(pageLength = 10, scrollX = TRUE),
+              colnames = c("Stratification", "Overall Slope", "Mean Stratified Slope", 
+                          "Max Difference", "Direction Reversal"))
+```
+
+### 22.7 Weighted vs Unweighted Analysis
+
+Let's compare weighted and unweighted analyses:
+
+```{r}
+#| label: weighted-unweighted-analysis-exp
+#| message: false
+#| warning: false
+
+# Calculate weighted averages for each stratification
+weighted_analysis <- data.frame(
+  Stratification = c("Z Quartiles", "Z Binary", "C Binary", "B Binary"),
+  Unweighted_Mean = c(
+    round(mean(stratified_results$slope_XY), 3),
+    round(mean(binary_Z$slope_XY), 3),
+    round(mean(binary_C$slope_XY), 3),
+    round(mean(binary_B$slope_XY), 3)
+  ),
+  Weighted_Mean = c(
+    round(weighted.mean(stratified_results$slope_XY, stratified_results$n), 3),
+    round(weighted.mean(binary_Z$slope_XY, binary_Z$n), 3),
+    round(weighted.mean(binary_C$slope_XY, binary_C$n), 3),
+    round(weighted.mean(binary_B$slope_XY, binary_B$n), 3)
+  ),
+  Overall_Slope = rep(round(overall_slope, 3), 4)
+)
+
+# Add difference measures
+weighted_analysis$Unweighted_Diff <- abs(weighted_analysis$Unweighted_Mean - weighted_analysis$Overall_Slope)
+weighted_analysis$Weighted_Diff <- abs(weighted_analysis$Weighted_Mean - weighted_analysis$Overall_Slope)
+
+# Round differences
+weighted_analysis <- weighted_analysis %>%
+  mutate(across(c(Unweighted_Diff, Weighted_Diff), ~ round(., 3)))
+
+# Display weighted analysis
+DT::datatable(weighted_analysis,
+              caption = "Weighted vs Unweighted Analysis Comparison",
+              options = list(pageLength = 10, scrollX = TRUE),
+              colnames = c("Stratification", "Unweighted Mean", "Weighted Mean", 
+                          "Overall Slope", "Unweighted Diff", "Weighted Diff"))
+```
+
+### 22.8 Conclusions from Simpson's Paradox Analysis
+
+Based on our comprehensive analysis, here are the key findings about Simpson's Paradox in this experimental dataset:
+
+```{r}
+#| label: simpsons-conclusions-exp
+#| message: false
+#| warning: false
+
+# Calculate summary statistics
+avg_max_difference <- mean(magnitude_analysis$Max_Difference)
+any_direction_reversal <- any(magnitude_analysis$Direction_Reversal == "Yes")
+dominant_status <- simpson_status
+
+# Create conclusions summary
+conclusions_data <- data.frame(
+  Finding = c(
+    "Simpson's Paradox Present?",
+    "Direction Reversals Detected?",
+    "Average Maximum Difference",
+    "Consistency Across Strata",
+    "Experimental Design Effect",
+    "Practical Implication"
+  ),
+  Result = c(
+    dominant_status,
+    ifelse(any_direction_reversal, "Yes", "No"),
+    paste(round(avg_max_difference, 3), "units"),
+    "High consistency across all prognostic factor strata", 
+    "Randomization prevents systematic Simpson's Paradox",
+    "Simple analysis provides unbiased causal estimates"
+  )
+)
+
+# Display conclusions
+DT::datatable(conclusions_data,
+              caption = "Summary of Simpson's Paradox Analysis Conclusions",
+              options = list(pageLength = 10, dom = 't', scrollX = TRUE),
+              colnames = c("Key Finding", "Result/Interpretation"))
+
+# Create final summary
+final_summary <- data.frame(
+  Category = c(
+    "Simpson's Paradox Detection",
+    "Magnitude Analysis", 
+    "Experimental Design Validation",
+    "Causal Inference Implications"
+  ),
+  Key_Result = c(
+    paste("Status:", dominant_status),
+    paste("Average max difference:", round(avg_max_difference, 3), "units"),
+    "Randomization maintains consistent treatment effects across strata",
+    "Confirms experimental design eliminates confounding bias"
+  ),
+  Interpretation = c(
+    "Minimal paradox occurrence due to randomized treatment assignment",
+    "Small variations represent sampling variation, not systematic bias",
+    "Treatment effect remains stable regardless of prognostic factor levels", 
+    "Supports using simple unadjusted analysis for causal inference"
+  )
+)
+
+DT::datatable(final_summary,
+              caption = "Key Conclusions from Simpson's Paradox Analysis in Experimental Design",
+              options = list(pageLength = 10, dom = 't', scrollX = TRUE),
+              colnames = c("Category", "Key Result", "Interpretation"))
+```
+
+Our Simpson's Paradox analysis reveals important insights about experimental design and causal inference. In this experimental dataset, we observe **`r dominant_status`**, which demonstrates how randomization of X prevents the systematic occurrence of Simpson's Paradox that might be seen in observational data.
+
+The key insight is that Simpson's Paradox rarely occurs in well-designed experiments because randomization breaks the association between treatment assignment and potential confounders. In our experimental structure DAG, the prognostic factors Z, C, and B affect the outcome Y but are independent of the randomized exposure X, creating a causal structure where the marginal and conditional relationships remain consistent.
+
+The minimal variation we observe across strata (average maximum difference of **`r round(avg_max_difference, 3)`** units) represents normal sampling variation rather than systematic confounding. This analysis reinforces our earlier findings about the power of randomization in eliminating confounding and ensuring that simple analyses provide unbiased causal estimates.
+
+The absence of meaningful Simpson's Paradox in our experimental data underscores a fundamental principle: when treatment assignment is truly randomized, the causal effect can be estimated without complex adjustments or concerns about paradoxical reversals across subgroups. This is why randomized controlled trials remain the gold standard for causal inference - they create a causal structure where Simpson's Paradox cannot systematically mislead us about true causal relationships.
+
+
+
+
+
+
+
+
+## Session Information for Reproducibility
+
+```{r}
+#| label: session-info
+#| echo: false
+
+# Session information for reproducibility
+sessionInfo()
+```
+

@@ -1,0 +1,891 @@
+---
+title: "Bad Controls: Peer Bias"
+author: "Dan Swart"
+format: 
+  html:
+    toc: true
+    toc-float: true
+    page-layout: article
+    embed-resources: true
+    code-fold: true
+    code-summary: "Show the code"
+    code-tools: true
+    code-overflow: wrap
+    code-block-bg: "#FAEBD7"
+    code-block-border-left: "#31BAE9"
+    code-link: true          # This adds individual buttons
+    fig-width: 12
+    fig-height: 10
+    fig-align: center
+    html-math-method: katex
+    css: swart-20250327.css
+  pdf:
+    toc: true
+    number-sections: true
+    colorlinks: true
+    papersize: letter
+    geometry:
+      - margin=1in
+    fig-width: 12
+    fig-height: 10
+    fig-pos: 'H'
+  typst:
+    toc: true
+    fig-width: 12
+    fig-height: 10
+    keep-tex: true
+    prefer-html: true
+---
+
+
+
+
+```{r}
+#| label: setup
+#| include: false
+knitr::opts_chunk$set(echo = TRUE, FALSE, message = TRUE, warning = TRUE)
+
+library(tidyverse)  # For dplyr, ggplot, and friends
+library(ggdag)      # For plotting DAGs
+library(dagitty)    # For working with DAG logic
+library(DiagrammeR) # For complete control of the layout
+library(knitr)      # For controlling rendering
+library(kableExtra) # For tables summarizing results
+library(DT)         # For rendering content that kableExtra cannot (symbols)
+
+```
+<br>
+
+
+## DAG RENDERING USING DiagrammeR.
+
+There is no analysis with DiagrammeR, but analysis follows below.
+
+```{r peer-bias-dag8}
+#| message: false
+#| warning: false
+#| fig-width: 12
+#| fig-height: 10
+
+
+library(DiagrammeR)
+
+grViz("
+  digraph DAG {
+    # Graph settings
+    graph [layout=neato, margin=\"1.0, 1.0, 2.0, 1.0\", rankdir=TB, size=\"14,12\"]  
+    
+    # Add a title using a simple label approach
+    labelloc=\"t\"
+    label=\"Bad Controls:  Peer Bias\\n \\n\"      fontname=\"Cabin\" fontcolor=\"darkgreen\"
+    fontsize=26
+    
+    # Node settings - make nodes larger with fontsize
+    node [shape=plaintext, fontsize=26, fontname=\"Cabin\"] # Increase
+    
+    # Edge settings - make edges thicker and arrows larger
+    edge [penwidth=4.0, color=\"darkblue\", arrowsize=1.5] # Increase
+    
+    # Nodes with exact coordinates
+    X [label=\"X\", pos=\"1.0, 1.0!\", fontcolor=\"dodgerblue\"]
+    Y [label=\"Y\", pos=\"4.0, 1.0!\", fontcolor=\"dodgerblue\"]
+    E [label=\"E\", pos=\"2.5, 3.0!\", fontcolor=\"black\"]
+    Q [label=\"Q\", pos=\"4.0, 3.0!\", fontcolor=\"darkpurple\"]
+    
+    
+    # Edges
+    X -> Y
+    X -> E
+    E -> Y
+    Q -> Y
+    Q -> E
+    
+    # Caption as a separate node at the bottom
+    Caption [shape=plaintext, label=\"Cinelli, Forney, Pearl 2021 A Crash\\nCourse in Good and Bad Controls\", 
+             fontsize=20, pos=\"2.5,0.0!\"]
+  }
+  ")
+
+```
+
+<br>
+
+
+### DAG Visualization using ggdag and dagitty
+
+```{r complex-structure-dag1}
+#| fig-cap: "Cinelli, Forney, Pearl 2021 A Crash Course in Good and Bad Controls"
+#| fig-width: 12
+#| fig-height: 10
+
+
+# Define the DAG
+peer_bias_dag8 <- ggdag::dagify(
+  Y ~ X,   # Y is influenced by X
+  E ~ X,
+  Y ~ E,  
+  E ~ Q,
+  Y ~ Q,
+  exposure = "X",
+  outcome = "Y",
+  # Add labels here:
+  labels = c(X = "X", 
+             Y = "Y", 
+             E = "E",
+             Q = "Q"),
+  coords = list(x = c(X = 1.0, Y = 4.0, E = 2.5, Q = 4.0),  
+                y = c(X = 1.0, Y = 1.0, E = 3.0, Q = 3.0))
+)
+
+# Create a nice visualization of the DAG
+ggdag_status(peer_bias_dag8) + 
+  theme_dag(base_size = 18) +
+  labs(title = "Bad Controls: Peer Bias")
+
+```
+
+## Executive Summary: Peer Bias as a Bad Control
+
+::: {.callout-note collapse="true" title="<span style='font-size: 20px;'>What is Peer Bias?</span> <span style='color: darkblue; font-size: 22px;'>(click to open and close)</span>"}
+
+
+Peer bias occurs when we adjust for a variable E that is influenced by both the exposure X and an unmeasured confounder Q, which also affects the outcome Y. In this DAG structure, E is a mediator between X and Y, but is also affected by the confounder Q that directly affects Y.
+
+#### Why is it a "Bad Control"?
+
+Controlling for E in this structure is harmful because:
+
+1. **It blocks part of the causal effect**: By conditioning on E, we're blocking the indirect effect of X on Y that flows through E.
+
+2. **It opens a collider path**: Conditioning on E opens a non-causal path between X and Y through Q (X → E ← Q → Y), potentially creating bias.
+
+3. **It can distort the total effect**: The adjustment might lead to estimates that don't reflect the true causal relationship between X and Y.
+
+#### Real-World Example
+
+A researcher is studying the effect of a new teaching method (X) on student final exam scores (Y):
+
+- The teaching method (X) affects student engagement (E).
+- Student engagement (E) affects final exam scores (Y).
+- Student natural ability (Q) affects both engagement (E) and exam scores (Y).
+- The teaching method (X) also has a direct effect on exam scores (Y).
+
+If the researcher controls for student engagement (E), they block the indirect effect of the teaching method (X) through engagement (E) and potentially introduce bias through the opened collider path.
+
+#### How to Avoid Peer Bias
+
+1. **Consider total effects carefully**: Determine whether you're interested in the total effect (direct + indirect) or just the direct effect of X on Y.
+
+2. **Be cautious with mediators**: Think carefully before adjusting for variables that lie on the causal pathway between exposure and outcome.
+
+3. **Account for unmeasured confounders**: Consider the possibility of unmeasured variables that might affect both your mediators and outcomes.
+
+4. **Use appropriate causal inference methods**: Methods like mediation analysis can help decompose direct and indirect effects properly.
+
+Peer bias demonstrates the importance of carefully considering the causal structure before deciding which variables to control for in your analysis.
+
+:::
+
+```{r}
+#| message: false
+#| warning: false
+#| code-fold: false
+#| echo: false
+
+# Create a function to display DAG analysis results as a table
+display_dag_analysis <- function(dag) {
+  # Initialize results list
+  results <- list()
+  
+  # 1. Get the implied conditional independencies
+  results$independencies <- tryCatch({
+    dagitty::impliedConditionalIndependencies(dag)
+  }, error = function(e) {
+    "None found"
+  })
+  
+  # 2. Find all valid adjustment sets
+  results$adjustment_sets <- tryCatch({
+    dagitty::adjustmentSets(dag)
+  }, error = function(e) {
+    list()
+  })
+  
+  # 3. Find minimal sufficient adjustment sets
+  results$minimal_adjustment_sets <- tryCatch({
+    dagitty::adjustmentSets(dag, type = "minimal")
+  }, error = function(e) {
+    list()
+  })
+  
+  # 4. Identify paths between exposure and outcome
+results$paths <- tryCatch({
+  # Change this line to specify directed=TRUE
+  dagitty::paths(dag, from = "X", to = "Y", directed = TRUE)
+}, error = function(e) {
+  data.frame(paths = character(0), length = numeric(0))
+})
+  
+  # 5. Find instrumental variables
+  results$instruments <- tryCatch({
+    dagitty::instrumentalVariables(dag, exposure = "X", outcome = "Y")
+  }, error = function(e) {
+    NULL
+  })
+  
+  # 6. Check identifiability of causal effect
+  results$is_identifiable <- dagitty::isAcyclic(dag) && 
+                      length(dagitty::adjustmentSets(dag)) > 0
+  
+  # 7. Find ancestors and descendants
+  results$X_ancestors <- dagitty::ancestors(dag, "X")
+  results$X_descendants <- dagitty::descendants(dag, "X")
+  results$Y_ancestors <- dagitty::ancestors(dag, "Y")
+  results$Y_descendants <- dagitty::descendants(dag, "Y")
+  results$E_ancestors <- dagitty::ancestors(dag, "E")
+  results$E_descendants <- dagitty::descendants(dag, "E")
+  results$Q_ancestors <- dagitty::ancestors(dag, "Q")
+  results$Q_descendants <- dagitty::descendants(dag, "Q")
+  
+  # 8. Check backdoor paths
+  results$backdoor_paths <- character(0)
+  if(is.data.frame(results$paths) && nrow(results$paths) > 0) {
+    for(i in 1:nrow(results$paths)) {
+      path_str <- results$paths$paths[i]
+      path_elements <- strsplit(path_str, " ")[[1]]
+      
+      # A backdoor path has an arrow pointing into the exposure
+      if(length(path_elements) >= 3) {
+        second_element <- path_elements[2]
+        if(second_element == "<-") {
+          results$backdoor_paths <- c(results$backdoor_paths, path_str)
+        }
+      }
+    }
+  }
+  
+  # 9. Find directed paths (potential mediation)
+  results$directed_paths <- tryCatch({
+    dagitty::paths(dag, from = "X", to = "Y", directed = TRUE)
+  }, error = function(e) {
+    data.frame(paths = character(0), length = numeric(0))
+  })
+  
+  results$mediators <- character(0)
+  if(is.data.frame(results$directed_paths) && nrow(results$directed_paths) > 0) {
+    for(i in 1:nrow(results$directed_paths)) {
+      path_str <- results$directed_paths$paths[i]
+      path_elements <- strsplit(path_str, " ")[[1]]
+      
+      # Extract variables (every other element)
+      path_vars <- path_elements[seq(1, length(path_elements), by = 2)]
+      
+      # Variables between X and Y are mediators
+      if(length(path_vars) > 2) {
+        potential_mediators <- path_vars[-c(1, length(path_vars))]
+        results$mediators <- c(results$mediators, potential_mediators)
+      }
+    }
+    results$mediators <- unique(results$mediators)
+  }
+  
+  # 10. Test d-separation
+  results$d_sep_results <- list(
+    XY_given_nothing = dagitty::dseparated(dag, "X", "Y", c()),
+    XY_given_E = dagitty::dseparated(dag, "X", "Y", c("E")),
+    XY_given_Q = dagitty::dseparated(dag, "X", "Y", c("Q")),
+    XY_given_EQ = dagitty::dseparated(dag, "X", "Y", c("E", "Q"))
+  )
+  
+  # 11. Check paths under different adjustments
+  results$adjustment_effects <- list()
+  adjustment_sets_to_check <- list(
+    "None" = c(),
+    "E" = c("E"),
+    "Q" = c("Q"),
+    "E and Q" = c("E", "Q")
+  )
+  
+  for(adj_name in names(adjustment_sets_to_check)) {
+    adj_set <- adjustment_sets_to_check[[adj_name]]
+    paths <- tryCatch({
+      dagitty::paths(dag, from = "X", to = "Y")
+    }, error = function(e) {
+      data.frame(paths = character(0), length = numeric(0))
+    })
+    
+    if(is.data.frame(paths) && nrow(paths) > 0) {
+      open_paths <- tryCatch({
+        dagitty::paths(dag, from = "X", to = "Y", Z = adj_set)
+      }, error = function(e) {
+        data.frame(paths = character(0), length = numeric(0))
+      })
+      
+      results$adjustment_effects[[adj_name]] <- list(
+        "total_paths" = nrow(paths),
+        "open_paths" = if(is.data.frame(open_paths)) nrow(open_paths) else 0
+      )
+    } else {
+      results$adjustment_effects[[adj_name]] <- list(
+        "total_paths" = 0,
+        "open_paths" = 0
+      )
+    }
+  }
+  
+  return(results)
+}
+
+```
+
+```{r run-the-analysis}
+#| include: true
+#| echo: false
+#| results: 'hide'
+#| code-fold: false
+
+
+# Run the analysis
+dag_results <- display_dag_analysis(peer_bias_dag8)
+
+# Create tables for presentation, but don't print them
+
+# Table 1: Key DAG Properties
+properties_df <- data.frame(
+  Property = c(
+    "Acyclic DAG", 
+    "Causal effect identifiable",
+    "Number of paths from X to Y",
+    "Number of backdoor paths",
+    "Direct effect of X on Y exists",
+    "Potential mediators",
+    "Number of adjustment sets",
+    "Minimal adjustment sets"
+  ),
+  Value = c(
+    ifelse(dagitty::isAcyclic(peer_bias_dag8), "Yes", "No"),
+    ifelse(dag_results$is_identifiable, "Yes", "No"),
+    if(is.data.frame(dag_results$paths)) nrow(dag_results$paths) else 0,
+    length(dag_results$backdoor_paths),
+    ifelse("X" %in% dagitty::parents(peer_bias_dag8, "Y"), "Yes", "No"),
+    ifelse(length(dag_results$mediators) > 0, paste(dag_results$mediators, collapse=", "), "None"),
+    length(dag_results$adjustment_sets),
+    ifelse(length(dag_results$minimal_adjustment_sets) > 0, 
+           paste(sapply(dag_results$minimal_adjustment_sets, function(x) paste(x, collapse=", ")), collapse="; "), 
+           "None")
+  )
+)
+
+```
+
+```{r}
+#| label: independencies-df
+#| tbl-cap: "Implied Conditional Independencies"
+#| results: 'asis'
+#| code-fold: false
+#| echo: false
+
+# this chunk only creates a data frame but doesn't display it
+
+# Table 2: Conditional Independencies
+
+if(length(dag_results$independencies) > 0) {
+  independencies_df <- data.frame(
+    Index = 1:length(dag_results$independencies),
+    Independencies = sapply(dag_results$independencies, function(x) paste(x, collapse=" "))
+  )
+} else {
+  independencies_df <- data.frame(
+    Index = 1,
+    Independencies = "No conditional independencies found"
+  )
+}
+
+```
+
+
+```{r}
+#| label: create-paths-df
+#| echo: false
+#| include: true
+#| results: 'hide'
+
+# this chunk only creates a data frame but doesn't display it
+
+# Table 3: Paths Analysis
+if(is.data.frame(dag_results$paths) && nrow(dag_results$paths) > 0) {
+  paths_df <- data.frame(
+    Path = dag_results$paths$paths,
+    Length = dag_results$paths$length,
+    IsBackdoor = sapply(dag_results$paths$paths, function(p) {
+      elements <- strsplit(p, " ")[[1]]
+      if(length(elements) >= 3) {
+        return(elements[2] == "<-")
+      }
+      return(FALSE)
+    }),
+    IsDirected = sapply(dag_results$paths$paths, function(p) {
+      elements <- strsplit(p, " ")[[1]]
+      all_forward <- TRUE
+      for(i in seq(2, length(elements), by=2)) {
+        if(elements[i] != "->") {
+          all_forward <- FALSE
+          break
+        }
+      }
+      return(all_forward)
+    })
+  )
+} else {
+  paths_df <- data.frame(
+    Path = "No paths found",
+    Length = NA,
+    IsBackdoor = NA,
+    IsDirected = NA
+  )
+}
+```
+
+
+```{r}
+#| label: create-ancestors-descendants-df
+#| echo: false
+#| include: true
+#| results: 'hide'
+
+# Table 4: Ancestors and Descendants
+
+# this chunk only creates a data frame but doesn't display it
+
+ancestors_descendants_df <- data.frame(
+  Variable = c("X", "Y", "E", "Q"),
+  Ancestors = c(
+    paste(dag_results$X_ancestors, collapse=", "),
+    paste(dag_results$Y_ancestors, collapse=", "),
+    paste(dag_results$E_ancestors, collapse=", "),
+    paste(dag_results$Q_ancestors, collapse=", ")
+  ),
+  Descendants = c(
+    paste(dag_results$X_descendants, collapse=", "),
+    paste(dag_results$Y_descendants, collapse=", "),
+    paste(dag_results$E_descendants, collapse=", "),
+    paste(dag_results$Q_descendants, collapse=", ")
+  )
+)
+
+```
+
+```{r}
+#| label: create-d-sep-df
+#| echo: false
+#| include: true
+#| results: 'hide'
+
+# this chunk only creates a data frame but doesn't display it
+
+# Table 5: D-separation Results
+d_sep_df <- data.frame(
+  Variables = c("X and Y", "X and Y", "X and Y", "X and Y"),
+  Conditioning_On = c("{ }", "E", "Q", "E and Q"),
+  Is_D_Separated = c(
+    ifelse(dag_results$d_sep_results$XY_given_nothing, "Yes", "No"),
+    ifelse(dag_results$d_sep_results$XY_given_E, "Yes", "No"),
+    ifelse(dag_results$d_sep_results$XY_given_Q, "Yes", "No"),
+    ifelse(dag_results$d_sep_results$XY_given_EQ, "Yes", "No")
+  )
+)
+
+```
+
+```{r}
+#| label: create-adjustment-effect-df
+#| echo: false
+#| include: true
+#| results: 'hide'
+
+# this chunk only creates a data frame but doesn't display it
+
+# Table 6: Impact of Adjustments
+adjustment_effect_df <- data.frame(
+  Adjustment_Set = names(dag_results$adjustment_effects),
+  Total_Paths = sapply(dag_results$adjustment_effects, function(x) x$total_paths),
+  Open_Paths = sapply(dag_results$adjustment_effects, function(x) x$open_paths)
+)
+
+```
+
+```{r}
+#| label: create-instruments-df
+#| echo: false
+#| include: true
+#| results: 'hide'
+
+# this chunk only creates a data frame but doesn't display it
+
+# Instrumental variables table
+if(!is.null(dag_results$instruments) && length(dag_results$instruments) > 0) {
+  # Convert the instruments to a character vector before creating data frame
+  if(class(dag_results$instruments) == "dagitty.ivs") {
+    instruments_list <- as.character(dag_results$instruments)
+    instruments_df <- data.frame(
+      Instruments = instruments_list
+    )
+  } else {
+    instruments_df <- data.frame(
+      Instruments = as.character("No valid instrumental variables found")
+    )
+  }
+} else {
+  instruments_df <- data.frame(
+    Instruments = as.character("No valid instrumental variables found")
+  )
+}
+
+```
+
+```{r}
+#| label: create-dag-plot
+#| echo: false
+#| include: true
+#| results: 'hide'
+
+# this chunk only creates a plot object but doesn't display it
+
+# Create a nice visualization of the DAG using ggdag
+dag_plot <- ggdag(peer_bias_dag8) + 
+  theme_dag() +
+  label("DAG: Peer Bias")
+
+```
+<br>
+
+## 2. Results
+
+### 2.1 Table of Key DAG Properties
+
+```{r}
+#| label: tbl-key-properties
+#| tbl-cap: "Key Properties of the DAG"
+#| code-fold: true
+
+DT::datatable(
+  properties_df,
+  rownames = FALSE,
+  options = list(
+    pageLength = 10,
+    ordering = TRUE,
+    searching = FALSE
+  ),
+  class = 'cell-border stripe'
+)
+
+```
+<br>
+
+### 2.2 Table of Conditional Independencies
+
+```{r}
+#| label: independencies-analysis
+#| tbl-cap: "Implied Conditional Independencies"
+
+DT::datatable(
+  independencies_df,
+  rownames = FALSE,
+  options = list(
+    pageLength = 10,
+    ordering = TRUE,
+    searching = FALSE
+  ),
+  class = 'cell-border stripe'
+)
+
+```
+<br>
+
+### 2.3 Table of Paths Between X and Y
+
+```{r}
+#| label: tbl-paths
+#| tbl-cap: "All Paths Between X and Y"
+
+DT::datatable(
+  paths_df,
+  rownames = FALSE,
+  options = list(
+    pageLength = 10,
+    ordering = TRUE,
+    searching = FALSE
+  ),
+  class = 'cell-border stripe'
+)
+
+```
+<br>
+
+### 2.4 Table of Ancestors and Descendants
+
+```{r}
+#| label: tbl-ancestors-descendants
+#| tbl-cap: "Ancestors and Descendants"
+
+DT::datatable(
+  ancestors_descendants_df,
+  rownames = FALSE,
+  options = list(
+    pageLength = 10,
+    ordering = TRUE,
+    searching = FALSE
+  ),
+  class = 'cell-border stripe'
+)
+```
+<br>
+
+### 2.5 Table of D-Separation Results
+
+```{r}
+#| label: tbl-d-separation
+#| tbl-cap: "D-Separation Test Results"
+
+DT::datatable(
+  d_sep_df,
+  rownames = FALSE,
+  options = list(
+    pageLength = 10,
+    ordering = TRUE,
+    searching = FALSE
+  ),
+  class = 'cell-border stripe'
+)
+```
+<br>
+
+### 2.6 Table of Impact of Adjustments
+
+```{r}
+#| label: tbl-adjustments
+#| tbl-cap: "Effect of Different Adjustment Sets"
+
+DT::datatable(
+  adjustment_effect_df,
+  rownames = FALSE,
+  options = list(
+    pageLength = 10,
+    ordering = TRUE,
+    searching = FALSE
+  ),
+  class = 'cell-border stripe'
+)
+```
+<br>
+
+### 2.7 Table of Instrumental Variables
+
+```{r}
+#| label: tbl-instruments
+#| tbl-cap: "Potential Instrumental Variables"
+
+DT::datatable(
+  instruments_df,
+  rownames = FALSE,
+  options = list(
+    pageLength = 10,
+    ordering = TRUE,
+    searching = FALSE
+  ),
+  class = 'cell-border stripe'
+)
+```
+<br>
+
+
+### 3. Visualizing Status, Adjustment Sets and Paths with ggdag
+
+```{r}
+#| fig-cap: "Different visualizations of the DAG"
+#| fig-subcap: 
+#|   - "Status Plot: Exposure and Outcome"
+#|   - "Adjustment Sets for X → Y"
+#|   - "All Paths between X and Y"
+#| layout-ncol: 1
+#| fig-width: 12
+#| fig-height: 8
+
+# Create dagitty object with ggdag positioning
+dag <- dagitty("dag {
+  Y <- X
+  E <- X
+  Y <- E
+  E <- Q
+  Y <- Q
+  
+  X [exposure]
+  Y [outcome]
+}")
+
+# Set coordinates for visualization in digatty format
+dagitty::coordinates(dag) <- list(x = c(X = 1.0, Y = 4.0, E = 2.5, Q = 4.0),  
+                         y = c(X = 1.0, Y = 1.0, E = 3.0, Q = 3.0)
+)
+
+# Convert to ggdag format
+dag_tidy <- ggdag::tidy_dagitty(dag)
+
+# Status plot showing exposure/outcome
+ggdag_status(dag_tidy) +
+  ggdag::theme_dag(base_size = 16) +
+  ggplot2::labs(title = "Status Plot: Exposure and Outcome")
+
+# Adjustment set visualization
+ggdag::ggdag_adjustment_set(dag_tidy) +
+  ggdag::theme_dag(base_size = 16) +
+  ggplot2::labs(title = "Adjustment Sets for X → Y")
+
+# Paths visualization
+ggdag::ggdag_paths(dag_tidy) +
+  ggdag::theme_dag(base_size = 16) +
+  ggplot2::labs(title = "All Paths between X and Y")
+
+```
+<br>
+
+## 4. Interpretation and Discussion
+
+### 4.1 Key Insights about this Peer Bias DAG Structure
+
+This DAG represents a causal network with a peer bias structure, examining the relationship between X and Y with E as a mediator and Q as an unmeasured confounder:
+
+1. **Direct Causal Effect (X → Y)**
+   - X directly affects Y
+   - This represents one component of the causal effect we're interested in measuring
+
+2. **Mediation Path (X → E → Y)**
+   - X affects E, which in turn affects Y
+   - E is a mediator on the causal pathway from X to Y
+   - This represents the indirect effect of X on Y through E
+
+3. **Unmeasured Confounder (Q)**
+   - Q affects both E and Y
+   - Q creates a backdoor path between E and Y
+   - This introduces confounding in the mediator-outcome relationship
+
+4. **Peer Bias**
+   - Adjusting for E while failing to adjust for Q can create bias
+   - This happens because:
+     - Conditioning on E blocks the indirect effect of X on Y through E
+     - Conditioning on E opens a non-causal path between X and Y through Q (X → E ← Q → Y)
+   - The resulting estimate may not reflect the total causal effect of X on Y
+
+### 4.2 Proper Identification Strategy
+
+To identify the causal effect of X on Y:
+  - For the total effect of X on Y, do not adjust for E (the mediator)
+  - If adjusting for E is necessary (e.g., to estimate the direct effect), also adjust for Q to block the opened collider path
+  - If Q is unmeasured (as is often the case in real-world scenarios), consider:
+    - Using sensitivity analysis to assess the potential impact of unmeasured confounding
+    - Looking for proxy variables for Q
+    - Using mediation analysis methods that can account for unmeasured confounding
+  - The key insight is that adjusting for E without adjusting for Q leads to a biased estimate of the total causal effect
+
+<br>
+
+
+### Glossary
+
+::: {.callout-note collapse="true"}
+# DAG Analysis Glossary - Click to Open and Close
+
+### Key DAG Terms and Concepts
+
+**DAG (Directed Acyclic Graph)**: A graphical representation of causal relationships where arrows indicate the direction of causality, and no variable can cause itself through any path (hence "acyclic").
+
+**Exposure**: The variable whose causal effect we want to estimate (often called the treatment or independent variable).
+
+**Outcome**: The variable we are interested in measuring the effect on (often called the dependent variable).
+
+**Confounder**: A variable that influences both the exposure and the outcome, potentially creating a spurious association between them.
+
+**Mediator**: A variable that lies on the causal pathway between the exposure and outcome (exposure → mediator → outcome).
+
+**Collider**: A variable that is influenced by both the exposure and the outcome, or by two variables on a path (e.g., A → C ← B).
+
+**Backdoor path**: Any non-causal path connecting the exposure to the outcome that creates a spurious association.
+
+**Instrumental Variable**: A variable that affects the exposure but has no direct effect on the outcome except through the exposure.
+
+**Peer Bias**: A type of bias that occurs when we adjust for a variable E that is influenced by both the exposure X and an unmeasured confounder Q, which also affects the outcome Y. This can block mediation paths while opening collider paths.
+
+### Understanding the Analysis Tables
+
+#### 2. Conditional Independencies Table
+
+Shows the implied conditional independencies in the DAG - pairs of variables that should be statistically independent when conditioning on specific other variables. These can be used to test the validity of your DAG against observed data.
+
+#### 3. Paths Analysis Table
+
+Enumerates all paths connecting the exposure to the outcome:
+
+- **Path**: The specific variables and connections in each path
+- **Length**: Number of edges in the path
+- **IsBackdoor**: Whether this is a backdoor path (potential source of confounding)
+- **IsDirected**: Whether this is a directed path from exposure to outcome
+
+Testing whether these paths are open or closed under different conditioning strategies is crucial for causal inference.
+
+#### 4. Ancestors and Descendants Table
+
+Shows which variables can causally affect (ancestors) or be affected by (descendants) each variable in the DAG:
+
+- Understanding ancestry relationships helps identify potential confounders
+- X is an ancestor of E and Y, while Q is an ancestor of E and Y in this DAG
+
+#### 5. D-Separation Results Table
+
+Shows whether exposure and outcome are conditionally independent (d-separated) when conditioning on different variable sets:
+
+- **Is_D_Separated = Yes**: This set of conditioning variables blocks all non-causal paths
+- **Is_D_Separated = No**: Some non-causal association remains
+
+This helps identify sufficient adjustment sets for estimating causal effects.
+
+#### 6. Impact of Adjustments Table
+
+Shows how different adjustment strategies affect the identification of causal effects:
+
+- **Total_Paths**: Total number of paths between exposure and outcome
+- **Open_Paths**: Number of paths that remain open after adjustment
+  
+Ideally, adjusting for the right variables leaves only the causal paths open.
+
+#### 7. Instrumental Variables Table
+
+Lists potential instrumental variables - variables that affect the exposure but have no direct effect on the outcome except through the exposure.
+
+### How to Use This Analysis for Causal Inference
+
+1. **Identify mediation effects**: In this DAG, E is a mediator between X and Y. If you're interested in the total effect of X on Y, don't control for E.
+
+2. **Be cautious with mediator adjustment**: When adjusting for mediators like E, be aware that this can induce collider bias when unmeasured confounders like Q exist.
+
+3. **Validate your DAG**: Use the implied conditional independencies to test your causal assumptions against observed data.
+
+4. **Consider unmeasured confounders**: Always be aware of potential unmeasured confounders like Q and how they might affect your analysis, especially when adjusting for mediators.
+
+5. **Choose appropriate analysis techniques**: When dealing with mediation, consider using formal mediation analysis techniques rather than simple regression adjustment.
+
+Remember that the validity of any causal inference depends on the correctness of your DAG - it represents your causal assumptions about the data-generating process, which should be based on substantive domain knowledge.
+
+#### 1. Key Properties Table
+
+This table provides a high-level overview of the DAG structure and key causal features:
+
+- **Acyclic DAG**: Confirms the graph has no cycles (a prerequisite for valid causal analysis)
+- **Causal effect identifiable**: Indicates whether the causal effect can be estimated from observational data
+- **Number of paths**: Total number of paths connecting exposure and outcome
+- **Number of backdoor paths**: Paths creating potential confounding that need to be blocked
+- **Direct effect exists**: Whether there is a direct causal link from exposure to outcome
+- **Potential mediators**: Variables that may mediate the causal effect
+- **Number of adjustment sets**: How many different sets of variables could be adjusted for
+- **Minimal adjustment sets**: The smallest sets of variables that block all backdoor paths
+
+:::

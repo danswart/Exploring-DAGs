@@ -1,0 +1,540 @@
+---
+title: "Summarizing Causal DAG Analysis for HIV and Stroke"
+format: 
+  html:
+    toc: true
+    toc-float: true
+    page-layout: article
+    embed-resources: true
+    code-fold: show
+    code-overflow: wrap
+    code-block-bg: "#f8f8f8"
+    code-block-border-left: "#31BAE9"
+    fig-width: 8
+    fig-height: 6
+    fig-align: center
+    html-math-method: katex
+    css: swart-20250327.css
+---
+
+```{r}
+#| label: setup
+#| include: false
+knitr::opts_chunk$set(echo = FALSE, message = TRUE, warning = TRUE)
+
+library(tidyverse)  # For dplyr, ggplot, and friends
+library(ggdag)      # For plotting DAGs
+library(dagitty)    # For working with DAG logic
+library(DiagrammeR) # For complete control of the layout
+library(knitr)      # For controlling rendering
+library(kableExtra) # For tables summarizing results
+
+```
+<br>
+
+
+## FAR, AND AWAY THE BEST DAG RENDERING IS USING DiagrammeR.
+
+There is no analysis with DiagrammeR, but the DAG is awesome, and EASY. It is displayed in the Viewer where images can be saved.  Analysis follows below.
+
+```{r DiagrammeR-DAG}
+#| message: false
+#| warning: false
+#| echo: false
+
+library(DiagrammeR)
+
+grViz("
+digraph DAG {
+  # Graph settings
+  graph [layout=neato, margin=\"0.0, 0.0, 0.0, 0.0\"]  # Increase margins (format: \"top,right,bottom,left\")
+  
+  # Add a title using a simple label approach
+  labelloc=\"t\"
+  label=\"Causal Pathways of HIV and Stroke\\nExamining direct and confounded relationships\\n \\n\"      fontname=\"Cabin\"
+  fontsize=16
+  
+  # Node settings
+  node [shape=plaintext, fontsize=16, fontname=\"Cabin\"]
+  
+  # Edge settings
+  edge [penwidth=1.50, color=\"darkblue\", arrowsize=1.00]
+  
+  # Nodes with exact coordinates
+  HIV [label=\"HIV\", pos=\"2.5, .5!\", fontcolor=\"dodgerblue\"]
+  Stroke [label=\"Stroke\", pos=\"4,.5!\", fontcolor=\"dodgerblue\"]
+  Smoking [label=\"Smoking\", pos=\"1,1.5!\"]
+  Age [label=\"Age\", pos=\"1,-.5!\"]
+  UC [label=\"Unmeasured\\nConfounder\", fontcolor=\"red\", pos=\"3.0,1.5!\"]
+  
+  # Edges
+  HIV -> Stroke
+  Smoking -> HIV
+  Age -> Smoking
+  Age -> HIV
+  Age -> Stroke
+  UC -> Smoking
+  UC -> Stroke
+  
+  # Caption as a separate node at the bottom
+  Caption [shape=plaintext, label=\"Figure 1: Cartoon DAG showing relationship between HIV and stroke with potential confounders.\", 
+           fontsize=10, pos=\"2,-1.5!\"]
+}
+")
+
+```
+
+<br>
+
+
+## 1. Convert the DAG from DiagrammeR to dagitty
+
+Create dagitty DAG from DiagrammeR DAG and set coordinates to match conceptual understanding,
+
+Shorten "Smoking" to "Smoke" for better fit in nodes.
+
+```{r}
+
+# Create the dagitty object with our causal structure
+dag <- dagitty("dag {
+  HIV -> Stroke
+  Smoke -> HIV
+  Age -> Smoke
+  Age -> HIV
+  Age -> Stroke
+  UC -> Smoke
+  UC -> Stroke
+  
+  HIV [exposure]
+  Stroke [outcome]
+}")
+
+# Set coordinates for visualization
+coordinates(dag) <- list(
+  x = c(HIV = 2.5, Stroke = 4.0, Smoke = 1.0, Age = 1, UC = 3.0),
+  y = c(HIV = 2.0, Stroke = 2.0, Smoke = 1.0, Age = 3, UC = 1.0)
+)
+
+# Basic plot of the DAG
+plot(dag)
+
+```
+<br>
+
+## 2. DAG Analysis Results
+
+```{r}
+
+# Get the implied conditional independencies
+independencies <- dagitty::impliedConditionalIndependencies(dag)
+
+# Find all valid adjustment sets
+adjustment_sets <- dagitty::adjustmentSets(dag)
+
+# Find minimal sufficient adjustment sets
+minimal_adjustment_sets <- dagitty::adjustmentSets(dag, type = "minimal")
+
+# Identify paths between exposure and outcome
+hiv_stroke_paths <- dagitty::paths(dag, from = "HIV", to = "Stroke")
+
+# Find instrumental variables
+instruments <- tryCatch({
+  dagitty::instrumentalVariables(dag, exposure = "HIV", outcome = "Stroke")
+}, error = function(e) {
+  NULL
+})
+
+# Check identifiability of causal effect
+is_identifiable <- dagitty::isAcyclic(dag) && 
+                   length(dagitty::adjustmentSets(dag)) > 0
+
+# Find ancestors and descendants
+hiv_ancestors <- dagitty::ancestors(dag, "HIV")
+hiv_descendants <- dagitty::descendants(dag, "HIV")
+stroke_ancestors <- dagitty::ancestors(dag, "Stroke")
+stroke_descendants <- dagitty::descendants(dag, "Stroke")
+
+# Check backdoor paths
+backdoor_paths <- character(0)
+paths_data <- tryCatch({
+  dagitty::paths(dag, from = "HIV", to = "Stroke")
+}, error = function(e) {
+  data.frame(paths = character(0), length = numeric(0))
+})
+
+if(is.data.frame(paths_data) && nrow(paths_data) > 0) {
+  for(i in 1:nrow(paths_data)) {
+    path_str <- paths_data$paths[i]
+    path_elements <- strsplit(path_str, " ")[[1]]
+    
+    # A backdoor path has an arrow pointing into the exposure
+    if(length(path_elements) >= 3) {
+      second_element <- path_elements[2]
+      if(second_element == "<-") {
+        backdoor_paths <- c(backdoor_paths, path_str)
+      }
+    }
+  }
+}
+
+# Find directed paths (potential mediation)
+directed_paths <- tryCatch({
+  dagitty::paths(dag, from = "HIV", to = "Stroke", directed = TRUE)
+}, error = function(e) {
+  data.frame(paths = character(0), length = numeric(0))
+})
+
+mediators <- character(0)
+if(is.data.frame(directed_paths) && nrow(directed_paths) > 0) {
+  mediators_list <- vector("list", nrow(directed_paths))
+  
+  for(i in 1:nrow(directed_paths)) {
+    path_str <- directed_paths$paths[i]
+    path_elements <- strsplit(path_str, " ")[[1]]
+    
+    # Extract variables (every other element)
+    path_vars <- path_elements[seq(1, length(path_elements), by = 2)]
+    
+    # Variables between HIV and Stroke are mediators
+    if(length(path_vars) > 2) {
+      potential_mediators <- path_vars[-c(1, length(path_vars))]
+      mediators <- c(mediators, potential_mediators)
+    }
+  }
+  mediators <- unique(mediators)
+}
+
+# Test d-separation
+d_sep_results <- list(
+  Smoke_stroke = dagitty::dseparated(dag, "Smoke", "Stroke", c("HIV", "Age", "UC")),
+  age_uc = dagitty::dseparated(dag, "Age", "UC", c()),
+  hiv_uc = dagitty::dseparated(dag, "HIV", "UC", c("Age", "Smoke"))
+)
+
+# Check paths under different adjustments
+adjustment_effects <- list()
+adjustment_sets_to_check <- list(
+  "None" = c(),
+  "Age" = c("Age"),
+  "Age+Smoke" = c("Age", "Smoke"),
+  "Age+UC" = c("Age", "UC")
+)
+
+for(adj_name in names(adjustment_sets_to_check)) {
+  adj_set <- adjustment_sets_to_check[[adj_name]]
+  paths <- tryCatch({
+    dagitty::paths(dag, from = "HIV", to = "Stroke")
+  }, error = function(e) {
+    data.frame(paths = character(0), length = numeric(0))
+  })
+  
+  if(is.data.frame(paths) && nrow(paths) > 0) {
+    open_paths <- tryCatch({
+      dagitty::paths(dag, from = "HIV", to = "Stroke", Z = adj_set)
+    }, error = function(e) {
+      data.frame(paths = character(0), length = numeric(0))
+    })
+    
+    adjustment_effects[[adj_name]] <- list(
+      "total_paths" = nrow(paths),
+      "open_paths" = nrow(open_paths)
+    )
+  } else {
+    adjustment_effects[[adj_name]] <- list(
+      "total_paths" = 0,
+      "open_paths" = 0
+    )
+  }
+}
+
+# Check impact of unmeasured confounding
+unmeasured_impact <- list()
+all_vars <- names(dagitty::coordinates(dag)$x)
+
+for(var in all_vars) {
+  if(var != "HIV" && var != "Stroke") {
+    # Create a DAG where this variable is latent
+    dag_modified <- dag
+    latent_vars <- dagitty::latents(dag_modified)
+    dagitty::latents(dag_modified) <- c(latent_vars, var)
+    
+    # Check adjustment sets
+    adj_sets_original <- dagitty::adjustmentSets(dag)
+    adj_sets_modified <- dagitty::adjustmentSets(dag_modified)
+    
+    unmeasured_impact[[var]] <- list(
+      "original_sets" = length(adj_sets_original),
+      "modified_sets" = length(adj_sets_modified)
+    )
+  }
+}
+
+```
+<br>
+
+### 2.1 Key DAG Properties
+
+```{r}
+
+# Safely determine if there are paths
+has_paths <- tryCatch({
+  paths_data <- dagitty::paths(dag, from = "HIV", to = "Stroke")
+  is.data.frame(paths_data) && nrow(paths_data) > 0
+}, error = function(e) {
+  FALSE
+})
+
+num_paths <- if(has_paths) nrow(dagitty::paths(dag, from = "HIV", to = "Stroke")) else 0
+
+properties_df <- data.frame(
+  Property = c(
+    "Acyclic DAG", 
+    "Causal effect identifiable",
+    "Number of paths from HIV to Stroke",
+    "Number of backdoor paths",
+    "Direct effect of HIV on Stroke exists",
+    "Potential mediators",
+    "Number of adjustment sets",
+    "Minimal adjustment sets"
+  ),
+  Value = c(
+    ifelse(dagitty::isAcyclic(dag), "Yes", "No"),
+    ifelse(is_identifiable, "Yes", "No"),
+    num_paths,
+    length(backdoor_paths),
+    ifelse("HIV" %in% dagitty::parents(dag, "Stroke"), "Yes", "No"),
+    ifelse(length(mediators) > 0, paste(mediators, collapse=", "), "None"),
+    length(adjustment_sets),
+    ifelse(length(minimal_adjustment_sets) > 0, 
+           paste(sapply(minimal_adjustment_sets, function(x) paste(x, collapse=", ")), collapse="; "), 
+           "None")
+  )
+)
+
+kable(properties_df, caption = "Key Properties of the DAG") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+<br>
+
+### 2.2 All Paths Between HIV and Stroke
+
+```{r}
+
+# Safely get paths
+paths_data <- tryCatch({
+  dagitty::paths(dag, from = "HIV", to = "Stroke")
+}, error = function(e) {
+  data.frame(paths = character(0), length = numeric(0))
+})
+
+if(is.data.frame(paths_data) && nrow(paths_data) > 0) {
+  paths_df <- data.frame(
+    Path = paths_data$paths,
+    Length = paths_data$length,
+    IsBackdoor = sapply(paths_data$paths, function(p) {
+      elements <- strsplit(p, " ")[[1]]
+      if(length(elements) >= 3) {
+        return(elements[2] == "<-")
+      }
+      return(FALSE)
+    }),
+    IsDirected = sapply(paths_data$paths, function(p) {
+      elements <- strsplit(p, " ")[[1]]
+      all_forward <- TRUE
+      for(i in seq(2, length(elements), by=2)) {
+        if(elements[i] != "->") {
+          all_forward <- FALSE
+          break
+        }
+      }
+      return(all_forward)
+    })
+  )
+  
+  kable(paths_df, caption = "All Paths Between HIV and Stroke") %>%
+    kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+} else {
+  cat("No paths found between HIV and Stroke")
+}
+
+
+```
+<br>
+
+### 2.3 Implied Conditional Independencies
+
+```{r}
+
+if(length(independencies) > 0) {
+  # Create a clean format for the independencies
+  ind_statements <- character(length(independencies))
+  
+  for(i in 1:length(independencies)) {
+    ind <- independencies[[i]]
+    if(length(ind) >= 2) {
+      statement <- paste0(ind[1], " _||_ ", ind[2])
+      
+      if(length(ind) > 2 && length(ind[[3]]) > 0) {
+        statement <- paste0(statement, " | ", paste(ind[[3]], collapse=", "))
+      } else {
+        statement <- paste0(statement, " (unconditionally)")
+      }
+      
+      ind_statements[i] <- statement
+    }
+  }
+  
+  independencies_df <- data.frame(
+    Statement = ind_statements
+  )
+  
+  kable(independencies_df, caption = "Testable Implications of the DAG") %>%
+    kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+} else {
+  cat("No conditional independencies implied by this DAG")
+}
+
+
+```
+<br>
+
+### 2.4 Ancestors and Descendants
+
+```{r}
+
+relations_df <- data.frame(
+  Variable = c("HIV", "Stroke"),
+  Ancestors = c(
+    paste(setdiff(hiv_ancestors, "HIV"), collapse=", "),
+    paste(setdiff(stroke_ancestors, "Stroke"), collapse=", ")
+  ),
+  Descendants = c(
+    paste(setdiff(hiv_descendants, "HIV"), collapse=", "),
+    paste(setdiff(stroke_descendants, "Stroke"), collapse=", ")
+  )
+)
+
+kable(relations_df, caption = "Ancestor and Descendant Relationships") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+<br>
+
+### 2.5 Open Paths Under Different Adjustment Sets
+
+```{r}
+
+adj_effects_df <- data.frame(
+  AdjustmentSet = names(adjustment_effects),
+  TotalPaths = sapply(adjustment_effects, function(x) x$total_paths),
+  OpenPaths = sapply(adjustment_effects, function(x) x$open_paths),
+  ClosedPaths = sapply(adjustment_effects, function(x) x$total_paths - x$open_paths)
+)
+
+kable(adj_effects_df, caption = "Effect of Different Adjustment Sets on Open Paths") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+<br>
+
+### 2.6 Impact of Unmeasured Variables
+
+```{r}
+
+unmeasured_df <- data.frame(
+  Variable = names(unmeasured_impact),
+  OriginalAdjustmentSets = sapply(unmeasured_impact, function(x) x$original_sets),
+  AdjustmentSetsIfUnmeasured = sapply(unmeasured_impact, function(x) x$modified_sets),
+  IdentifiableIfUnmeasured = sapply(unmeasured_impact, function(x) x$modified_sets > 0)
+)
+
+kable(unmeasured_df, caption = "Impact of Each Variable Being Unmeasured") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+<br>
+
+### 2.7 D-Separation Tests
+
+```{r}
+
+d_sep_df <- data.frame(
+  Test = c(
+    "Smoke _||_ Stroke | HIV, Age, UC",
+    "Age _||_ UC (unconditional)",
+    "HIV _||_ UC | Age, Smoke"
+  ),
+  Result = c(
+    ifelse(d_sep_results$Smoke_stroke, "Yes (d-separated)", "No (d-connected)"),
+    ifelse(d_sep_results$age_uc, "Yes (d-separated)", "No (d-connected)"),
+    ifelse(d_sep_results$hiv_uc, "Yes (d-separated)", "No (d-connected)")
+  )
+)
+
+kable(d_sep_df, caption = "D-Separation Tests") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+<br>
+
+### 3. Visualizing with ggdag
+
+For more visually appealing DAG visualizations:
+
+```{r}
+
+# Create dagitty object again with ggdag positioning
+dag <- dagitty("dag {
+  HIV -> Stroke
+  Smoke -> HIV
+  Age -> Smoke
+  Age -> HIV
+  Age -> Stroke
+  UC -> Smoke
+  UC -> Stroke
+  
+  HIV [exposure]
+  Stroke [outcome]
+}")
+
+# Set coordinates in dagitty format
+coordinates(dag) <- list(
+  x = c(HIV = 2.5, Stroke = 4.0, Smoke = 1.0, Age = 1, UC = 3.0),
+  y = c(HIV = 2.0, Stroke = 2.0, Smoke = 3.0, Age = 1, UC = 3.0)
+)
+
+# Convert to ggdag format
+dag_tidy <- tidy_dagitty(dag)
+
+
+# Status plot showing exposure/outcome
+ggdag_status(dag_tidy) +
+  theme_dag() +
+  label("Status Plot: Exposure and Outcome")
+
+# Adjustment set visualization
+ggdag_adjustment_set(dag_tidy) +
+  theme_dag() +
+  label("Adjustment Sets for HIV → Stroke")
+
+# Paths visualization
+ggdag_paths(dag_tidy) +
+  theme_dag() +
+  label("All Paths between HIV and Stroke")
+
+```
+<br>
+
+## 4. Summary of Findings
+
+Based on our DAG analysis, we can conclude:
+
+1. The causal effect of HIV on Stroke is identifiable through proper adjustment
+1. There is a direct path from HIV to Stroke, suggesting a potential direct causal effect
+1. There are also indirect paths through mediators, suggesting multiple causal mechanisms
+1. Age and UC (Unmeasured Confounder) are important confounders in this relationship
+1. If UC remains unmeasured, we can still identify the causal effect by adjusting for Age
+1. This DAG framework provides guidance for empirical analysis once data becomes available
+
+This structured analysis illustrates how causal diagrams can help identify proper adjustment strategies for estimating causal effects, even before data collection begins.

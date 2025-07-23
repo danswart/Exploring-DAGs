@@ -1,0 +1,818 @@
+---
+title: "DAG Analysis with Synthetic Data - Fork + Collider Structure"
+author: "Dan Swart and Claude 3.7 Sonnet"
+format: 
+  html:
+    toc: true
+    toc-float: true
+    page-layout: article
+    embed-resources: true
+    code-fold: true
+    code-summary: "Show the code"
+    code-tools: true
+    code-overflow: wrap
+    code-block-bg: "#FAEBD7"
+    code-block-border-left: "#31BAE9"
+    code-link: true          # This adds individual buttons
+    fig-width: 10
+    fig-height: 8
+    fig-align: center
+    html-math-method: katex
+    css: swart-20250327.css
+  pdf:
+    toc: true
+    number-sections: true
+    colorlinks: true
+    papersize: letter
+    geometry:
+      - margin=1in
+    fig-width: 10
+    fig-height: 8
+    fig-pos: 'H'
+  typst:
+    toc: true
+    fig-width: 10
+    fig-height: 8
+    keep-tex: true
+    prefer-html: true
+---
+
+```{r}
+#| include: false
+
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, 
+                 fig.width = 9, fig.height = 6, out.width = "100%", fig.align = "center")
+
+# Load necessary libraries
+library(tidyverse)  # For dplyr, ggplot, and friends
+library(ggdag)      # For plotting DAGs
+library(dagitty)    # For working with DAG logic
+library(DiagrammeR) # For complete control of the layout
+library(knitr)      # For controlling rendering
+library(kableExtra) # For tables summarizing results
+library(DT)         # For rendering interactive tables
+library(broom)      # For tidying model results
+library(purrr)      # For functional programming
+library(lavaan)     # For SEM to test the DAG structure
+library(corrplot)   # For correlation matrices
+library(viridis)    # For nice color scales
+library(rethinking) # For Bayesian methods
+```
+
+## Introduction
+
+This document demonstrates how to generate synthetic data based on a DAG with a fork and collider structure, and how to analyze it to verify the causal relationships. The DAG represents the following relationships:
+
+- Z is a confounder (fork) affecting both X and Y (Z → X, Z → Y)
+- X directly affects Y (X → Y)
+- Both X and Y affect C, creating a collider (X → C ← Y)
+
+Let's start by visualizing the DAG structure we'll be testing.
+
+## 1. DAG Structure
+
+```{r dag-structure, out.width="100%"}
+#| fig-cap: "The conceptual DAG structure with fork (Z) and collider (C)"
+
+library(tidyverse)
+library(ggdag)
+library(dagitty)
+
+# Create the DAG using ggdag
+dag <- dagify(
+  Y ~ X + Z,
+  X ~ Z,
+  C ~ X + Y,
+  exposure = "X",
+  outcome = "Y"
+)
+
+# Set coordinates for visualization
+coordinates(dag) <- list(
+  x = c(X = 1, Y = 3, Z = 2, C = 2),
+  y = c(X = 2, Y = 2, Z = 3, C = 1)
+)
+
+# Visualize the DAG
+ggdag(dag) + 
+  theme_dag() +
+  ggtitle("DAG: X -> Y with Z as confounder and C as collider") +
+  theme(plot.title = element_text(size = 14, hjust = 0.5),
+        plot.margin = margin(0.5, 0.5, 0.5, 0.5, "cm"))
+
+```
+
+## 2. Generating Synthetic Data
+
+We'll generate synthetic data that follows the causal structure defined in our DAG. The data generation process will ensure that the relationships match the theoretical paths.
+
+```{r generate-data, out.width="100%"}
+#| fig-cap: "Correlation plot of synthetic data"
+
+library(tidyverse)
+library(ggdag)
+library(dagitty)
+library(DT)
+
+
+set.seed(2025) # For reproducibility
+
+# Number of observations
+n <- 1000
+
+# Generate data according to the DAG structure
+# 1. Start with the exogenous variable Z
+
+Z <- rnorm(n, mean = 50, sd = 10)
+Z <- round(Z, 3)  # Round to 4 decimal places
+
+# 2. X depends on Z (fork)
+X <- 0.5 * Z + rnorm(n, mean = 0, sd = 5)
+X <- round(X, 3)  # Round to 4 decimal places
+
+# 3. Y depends on both X and Z (fork and direct effect)
+Y <- 0.4 * X + 0.3 * Z + rnorm(n, mean = 0, sd = 5)
+Y <- round(Y, 3)  # Round to 4 decimal places
+
+# 4. C depends on both X and Y (collider)
+C <- 0.6 * X + 0.7 * Y + rnorm(n, mean = 0, sd = 5)
+C <- round(C, 3)  # Round to 4 decimal places
+
+# Combine into a data frame
+dag_data <- tibble(X = X, Y = Y, Z = Z, C = C)
+
+
+DT::datatable(head(dag_data),
+              options = list(
+                pageLength = 6,
+                searching = TRUE,
+                info = FALSE,
+                paging = FALSE,
+                scrollX = TRUE  # Enable horizontal scrolling if needed
+                             ),
+              class = 'cell-border stripe compact responsive',
+              rownames = FALSE,
+              width = "90%"
+              )
+
+
+# Correlation matrix visualization to verify relationships
+cor_matrix <- cor(dag_data)
+
+# Use the built-in color sequences in corrplot
+corrplot::corrplot(cor_matrix, 
+                  method = "color", 
+                  type = "upper",
+                  addCoef.col = "black", 
+                  number.cex = 1.5,  # Increased from 0.9 to 1.5 for larger correlation numbers
+                  tl.cex = 1.2,      # Added to increase the size of variable labels
+                  tl.col = "darkblue", 
+                  tl.srt = 45,
+                  col = colorRampPalette(c("white", "lightgreen", "pink", "orange", "lightblue"))(5),
+                  diag = TRUE,
+                  title = "Correlation Matrix of Synthetic Data")
+
+# Add a description of the correlation levels
+text(x = 0.5, y = -0.1, 
+     labels = "Color legend: white (<0.2) → lightgreen (0.2-0.4) → pink (0.4-0.6) → orange (0.6-0.8) → lightblue (>0.8)",
+     cex = 1.0)  # Increased from 0.8 to 1.0 for larger legend text
+
+```
+
+## 3. Examining Marginal Relationships
+
+Let's first look at the marginal relationships between variables without any conditioning.
+
+```{r marginal-relationships, out.width="100%"}
+#| fig-cap: "Scatter plots showing marginal relationships between variables"
+
+# Create a panel of scatter plots
+dag_data %>%
+  pivot_longer(-X, names_to = "variable", values_to = "value") %>%
+  ggplot(aes(x = X, y = value)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = TRUE, color = "blue") +
+  facet_wrap(~ variable, scales = "free") +
+  labs(title = "Relationship between X and other variables",
+       y = "Variable Value")
+
+# Also look at Z's relationship with Y
+ggplot(dag_data, aes(x = Z, y = Y)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = TRUE, color = "red") +
+  labs(title = "Relationship between Z and Y (Confounder Effect)")
+```
+
+## 4. Testing the Fork Structure (Confounder)
+
+Let's examine how Z acts as a confounder for the X-Y relationship by comparing models with and without adjusting for Z.
+
+```{r test-fork}
+#| tbl-cap: "Comparing models with and without adjusting for the confounder Z"
+
+# Model without adjusting for Z (naive model)
+model_naive <- lm(Y ~ X, data = dag_data)
+
+# Model properly adjusting for Z (fork)
+model_adjusted <- lm(Y ~ X + Z, data = dag_data)
+
+# Compare coefficients
+models_comparison <- bind_rows(
+  tidy(model_naive) %>% mutate(model = "Naive (Y ~ X)"),
+  tidy(model_adjusted) %>% mutate(model = "Adjusted (Y ~ X + Z)")
+) %>%
+  filter(term == "X") %>%
+  select(model, term, estimate, std.error, p.value) %>% 
+  mutate(across(where(is.numeric), ~round(., 3)))  # Round all numeric columns to 4 decimal places
+
+# Display comparison
+DT::datatable(models_comparison,
+              options = list(
+                pageLength = 10,
+                ordering = TRUE,
+                searching = FALSE,
+                scrollX = TRUE
+              ),
+              class = 'cell-border stripe compact responsive',
+              rownames = FALSE,
+              width = "90%")
+```
+
+### A2. Residual Diagnostics
+
+Let's check the residuals of our correctly specified model to ensure the model assumptions are met.
+
+```{r residual-diagnostics, out.width="100%"}
+#| fig-cap: "Residual diagnostics for the correctly specified model"
+
+# Make sure the models object is available in this scope
+models <- list(
+  "None" = lm(Y ~ X, data = dag_data),
+  "Z" = lm(Y ~ X + Z, data = dag_data),
+  "C" = lm(Y ~ X + C, data = dag_data),
+  "Z, C" = lm(Y ~ X + Z + C, data = dag_data)
+)
+
+# Get the correctly specified model
+correct_model <- models[["Z"]]
+
+# Plot diagnostics
+par(mfrow = c(2, 2))
+plot(correct_model)
+```
+
+The residual diagnostics confirm that our model assumptions are reasonably met, supporting the validity of our causal effect estimates.
+
+```{r}
+# Calculate the confounding bias
+bias <- models_comparison$estimate[1] - models_comparison$estimate[2]
+bias_percent <- (bias / models_comparison$estimate[2]) * 100
+
+cat("Confounding bias in the X coefficient:", round(bias, 3), "\n")
+cat("Percent bias:", round(bias_percent, 1), "%\n")
+```
+
+The comparison above demonstrates the confounding effect of Z. The naive model without adjusting for Z overestimates the causal effect of X on Y because it captures both the direct effect and the indirect effect through the confounder.
+
+## 5. Testing the Collider Structure
+
+Now, let's examine how conditioning on C (a collider) affects the relationship between X and Y.
+
+```{r test-collider}
+#| tbl-cap: "Effect of conditioning on the collider C"
+
+# First, check if X and Y have the expected relationship in data
+model_true <- lm(Y ~ X + Z, data = dag_data)
+
+# Now, erroneously condition on the collider C
+model_collider_bias <- lm(Y ~ X + Z + C, data = dag_data)
+
+# Compare coefficient on X
+collider_comparison <- bind_rows(
+  tidy(model_true) %>% mutate(model = "Correct (Y ~ X + Z)"),
+  tidy(model_collider_bias) %>% mutate(model = "Collider Bias (Y ~ X + Z + C)")
+) %>%
+  filter(term == "X") %>%
+  select(model, term, estimate, std.error, p.value) %>% 
+  mutate(across(where(is.numeric), ~round(., 3)))  # Round all numeric columns to 4 decimal places
+
+# Display comparison
+DT::datatable(collider_comparison,
+              options = list(
+                pageLength = 10,
+                ordering = TRUE,
+                searching = FALSE,
+                scrollX = TRUE
+              ),
+              class = 'cell-border stripe compact responsive',
+              rownames = FALSE,
+              width = "90%")
+
+# Calculate the collider bias
+collider_bias <- collider_comparison$estimate[2] - collider_comparison$estimate[1]
+collider_bias_percent <- (collider_bias / collider_comparison$estimate[1]) * 100
+
+cat("Collider bias in the X coefficient:", round(collider_bias, 3), "\n")
+cat("Percent bias:", round(collider_bias_percent, 1), "%\n")
+```
+
+The results show how conditioning on the collider C distorts the estimated causal effect of X on Y. This is a classic example of collider bias.
+
+## 6. Stratification Analysis
+
+Let's visualize how the relationship between X and Y changes across different strata of Z (confounder) and C (collider).
+
+```{r stratification, out.width="100%"}
+#| fig-cap: "Stratified analysis showing effects of Z and C"
+#| fig-subcap: 
+#|   - "Relationship between X and Y stratified by Z"
+#|   - "Relationship between X and Y stratified by C"
+#| layout-ncol: 1
+
+# Create Z strata
+dag_data <- dag_data %>%
+  mutate(Z_strata = cut(Z, breaks = 3, labels = c("Low Z", "Medium Z", "High Z")))
+
+# Stratified analysis by Z (confounder)
+ggplot(dag_data, aes(x = X, y = Y, color = Z_strata)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = TRUE) +
+  facet_wrap(~ Z_strata) +
+  labs(title = "X-Y Relationship Stratified by Z (Confounder)",
+       subtitle = "Properly adjusting for the confounder") +
+  theme(legend.position = "bottom")
+
+# Create C strata
+dag_data <- dag_data %>%
+  mutate(C_strata = cut(C, breaks = 3, labels = c("Low C", "Medium C", "High C")))
+
+# Stratified analysis by C (collider)
+ggplot(dag_data, aes(x = X, y = Y, color = C_strata)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "lm", se = TRUE) +
+  facet_wrap(~ C_strata) +
+  labs(title = "X-Y Relationship Stratified by C (Collider)",
+       subtitle = "Illustrating collider bias when stratifying incorrectly") +
+  theme(legend.position = "bottom")
+```
+
+The stratification analysis visually demonstrates:
+
+1. When we stratify by Z (confounder), we see a more consistent relationship between X and Y within each stratum, representing the true causal effect.
+2. When we stratify by C (collider), we see varying relationships across strata, illustrating how conditioning on a collider can distort the true relationship.
+
+## 7. Path Analysis using SEM
+
+We can use structural equation modeling (SEM) to test the full DAG structure and estimate all path coefficients simultaneously.
+
+```{r sem-analysis}
+#| tbl-cap: "SEM Path Analysis Results"
+
+# Define the SEM model based on our DAG
+sem_model <- '
+  # Direct effects
+  X ~ a*Z
+  Y ~ b*X + c*Z
+  C ~ d*X + e*Y
+  
+  # Indirect effects
+  XY_indirect := a*b
+  total := b + XY_indirect
+'
+
+# Fit the model
+sem_fit <- sem(sem_model, data = dag_data)
+
+# Display the results
+summary(sem_fit, standardized = TRUE, fit.measures = TRUE)
+
+# Extract and display path coefficients
+sem_coefs <- parameterEstimates(sem_fit) %>%
+  filter(op %in% c("~", ":=")) %>%
+  select(lhs, op, rhs, est, se, z, pvalue, ci.lower, ci.upper)
+
+# Create a data frame with the formatted columns first
+sem_results <- sem_coefs %>%
+  mutate(
+    Path = case_when(
+      op == "~" ~ paste(lhs, "<-", rhs),
+      op == ":=" & rhs == "a*b" ~ "Indirect effect (X <- Z -> Y)",
+      op == ":=" & rhs == "b + XY_indirect" ~ "Total effect of X on Y",
+      TRUE ~ paste(lhs, op, rhs)
+    ),
+    Estimate = round(est, 3),
+    SE = round(se, 3),
+    `Z-value` = round(z, 3),
+    `P-value` = round(pvalue, 3),
+    `95% CI` = paste0("[", round(ci.lower, 3), ", ", round(ci.upper, 3), "]")
+  ) %>%
+  select(Path, Estimate, SE, `Z-value`, `P-value`, `95% CI`)
+
+# Display the results table
+DT::datatable(
+  sem_results,
+  options = list(
+    pageLength = 10,
+    ordering = TRUE,
+    searching = FALSE,
+    scrollX = TRUE
+  ),
+ class = 'cell-border stripe compact responsive',
+ rownames = FALSE,
+ width = "90%"
+)
+```
+
+The SEM analysis confirms the structural relationships in our DAG and provides estimates for all paths, including the indirect effect through the confounder.
+
+## 8. Testing D-Separation Claims
+
+Let's test the conditional independence claims implied by the DAG using partial correlations.
+
+```{r d-separation}
+#| tbl-cap: "D-Separation Tests"
+
+# Let's rewrite the d-separation testing code completely to avoid the issues
+
+# Create manual tests for key relationships in our DAG
+# 1. Test X and Y without conditioning (should be correlated)
+cor_xy <- cor.test(dag_data$X, dag_data$Y)
+
+# 2. Test X and Y conditioning on Z (should still be correlated due to direct effect)
+# First fit X ~ Z
+model_x_z <- lm(X ~ Z, data = dag_data)
+resid_x_given_z <- residuals(model_x_z)
+
+# Then fit Y ~ Z
+model_y_z <- lm(Y ~ Z, data = dag_data)
+resid_y_given_z <- residuals(model_y_z)
+
+# Test correlation between residuals
+cor_xy_given_z <- cor.test(resid_x_given_z, resid_y_given_z)
+
+# 3. Test X and Y conditioning on C (should be correlated due to collider bias)
+model_x_c <- lm(X ~ C, data = dag_data)
+resid_x_given_c <- residuals(model_x_c)
+
+model_y_c <- lm(Y ~ C, data = dag_data)
+resid_y_given_c <- residuals(model_y_c)
+
+cor_xy_given_c <- cor.test(resid_x_given_c, resid_y_given_c)
+
+# 4. Test X and Y conditioning on both Z and C
+model_x_zc <- lm(X ~ Z + C, data = dag_data)
+resid_x_given_zc <- residuals(model_x_zc)
+
+model_y_zc <- lm(Y ~ Z + C, data = dag_data)
+resid_y_given_zc <- residuals(model_y_zc)
+
+cor_xy_given_zc <- cor.test(resid_x_given_zc, resid_y_given_zc)
+
+# Compile results
+independence_results <- tibble(
+  Claim = c("X ⊥ Y", "X ⊥ Y | Z", "X ⊥ Y | C", "X ⊥ Y | Z,C"),
+  Correlation = c(
+    cor_xy$estimate, 
+    cor_xy_given_z$estimate,
+    cor_xy_given_c$estimate,
+    cor_xy_given_zc$estimate
+  ),
+  `P-value` = c(
+    cor_xy$p.value,
+    cor_xy_given_z$p.value,
+    cor_xy_given_c$p.value,
+    cor_xy_given_zc$p.value
+  ),
+  Independent = c(
+    cor_xy$p.value > 0.05,
+    cor_xy_given_z$p.value > 0.05,
+    cor_xy_given_c$p.value > 0.05,
+    cor_xy_given_zc$p.value > 0.05
+  )
+)
+
+# Display the results
+DT::datatable(independence_results %>% 
+                mutate(across(c(Correlation, `P-value`), ~round(., 3))),
+              options = list(
+                pageLength = 10,
+                ordering = TRUE,
+                searching = FALSE,
+                scrollX = TRUE
+              ),
+              class = 'cell-border stripe compact responsive',
+              rownames = FALSE,
+              width = "90%")
+```
+
+The d-separation tests reveal:
+
+1. When we condition on Z (the confounder), the correlation between X and Y reflects only the direct causal effect.
+2. When we condition on C (the collider), we may see a distorted relationship between X and Y due to collider bias.
+3. When we condition on both Z and C, we properly adjust for confounding but introduce collider bias.
+
+## 9. Evaluating Bias Under Different Adjustment Strategies
+
+Finally, let's systematically evaluate the bias in estimating the causal effect of X on Y under different adjustment strategies.
+
+```{r adjustment-strategies}
+#| tbl-cap: "Comparison of Different Adjustment Strategies"
+
+# Create different models representing adjustment strategies
+models <- list(
+  "None" = lm(Y ~ X, data = dag_data),
+  "Z" = lm(Y ~ X + Z, data = dag_data),
+  "C" = lm(Y ~ X + C, data = dag_data),
+  "Z, C" = lm(Y ~ X + Z + C, data = dag_data)
+)
+
+# Extract coefficients for X (without rounding yet)
+adjustment_results <- tibble(
+  `Adjustment Set` = names(models),
+  `X Coefficient` = sapply(models, function(m) coef(m)["X"]),
+  `Std. Error` = sapply(models, function(m) summary(m)$coefficients["X", "Std. Error"]),
+  `t-value` = sapply(models, function(m) summary(m)$coefficients["X", "t value"]),
+  `p-value` = sapply(models, function(m) summary(m)$coefficients["X", "Pr(>|t|)"]),
+  `R-squared` = sapply(models, function(m) summary(m)$r.squared)
+)
+
+# Calculate bias relative to the correctly specified model (adjusting for Z only)
+true_effect <- adjustment_results$`X Coefficient`[adjustment_results$`Adjustment Set` == "Z"]
+
+adjustment_results <- adjustment_results %>%
+  mutate(
+    Bias = `X Coefficient` - true_effect,
+    `Percent Bias` = (Bias / true_effect) * 100
+  ) %>%
+  mutate(across(where(is.numeric), ~round(., 3)))  # Round all numeric columns to 4 decimal places
+
+# Display the results
+DT::datatable(adjustment_results,
+              options = list(
+                pageLength = 10,
+                ordering = TRUE,
+                searching = FALSE,
+                scrollX = TRUE
+              ),
+              class = 'cell-border stripe compact responsive',
+              rownames = FALSE,
+              width = "90%")
+```
+
+## 10. Visualization of Causal Effects Under Different Adjustments
+
+Let's visualize how the estimated causal effect of X on Y changes under different adjustment strategies.
+
+```{r visualize-effects, out.width="100%"}
+#| fig-cap: "Visualization of causal effect estimates under different adjustment strategies"
+
+# Create a forest plot of X coefficients
+adjustment_results %>%
+  mutate(`Adjustment Set` = factor(`Adjustment Set`, 
+                                  levels = c("None", "Z", "C", "Z, C"))) %>%
+  ggplot(aes(x = `X Coefficient`, y = `Adjustment Set`, 
+             xmin = `X Coefficient` - 1.96 * `Std. Error`, 
+             xmax = `X Coefficient` + 1.96 * `Std. Error`,
+             color = `Adjustment Set` == "Z")) +
+  geom_pointrange() +
+  geom_vline(xintercept = true_effect, linetype = "dashed", color = "darkgreen") +
+  scale_color_manual(values = c("red", "darkgreen")) +
+  labs(title = "Causal Effect Estimates Under Different Adjustment Strategies",
+       subtitle = "Dashed line represents the true causal effect (adjusting for Z only)",
+       x = "Estimated Causal Effect of X on Y",
+       y = "Adjustment Strategy") +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+## 11. Bayesian Causal Inference Analysis
+
+In addition to the frequentist approach we've used so far, we can apply Bayesian methods to estimate causal effects in our DAG. Bayesian inference provides several advantages for causal analysis:
+
+1. It expresses uncertainty through complete probability distributions rather than just point estimates
+2. It allows incorporation of prior knowledge about causal relationships
+3. It provides a more nuanced interpretation of uncertainty in causal effects
+
+Let's implement this approach using the `rethinking` package:
+
+```{r}
+#| label: bayesian-causal-analysis
+#| message: false
+#| warning: false
+#| results: 'hide'
+
+# Load required packages if not already loaded
+if (!require("rethinking")) {
+  # Install if needed (uncomment if needed)
+  # install.packages("cmdstanr", repos = c("https://mc-stan.org/r-packages/", getOption("repos")))
+  # install.packages("rethinking", dependencies = TRUE, repos = c("https://mc-stan.org/r-packages/", getOption("repos")))
+  library(rethinking)
+}
+
+# Standardize variables for better model fitting
+# First check which variables exist in the dataset
+dag_var_names <- names(dag_data)
+print(paste("Variables in dag_data:", paste(dag_var_names, collapse=", ")))
+
+# Standardize all numeric variables in the dataset
+dag_data_std <- dag_data %>%
+  mutate(across(where(is.numeric), scale))
+
+# Define and fit Bayesian models for different adjustment sets
+# 1. No adjustment (biased)
+m_none <- quap(
+  alist(
+    Y ~ dnorm(mu, sigma),
+    mu <- a + bX * X,
+    a ~ dnorm(0, 1),
+    bX ~ dnorm(0, 1),
+    sigma ~ dexp(1)
+  ),
+  data = dag_data_std
+)
+
+# 2. Adjusting for Z (confounder)
+m_adjusted <- quap(
+  alist(
+    Y ~ dnorm(mu, sigma),
+    mu <- a + bX * X + bZ * Z,
+    a ~ dnorm(0, 1),
+    bX ~ dnorm(0, 1),
+    bZ ~ dnorm(0, 1),
+    sigma ~ dexp(1)
+  ),
+  data = dag_data_std
+)
+
+# 3. Full model with collider (typically not recommended)
+m_full <- quap(
+  alist(
+    Y ~ dnorm(mu, sigma),
+    mu <- a + bX * X + bZ * Z + bC * C,
+    a ~ dnorm(0, 1),
+    bX ~ dnorm(0, 1),
+    bZ ~ dnorm(0, 1),
+    bC ~ dnorm(0, 1),
+    sigma ~ dexp(1)
+  ),
+  data = dag_data_std
+)
+```
+
+Now let's extract the posterior distributions and compile the results:
+
+```{r}
+#| label: extract-bayesian-posteriors
+
+# Extract samples from the posterior distributions
+post_none <- extract.samples(m_none)
+post_adjusted <- extract.samples(m_adjusted)
+post_full <- extract.samples(m_full)
+
+# Create a function to summarize posteriors
+summarize_posterior <- function(posterior, name) {
+  data.frame(
+    Adjustment_Set = name,  # Using underscore to avoid conversion issues
+    Mean = mean(posterior$bX),
+    Median = median(posterior$bX),
+    SD = sd(posterior$bX),
+    CI_Lower = quantile(posterior$bX, 0.025),
+    CI_Upper = quantile(posterior$bX, 0.975),
+    Width = quantile(posterior$bX, 0.975) - quantile(posterior$bX, 0.025)
+  )
+}
+
+# Summarize the models
+bayesian_results <- rbind(
+  summarize_posterior(post_none, "None"),
+  summarize_posterior(post_adjusted, "Z only"),
+  summarize_posterior(post_full, "Z and C")
+)
+
+# Display the results using DT
+library(DT)
+datatable(bayesian_results, 
+          caption = "Bayesian estimates of the causal effect of X on Y under different adjustment strategies",
+          options = list(pageLength = 5, dom = 't'),
+          rownames = FALSE) %>%
+  formatRound(columns = c("Mean", "Median", "SD", "CI_Lower", "CI_Upper", "Width"), digits = 3)
+```
+
+Let's visualize the posterior distributions to better understand the uncertainty in our causal effect estimates:
+
+```{r}
+#| label: plot-bayesian-posteriors
+#| fig-width: 8
+#| fig-height: 6
+#| fig-cap: "Posterior distributions of causal effect estimates under different adjustment strategies"
+
+# Create a data frame with the posterior samples
+all_posteriors <- data.frame(
+  None = post_none$bX,
+  Z_only = post_adjusted$bX,
+  Z_and_C = post_full$bX
+)
+
+# Convert to long format for plotting
+library(tidyr)
+long_posteriors <- all_posteriors %>%
+  pivot_longer(cols = everything(), 
+               names_to = "Adjustment_Set", 
+               values_to = "Effect_Estimate")
+
+# Set factor levels for consistent ordering
+long_posteriors$Adjustment_Set <- factor(long_posteriors$Adjustment_Set,
+                                        levels = c("None", "Z_only", "Z_and_C"))
+
+# Plot density curves for all adjustment sets
+ggplot(long_posteriors, aes(x = Effect_Estimate, fill = Adjustment_Set)) +
+  geom_density(alpha = 0.5) +
+  geom_vline(data = bayesian_results, 
+             aes(xintercept = Mean, color = Adjustment_Set),
+             linetype = "dashed") +
+  scale_fill_brewer(palette = "Set1") +
+  scale_color_brewer(palette = "Set1") +
+  labs(
+    title = "Posterior Distributions of the Causal Effect of X on Y",
+    subtitle = "Under different adjustment strategies",
+    x = "Causal Effect (Standardized)",
+    y = "Density"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  guides(fill = guide_legend(title = "Adjustment Strategy"),
+         color = guide_legend(title = "Adjustment Strategy"))
+```
+
+For a more direct comparison with our frequentist approach, let's create a forest plot:
+
+```{r}
+#| label: bayesian-forest-plot
+#| fig-width: 8
+#| fig-height: 5
+#| fig-cap: "Forest plot of Bayesian causal effect estimates under different adjustment strategies"
+
+# Calculate the true standardized effect for reference
+true_effect_std <- 0.4 / sd(dag_data$Y) * sd(dag_data$X)
+
+# Create forest plot
+ggplot(bayesian_results, 
+       aes(x = Mean, y = Adjustment_Set, 
+           xmin = CI_Lower, xmax = CI_Upper,
+           color = Adjustment_Set == "Z only")) +
+  geom_pointrange(size = 1) +
+  geom_vline(xintercept = true_effect_std, linetype = "dashed", color = "darkgreen") +
+  scale_color_manual(values = c("red", "darkgreen", "red")) +
+  labs(
+    title = "Bayesian Causal Effect Estimates Under Different Adjustment Strategies",
+    subtitle = "Green represents the correctly specified adjustment set (Z only)",
+    x = "Estimated Causal Effect of X on Y (Standardized)",
+    y = "Adjustment Strategy"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+### Interpretation of Bayesian Causal Analysis
+
+The Bayesian analysis provides a more complete picture of uncertainty in our causal effect estimates through posterior probability distributions. Here are the key findings:
+
+1. **Adjustment Strategy Comparisons**: 
+   - The posterior distribution for the unadjusted model ("None") shows bias compared to the model adjusting for Z only, confirming our DAG-based conclusion that Z is a confounder.
+   - The model adjusting for both Z and C (the collider) shows a distortion of the causal effect, demonstrating collider bias in the Bayesian framework.
+   - The model adjusting only for Z provides the most accurate estimate of the true causal effect.
+
+2. **Uncertainty Quantification**:
+   - The width of the posterior distributions reveals how each adjustment strategy affects uncertainty.
+   - The credible intervals show the range of plausible values for the causal effect under each adjustment strategy.
+   - Note how adjusting for the collider C not only shifts the estimate but also affects the uncertainty.
+
+3. **Posterior Probability Interpretation**:
+   - Unlike frequentist confidence intervals, the Bayesian 95% credible intervals have a direct probability interpretation: there is a 95% probability that the true causal effect lies within this range.
+   - This probabilistic interpretation allows for more intuitive statements about the uncertainty in causal effects.
+
+4. **Agreement with Frequentist Results**:
+   - The Bayesian analysis largely confirms our frequentist findings, providing additional confidence in our causal conclusions.
+   - The posterior means are similar to the frequentist point estimates, but the Bayesian framework offers a more comprehensive understanding of uncertainty.
+
+5. **Practical Implications**:
+   - For causal inference, our Bayesian analysis confirms that adjusting only for the confounder Z is optimal, avoiding both confounding bias and collider bias.
+   - The posterior distributions provide a rich framework for communicating uncertainty in causal effects to stakeholders.
+
+This Bayesian approach offers a rich framework for causal inference that goes beyond point estimates, enabling researchers to express and incorporate uncertainty in a more nuanced way. The posterior distributions provide a complete picture of plausible causal effects given our data and modeling assumptions.
+
+
+
+## Session Information for Reproducibility
+
+```{r}
+#| label: session-info
+#| echo: false
+
+# Session information for reproducibility
+sessionInfo()
+
+```
+
+
+

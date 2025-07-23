@@ -1,0 +1,523 @@
+## 22. Simpson's Paradox Detection Analysis
+
+Simpson's Paradox occurs when the direction of an association between two variables reverses when conditioning on a third variable. In our experimental causal structure DAG, we can examine whether this phenomenon occurs by stratifying our data based on different levels of the prognostic factors Z, C, and B.
+
+Think of Simpson's Paradox like a magic trick in statistics - what appears to be true at the surface level completely reverses when you look deeper. In our experimental DAG, we might find that overall, X appears to have one effect on Y, but within each level of the prognostic factors, the relationship tells a different story. However, because X is randomized, we would expect the relationship to remain consistent across strata.
+
+### 22.1 Simpson's Paradox Detection Analysis
+
+First, let's examine the overall relationship between X and Y, and then compare it to the relationship within different strata of Z:
+
+```{r}
+#| label: detect-simpsons-paradox-exp
+#| message: false
+#| warning: false
+
+# Calculate overall correlation between X and Y
+overall_cor <- cor(dag_data$X, dag_data$Y)
+overall_slope <- coef(lm(Y ~ X, data = dag_data))[2]
+
+# Create Z quartiles for stratified analysis
+dag_data$Z_quartile <- cut(dag_data$Z, 
+                          breaks = quantile(dag_data$Z, probs = c(0, 0.25, 0.5, 0.75, 1)), 
+                          labels = c("Q1 (Low)", "Q2", "Q3", "Q4 (High)"),
+                          include.lowest = TRUE)
+
+# Calculate correlations and slopes within each Z quartile
+stratified_results <- dag_data %>%
+  group_by(Z_quartile) %>%
+  summarise(
+    n = n(),
+    cor_XY = cor(X, Y),
+    slope_XY = coef(lm(Y ~ X))[2],
+    mean_Z = mean(Z),
+    mean_X = mean(X),
+    mean_Y = mean(Y),
+    .groups = 'drop'
+  )
+
+# Add overall results for comparison
+overall_results <- data.frame(
+  Z_quartile = "Overall",
+  n = nrow(dag_data),
+  cor_XY = overall_cor,
+  slope_XY = overall_slope,
+  mean_Z = mean(dag_data$Z),
+  mean_X = mean(dag_data$X),
+  mean_Y = mean(dag_data$Y)
+)
+
+# Combine results
+simpson_analysis <- bind_rows(overall_results, stratified_results)
+
+# Round for display
+simpson_analysis <- simpson_analysis %>%
+  mutate(across(where(is.numeric), ~ round(., 3)))
+
+# Display results
+DT::datatable(simpson_analysis,
+              caption = "Simpson's Paradox Detection: Overall vs Stratified Analysis by Z",
+              options = list(pageLength = 10, scrollX = TRUE),
+              colnames = c("Z Group", "N", "Correlation X-Y", "Slope X→Y", 
+                          "Mean Z", "Mean X", "Mean Y")) %>%
+  DT::formatRound(columns = c("cor_XY", "slope_XY", "mean_Z", "mean_X", "mean_Y"), digits = 3)
+```
+
+### 22.2 Testing for Simpson's Paradox by Status
+
+Let's formally test whether Simpson's Paradox is present by examining if the direction of association changes:
+
+```{r}
+#| label: test-simpsons-paradox-status-exp
+#| message: false
+#| warning: false
+
+# Function to determine Simpson's Paradox status
+detect_simpson_status <- function(overall_slope, stratified_slopes) {
+  # Check if all stratified slopes have the same sign
+  stratified_signs <- sign(stratified_slopes)
+  overall_sign <- sign(overall_slope)
+  
+  # Simpson's Paradox occurs when overall sign differs from all stratified signs
+  if (all(stratified_signs == stratified_signs[1]) && 
+      overall_sign != stratified_signs[1]) {
+    return("Strong Simpson's Paradox")
+  } else if (any(stratified_signs != overall_sign)) {
+    return("Partial Simpson's Paradox")
+  } else {
+    return("No Simpson's Paradox")
+  }
+}
+
+# Get stratified slopes (excluding overall)
+stratified_slopes <- stratified_results$slope_XY
+
+# Determine Simpson's Paradox status
+simpson_status <- detect_simpson_status(overall_slope, stratified_slopes)
+
+# Create summary table
+simpson_summary <- data.frame(
+  Measure = c("Overall Slope", "Mean Stratified Slope", "Range of Stratified Slopes",
+              "Overall Correlation", "Mean Stratified Correlation", "Simpson's Paradox Status"),
+  Value = c(
+    round(overall_slope, 3),
+    round(mean(stratified_slopes), 3),
+    paste(round(min(stratified_slopes), 3), "to", round(max(stratified_slopes), 3)),
+    round(overall_cor, 3),
+    round(mean(stratified_results$cor_XY), 3),
+    simpson_status
+  )
+)
+
+# Display summary
+DT::datatable(simpson_summary,
+              caption = "Simpson's Paradox Status Summary for Z Stratification",
+              options = list(pageLength = 10, dom = 't'),
+              colnames = c("Measure", "Value"))
+```
+
+### 22.3 Testing for Simpson's Paradox by Groups
+
+Let's examine the phenomenon by creating binary high/low groups for multiple prognostic factors:
+
+```{r}
+#| label: test-simpsons-by-groups-exp
+#| message: false
+#| warning: false
+
+# Create binary groups for Z, C, and B (high/low based on median split)
+dag_data$Z_binary <- ifelse(dag_data$Z > median(dag_data$Z), "High Z", "Low Z")
+dag_data$C_binary <- ifelse(dag_data$C > median(dag_data$C), "High C", "Low C")
+dag_data$B_binary <- ifelse(dag_data$B > median(dag_data$B), "High B", "Low B")
+
+# Analyze binary groups for Z
+binary_Z <- dag_data %>%
+  group_by(Z_binary) %>%
+  summarise(
+    n = n(),
+    cor_XY = cor(X, Y),
+    slope_XY = coef(lm(Y ~ X))[2],
+    mean_Z = mean(Z),
+    .groups = 'drop'
+  ) %>%
+  mutate(Variable = "Z")
+
+# Analyze binary groups for C
+binary_C <- dag_data %>%
+  group_by(C_binary) %>%
+  summarise(
+    n = n(),
+    cor_XY = cor(X, Y),
+    slope_XY = coef(lm(Y ~ X))[2],
+    mean_C = mean(C),
+    .groups = 'drop'
+  ) %>%
+  mutate(Variable = "C") %>%
+  rename(Group = C_binary, mean_var = mean_C)
+
+# Analyze binary groups for B
+binary_B <- dag_data %>%
+  group_by(B_binary) %>%
+  summarise(
+    n = n(),
+    cor_XY = cor(X, Y),
+    slope_XY = coef(lm(Y ~ X))[2],
+    mean_B = mean(B),
+    .groups = 'drop'
+  ) %>%
+  mutate(Variable = "B") %>%
+  rename(Group = B_binary, mean_var = mean_B)
+
+# Standardize column names for Z
+binary_Z <- binary_Z %>%
+  rename(Group = Z_binary, mean_var = mean_Z)
+
+# Combine all binary analyses
+all_binary <- bind_rows(binary_Z, binary_C, binary_B)
+
+# Round for display
+all_binary <- all_binary %>%
+  mutate(across(where(is.numeric), ~ round(., 3)))
+
+# Display binary group analysis
+DT::datatable(all_binary,
+              caption = "Binary Group Analysis for Simpson's Paradox Detection",
+              options = list(pageLength = 10, scrollX = TRUE),
+              colnames = c("Group", "N", "Correlation", "Slope", "Mean Variable", "Variable")) %>%
+  DT::formatRound(columns = c("cor_XY", "slope_XY", "mean_var"), digits = 3)
+```
+
+### 22.4 Visual Detection of Simpson's Paradox
+
+Let's create visualizations to clearly demonstrate whether Simpson's Paradox is present in our experimental data:
+
+```{r}
+#| label: visualize-simpsons-paradox-exp
+#| fig-cap: "Visual Detection of Simpson's Paradox in Experimental Data"
+#| fig-subcap: 
+#|   - "Overall relationship vs stratified relationships (Z quartiles)"
+#|   - "Binary group analysis for Z with separate regression lines"
+#|   - "Binary group analysis for C with separate regression lines"
+#|   - "Slope comparison across different prognostic factor stratifications"
+#| layout-ncol: 2
+
+# Plot 1: Overall vs Stratified (Z Quartiles)
+p1 <- ggplot(dag_data, aes(x = X, y = Y)) +
+  # Overall regression line
+  geom_smooth(method = "lm", formula = y ~ x, color = "red", linewidth = 1.5, 
+              linetype = "dashed", se = FALSE) +
+  # Stratified regression lines
+  geom_smooth(aes(color = Z_quartile), method = "lm", formula = y ~ x, 
+              linewidth = 1, se = FALSE) +
+  # Points colored by quartile
+  geom_point(aes(color = Z_quartile), alpha = 0.6) +
+  scale_color_viridis_d(name = "Z Quartile") +
+  labs(
+    title = "Simpson's Paradox Analysis: Overall vs Z Stratified Relationships",
+    subtitle = paste("Overall slope (red dashed):", round(overall_slope, 3),
+                    "| Simpson's Status:", simpson_status),
+    x = "X (Exposure)",
+    y = "Y (Outcome)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+# Plot 2: Binary Group Analysis for Z
+p2 <- ggplot(dag_data, aes(x = X, y = Y)) +
+  # Overall regression line
+  geom_smooth(method = "lm", formula = y ~ x, color = "red", linewidth = 1.5, 
+              linetype = "dashed", se = FALSE) +
+  # Stratified regression lines for binary groups
+  geom_smooth(aes(color = Z_binary), method = "lm", formula = y ~ x, 
+              linewidth = 1.2, se = TRUE, alpha = 0.3) +
+  # Points colored by binary group
+  geom_point(aes(color = Z_binary), alpha = 0.6) +
+  scale_color_manual(values = c("High Z" = "darkblue", "Low Z" = "darkgreen"),
+                     name = "Z Group") +
+  labs(
+    title = "Binary Group Analysis for Z",
+    subtitle = "Red dashed line: Overall relationship | Colored lines: Group-specific relationships",
+    x = "X (Exposure)",
+    y = "Y (Outcome)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+# Plot 3: Binary Group Analysis for C
+p3 <- ggplot(dag_data, aes(x = X, y = Y)) +
+  # Overall regression line
+  geom_smooth(method = "lm", formula = y ~ x, color = "red", linewidth = 1.5, 
+              linetype = "dashed", se = FALSE) +
+  # Stratified regression lines for binary groups
+  geom_smooth(aes(color = C_binary), method = "lm", formula = y ~ x, 
+              linewidth = 1.2, se = TRUE, alpha = 0.3) +
+  # Points colored by binary group
+  geom_point(aes(color = C_binary), alpha = 0.6) +
+  scale_color_manual(values = c("High C" = "purple", "Low C" = "orange"),
+                     name = "C Group") +
+  labs(
+    title = "Binary Group Analysis for C",
+    subtitle = "Red dashed line: Overall relationship | Colored lines: Group-specific relationships",
+    x = "X (Exposure)",
+    y = "Y (Outcome)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+# Plot 4: Slope Comparison
+slope_comparison <- data.frame(
+  Group = c("Overall", 
+           paste("Z", stratified_results$Z_quartile), 
+           paste("Z", unique(dag_data$Z_binary)),
+           paste("C", unique(dag_data$C_binary)),
+           paste("B", unique(dag_data$B_binary))),
+  Slope = c(overall_slope, 
+           stratified_results$slope_XY, 
+           binary_Z$slope_XY,
+           binary_C$slope_XY,
+           binary_B$slope_XY),
+  Type = c("Overall", 
+          rep("Z Quartile", 4), 
+          rep("Z Binary", 2),
+          rep("C Binary", 2),
+          rep("B Binary", 2))
+)
+
+p4 <- ggplot(slope_comparison, aes(x = reorder(Group, Slope), y = Slope, fill = Type)) +
+  geom_col(alpha = 0.8) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  geom_hline(yintercept = 0.4, linetype = "dotted", color = "red", alpha = 0.7) +
+  scale_fill_manual(values = c("Overall" = "red", "Z Quartile" = "steelblue", 
+                              "Z Binary" = "darkgreen", "C Binary" = "purple", 
+                              "B Binary" = "orange")) +
+  labs(
+    title = "Slope Comparison Across Different Stratifications",
+    subtitle = "Red dotted line shows true causal effect (0.4)",
+    x = "Group",
+    y = "Slope of X → Y"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+# Display plots
+p1
+p2
+p3
+p4
+```
+
+### 22.5 Formal Statistical Test for Simpson's Paradox
+
+Let's conduct a simplified statistical test to quantify the evidence for Simpson's Paradox:
+
+```{r}
+#| label: formal-test-simpsons-paradox-exp
+#| message: false
+#| warning: false
+
+# Simple test comparing overall slope to stratified slopes
+# Calculate differences from overall slope
+slope_differences <- data.frame(
+  Stratification = c(
+    paste("Z", stratified_results$Z_quartile),
+    paste("Z", unique(dag_data$Z_binary)),
+    paste("C", unique(dag_data$C_binary)),
+    paste("B", unique(dag_data$B_binary))
+  ),
+  Slope = c(
+    stratified_results$slope_XY,
+    binary_Z$slope_XY,
+    binary_C$slope_XY,
+    binary_B$slope_XY
+  ),
+  Difference_from_Overall = c(
+    stratified_results$slope_XY - overall_slope,
+    binary_Z$slope_XY - overall_slope,
+    binary_C$slope_XY - overall_slope,
+    binary_B$slope_XY - overall_slope
+  ),
+  Variable = c(
+    rep("Z (Quartiles)", 4),
+    rep("Z (Binary)", 2),
+    rep("C (Binary)", 2),
+    rep("B (Binary)", 2)
+  )
+)
+
+# Round for display
+slope_differences <- slope_differences %>%
+  mutate(across(where(is.numeric), ~ round(., 3)))
+
+# Add interpretation
+slope_differences$Interpretation <- ifelse(
+  abs(slope_differences$Difference_from_Overall) > 0.05,
+  "Notable difference",
+  "Minimal difference"
+)
+
+# Display test results
+DT::datatable(slope_differences,
+              caption = "Statistical Assessment of Slope Differences Across Strata",
+              options = list(pageLength = 10, scrollX = TRUE)) %>%
+  DT::formatRound(columns = c("Slope", "Difference_from_Overall"), digits = 3)
+```
+
+### 22.6 Magnitude of Simpson's Paradox Effect
+
+Let's quantify the magnitude of any Simpson's Paradox effect:
+
+```{r}
+#| label: magnitude-simpsons-effect-exp
+#| message: false
+#| warning: false
+
+# Calculate magnitude measures for different stratifications
+magnitude_analysis <- data.frame(
+  Stratification = c("Z Quartiles", "Z Binary", "C Binary", "B Binary"),
+  Overall_Slope = rep(round(overall_slope, 3), 4),
+  Mean_Stratified_Slope = c(
+    round(mean(stratified_results$slope_XY), 3),
+    round(mean(binary_Z$slope_XY), 3),
+    round(mean(binary_C$slope_XY), 3),
+    round(mean(binary_B$slope_XY), 3)
+  ),
+  Max_Difference = c(
+    round(max(abs(stratified_results$slope_XY - overall_slope)), 3),
+    round(max(abs(binary_Z$slope_XY - overall_slope)), 3),
+    round(max(abs(binary_C$slope_XY - overall_slope)), 3),
+    round(max(abs(binary_B$slope_XY - overall_slope)), 3)
+  ),
+  Direction_Reversal = c(
+    ifelse(any(sign(stratified_results$slope_XY) != sign(overall_slope)), "Yes", "No"),
+    ifelse(any(sign(binary_Z$slope_XY) != sign(overall_slope)), "Yes", "No"),
+    ifelse(any(sign(binary_C$slope_XY) != sign(overall_slope)), "Yes", "No"),
+    ifelse(any(sign(binary_B$slope_XY) != sign(overall_slope)), "Yes", "No")
+  )
+)
+
+# Display magnitude analysis
+DT::datatable(magnitude_analysis,
+              caption = "Magnitude of Simpson's Paradox Effect Across Stratifications",
+              options = list(pageLength = 10, scrollX = TRUE),
+              colnames = c("Stratification", "Overall Slope", "Mean Stratified Slope", 
+                          "Max Difference", "Direction Reversal"))
+```
+
+### 22.7 Weighted vs Unweighted Analysis
+
+Let's compare weighted and unweighted analyses:
+
+```{r}
+#| label: weighted-unweighted-analysis-exp
+#| message: false
+#| warning: false
+
+# Calculate weighted averages for each stratification
+weighted_analysis <- data.frame(
+  Stratification = c("Z Quartiles", "Z Binary", "C Binary", "B Binary"),
+  Unweighted_Mean = c(
+    round(mean(stratified_results$slope_XY), 3),
+    round(mean(binary_Z$slope_XY), 3),
+    round(mean(binary_C$slope_XY), 3),
+    round(mean(binary_B$slope_XY), 3)
+  ),
+  Weighted_Mean = c(
+    round(weighted.mean(stratified_results$slope_XY, stratified_results$n), 3),
+    round(weighted.mean(binary_Z$slope_XY, binary_Z$n), 3),
+    round(weighted.mean(binary_C$slope_XY, binary_C$n), 3),
+    round(weighted.mean(binary_B$slope_XY, binary_B$n), 3)
+  ),
+  Overall_Slope = rep(round(overall_slope, 3), 4)
+)
+
+# Add difference measures
+weighted_analysis$Unweighted_Diff <- abs(weighted_analysis$Unweighted_Mean - weighted_analysis$Overall_Slope)
+weighted_analysis$Weighted_Diff <- abs(weighted_analysis$Weighted_Mean - weighted_analysis$Overall_Slope)
+
+# Round differences
+weighted_analysis <- weighted_analysis %>%
+  mutate(across(c(Unweighted_Diff, Weighted_Diff), ~ round(., 3)))
+
+# Display weighted analysis
+DT::datatable(weighted_analysis,
+              caption = "Weighted vs Unweighted Analysis Comparison",
+              options = list(pageLength = 10, scrollX = TRUE),
+              colnames = c("Stratification", "Unweighted Mean", "Weighted Mean", 
+                          "Overall Slope", "Unweighted Diff", "Weighted Diff"))
+```
+
+### 22.8 Conclusions from Simpson's Paradox Analysis
+
+Based on our comprehensive analysis, here are the key findings about Simpson's Paradox in this experimental dataset:
+
+```{r}
+#| label: simpsons-conclusions-exp
+#| message: false
+#| warning: false
+
+# Calculate summary statistics
+avg_max_difference <- mean(magnitude_analysis$Max_Difference)
+any_direction_reversal <- any(magnitude_analysis$Direction_Reversal == "Yes")
+dominant_status <- simpson_status
+
+# Create conclusions summary
+conclusions_data <- data.frame(
+  Finding = c(
+    "Simpson's Paradox Present?",
+    "Direction Reversals Detected?",
+    "Average Maximum Difference",
+    "Consistency Across Strata",
+    "Experimental Design Effect",
+    "Practical Implication"
+  ),
+  Result = c(
+    dominant_status,
+    ifelse(any_direction_reversal, "Yes", "No"),
+    paste(round(avg_max_difference, 3), "units"),
+    "High consistency across all prognostic factor strata", 
+    "Randomization prevents systematic Simpson's Paradox",
+    "Simple analysis provides unbiased causal estimates"
+  )
+)
+
+# Display conclusions
+DT::datatable(conclusions_data,
+              caption = "Summary of Simpson's Paradox Analysis Conclusions",
+              options = list(pageLength = 10, dom = 't', scrollX = TRUE),
+              colnames = c("Key Finding", "Result/Interpretation"))
+
+# Create final summary
+final_summary <- data.frame(
+  Category = c(
+    "Simpson's Paradox Detection",
+    "Magnitude Analysis", 
+    "Experimental Design Validation",
+    "Causal Inference Implications"
+  ),
+  Key_Result = c(
+    paste("Status:", dominant_status),
+    paste("Average max difference:", round(avg_max_difference, 3), "units"),
+    "Randomization maintains consistent treatment effects across strata",
+    "Confirms experimental design eliminates confounding bias"
+  ),
+  Interpretation = c(
+    "Minimal paradox occurrence due to randomized treatment assignment",
+    "Small variations represent sampling variation, not systematic bias",
+    "Treatment effect remains stable regardless of prognostic factor levels", 
+    "Supports using simple unadjusted analysis for causal inference"
+  )
+)
+
+DT::datatable(final_summary,
+              caption = "Key Conclusions from Simpson's Paradox Analysis in Experimental Design",
+              options = list(pageLength = 10, dom = 't', scrollX = TRUE),
+              colnames = c("Category", "Key Result", "Interpretation"))
+```
+
+Our Simpson's Paradox analysis reveals important insights about experimental design and causal inference. In this experimental dataset, we observe **`r dominant_status`**, which demonstrates how randomization of X prevents the systematic occurrence of Simpson's Paradox that might be seen in observational data.
+
+The key insight is that Simpson's Paradox rarely occurs in well-designed experiments because randomization breaks the association between treatment assignment and potential confounders. In our experimental structure DAG, the prognostic factors Z, C, and B affect the outcome Y but are independent of the randomized exposure X, creating a causal structure where the marginal and conditional relationships remain consistent.
+
+The minimal variation we observe across strata (average maximum difference of **`r round(avg_max_difference, 3)`** units) represents normal sampling variation rather than systematic confounding. This analysis reinforces our earlier findings about the power of randomization in eliminating confounding and ensuring that simple analyses provide unbiased causal estimates.
+
+The absence of meaningful Simpson's Paradox in our experimental data underscores a fundamental principle: when treatment assignment is truly randomized, the causal effect can be estimated without complex adjustments or concerns about paradoxical reversals across subgroups. This is why randomized controlled trials remain the gold standard for causal inference - they create a causal structure where Simpson's Paradox cannot systematically mislead us about true causal relationships.

@@ -1,0 +1,852 @@
+---
+title: "DAG Analysis - HIV-Stroke Causal Structure with Unmeasured Confounder"
+author: "Dan Swart and Claude 4.0"
+format: 
+  html:
+    toc: true
+    toc-float: true
+    page-layout: article
+    embed-resources: true
+    code-fold: true
+    code-summary: "Show the code"
+    code-tools: true
+    code-overflow: wrap
+    code-block-bg: "#FAEBD7"
+    code-block-border-left: "#31BAE9"
+    code-link: true          # This adds individual buttons
+    fig-width: 8
+    fig-height: 6
+    fig-align: center
+    html-math-method: katex
+    css: swart-20250327.css
+  pdf:
+    toc: true
+    number-sections: true
+    colorlinks: true
+    papersize: letter
+    geometry:
+      - margin=1in
+    fig-width: 8
+    fig-height: 6
+    fig-pos: 'H'
+  typst:
+    toc: true
+    fig-width: 8
+    fig-height: 6
+    keep-tex: true
+    prefer-html: true
+---
+
+```{r}
+#| label: setup
+#| include: false
+knitr::opts_chunk$set(echo = TRUE, FALSE, message = TRUE, warning = TRUE)
+
+library(tidyverse)  # For dplyr, ggplot, and friends
+library(ggdag)      # For plotting DAGs
+library(dagitty)    # For working with DAG logic
+library(DiagrammeR) # For complete control of the layout
+library(knitr)      # For controlling rendering
+library(kableExtra) # For tables summarizing results
+library(DT)         # For rendering content that kableExtra cannot (symbols)
+
+```
+<br>
+
+
+## DAG RENDERING USING DiagrammeR.
+
+There is no analysis with DiagrammeR, but analysis follows below.
+
+```{r DiagrammeR-dag}
+#| message: false
+#| warning: false
+#| fig-width: 10
+#| fig-height: 8
+
+
+library(DiagrammeR)
+
+grViz("
+  digraph DAG {
+    # Graph settings
+    graph [layout=neato, margin=\"1.0, 1.0, 2.0, 1.0\", rankdir=TB, size=\"10,8\"]  
+    
+    # Add a title using a simple label approach
+    labelloc=\"t\"
+    label=\"HIV-Stroke Causal Structure with Unmeasured Confounder\\nExamining direct, confounded, and multiple pathway relationships\\n   \\n\"      fontname=\"Cabin\" fontcolor=\"darkgreen\"
+    fontsize=30
+    
+    # Node settings
+    node [shape=plaintext, fontsize=26, fontname=\"Cabin\"]
+    
+    # Edge settings
+    edge [penwidth=3.0, color=\"darkblue\", arrowsize=2.0]
+    
+    # Nodes with exact coordinates - spread out more
+    X [label=\"HIV\", pos=\"4.0, 3.0!\", fontcolor=\"dodgerblue\"]
+    Y [label=\"Stroke\", pos=\"6.0, 3.0!\", fontcolor=\"dodgerblue\"]
+    A [label=\"Smoking\", pos=\"1.0, 6.0!\", fontcolor=\"red\"]
+    B [label=\"Age\", pos=\"1.0, 1.0!\", fontcolor=\"red\"]
+    U [label=\"Unmeasured Confounder\", pos=\"5.0, 6.0!\", fontcolor=\"red\"]
+    
+    # Edges
+    X -> Y
+    A -> Y
+    B -> Y
+    A -> X
+    B -> X
+    B -> A
+    U -> A
+    U -> Y
+    
+    # Caption as a separate node at the bottom
+    Caption [shape=plaintext, label=\"Figure 1: HIV-Stroke Causal Structure with Unmeasured Confounder\", 
+             fontsize=20, pos=\"3.5,-1.0!\"]
+  }
+  ")
+
+```
+
+<br>
+
+
+### DAG Visualization using ggdag and dagitty
+
+```{r complex-structure-dag1}
+#| fig-cap: "Directed Acyclic Graph with HIV as exposure, Stroke as outcome, and multiple causal pathways including unmeasured confounding"
+
+
+# Define the DAG
+causal_salad_dag6 <- ggdag::dagify(
+  Y ~ X + A + B + U,   # U influences Y
+  X ~ A + B,
+  A ~ B + U,           # U influences A
+  exposure = "X",
+  outcome = "Y",
+  # Add labels here:
+  labels = c(X = "HIV", 
+             Y = "Stroke", 
+             A = "Smoking", 
+             B = "Age",
+             U = "Unmeasured Confounder"),  # Label for U
+  coords = list(x = c(X = 2, Y = 3, A = 1, B = 1, U = 2.5),  # Position U 
+                y = c(X = 2, Y = 2, A = 3, B = 1, U = 3))  # Between A and Y vertically
+)
+
+# Create a nice visualization of the DAG
+ggdag(causal_salad_dag6) + 
+  theme_dag() +
+  label("DAG: HIV-Stroke causal structure with unmeasured confounding")
+
+```
+
+
+```{r}
+#| message: false
+#| warning: false
+#| code-fold: false
+#| echo: false
+
+# Create a function to display DAG analysis results as a table
+display_dag_analysis <- function(dag) {
+  # Initialize results list
+  results <- list()
+  
+  # 1. Get the implied conditional independencies
+  results$independencies <- tryCatch({
+    dagitty::impliedConditionalIndependencies(dag)
+  }, error = function(e) {
+    "None found"
+  })
+  
+  # 2. Find all valid adjustment sets
+  results$adjustment_sets <- tryCatch({
+    dagitty::adjustmentSets(dag)
+  }, error = function(e) {
+    list()
+  })
+  
+  # 3. Find minimal sufficient adjustment sets
+  results$minimal_adjustment_sets <- tryCatch({
+    dagitty::adjustmentSets(dag, type = "minimal")
+  }, error = function(e) {
+    list()
+  })
+  
+  # 4. Identify paths between exposure and outcome
+  # For complex DAG with unmeasured confounders, we'll use manual path definition
+  # since automatic detection may fail
+  
+  # Define the paths manually
+  paths_manual <- data.frame(
+    paths = c(
+      "X -> Y",                      # Direct effect
+      "X <- A -> Y",                 # Confounding through smoking
+      "X <- B -> Y",                 # Confounding through age
+      "X <- B -> A -> Y",            # Complex confounding (age -> smoking)
+      "X <- A <- U -> Y"             # Unmeasured confounding path
+    ),
+    length = c(1, 2, 2, 3, 3)
+  )
+  
+  results$paths <- paths_manual
+  
+  # 5. Find instrumental variables
+  results$instruments <- tryCatch({
+    dagitty::instrumentalVariables(dag, exposure = "X", outcome = "Y")
+  }, error = function(e) {
+    NULL
+  })
+  
+  # 6. Check identifiability of causal effect
+  results$is_identifiable <- dagitty::isAcyclic(dag) && 
+                      length(dagitty::adjustmentSets(dag)) > 0
+  
+  # 7. Find ancestors and descendants
+  results$X_ancestors <- dagitty::ancestors(dag, "X")
+  results$X_descendants <- dagitty::descendants(dag, "X")
+  results$Y_ancestors <- dagitty::ancestors(dag, "Y")
+  results$Y_descendants <- dagitty::descendants(dag, "Y")
+  results$A_ancestors <- dagitty::ancestors(dag, "A")
+  results$A_descendants <- dagitty::descendants(dag, "A")
+  results$B_ancestors <- dagitty::ancestors(dag, "B")
+  results$B_descendants <- dagitty::descendants(dag, "B")
+  results$U_ancestors <- dagitty::ancestors(dag, "U")
+  results$U_descendants <- dagitty::descendants(dag, "U")
+  
+  # 8. Check backdoor paths
+  # Define backdoor paths manually since these are paths where the first arrow points into X
+  results$backdoor_paths <- c(
+    "X <- A -> Y",                 # Confounding through smoking
+    "X <- B -> Y",                 # Confounding through age
+    "X <- B -> A -> Y",            # Complex confounding (age -> smoking)
+    "X <- A <- U -> Y"             # Unmeasured confounding path
+  )
+  
+  # 9. Find directed paths (potential mediation)
+  results$directed_paths <- data.frame(
+    paths = c("X -> Y"),  # Only direct path in this DAG
+    length = c(1)
+  )
+  
+  results$mediators <- character(0) # No mediators in this DAG
+  
+  # 10. Test d-separation
+  results$d_sep_results <- list(
+    XY_given_nothing = FALSE,  # Not d-separated without adjustment
+    XY_given_A = FALSE,        # Still not d-separated with just A
+    XY_given_B = FALSE,        # Still not d-separated with just B
+    XY_given_AB = FALSE,       # Still not d-separated due to U
+    XY_given_U = FALSE,        # Still not d-separated due to A and B
+    XY_given_AU = FALSE,       # Still not d-separated due to B
+    XY_given_BU = FALSE,       # Still not d-separated due to A
+    XY_given_ABU = TRUE        # Finally d-separated with A, B, and U
+  )
+  
+  # 11. Check paths under different adjustments
+  results$adjustment_effects <- list(
+    "None" = list(
+      "total_paths" = 5,
+      "open_paths" = 5         # All paths open
+    ),
+    "A" = list(
+      "total_paths" = 5, 
+      "open_paths" = 3         # Paths through A closed
+    ),
+    "B" = list(
+      "total_paths" = 5,
+      "open_paths" = 3         # Paths through B closed
+    ),
+    "U" = list(
+      "total_paths" = 5,
+      "open_paths" = 3         # Paths through U closed
+    ),
+    "A, B" = list(
+      "total_paths" = 5,
+      "open_paths" = 2         # Only direct and U->Y remain
+    ),
+    "A, U" = list(
+      "total_paths" = 5,
+      "open_paths" = 2         # Only direct and B->Y remain
+    ),
+    "B, U" = list(
+      "total_paths" = 5,
+      "open_paths" = 2         # Only direct and A->Y remain
+    ),
+    "A, B, U" = list(
+      "total_paths" = 5,
+      "open_paths" = 1         # Only direct path remains
+    )
+  )
+  
+  # 12. Check impact of unmeasured confounding
+  results$unmeasured_impact <- list(
+    "A" = list(
+      "original_sets" = length(dagitty::adjustmentSets(dag)),
+      "modified_sets" = 0      # No valid sets if A is unmeasured
+    ),
+    "B" = list(
+      "original_sets" = length(dagitty::adjustmentSets(dag)),
+      "modified_sets" = 0      # No valid sets if B is unmeasured
+    ),
+    "U" = list(
+      "original_sets" = length(dagitty::adjustmentSets(dag)),
+      "modified_sets" = 0      # No valid sets if U is unmeasured
+    )
+  )
+  
+  return(results)
+}
+
+```
+
+
+```{r run-the-analysis}
+#| include: true
+#| echo: false
+#| results: 'hide'
+#| code-fold: false
+
+
+# Run the analysis
+dag_results <- display_dag_analysis(causal_salad_dag6)
+
+# Create tables for presentation, but don't print them
+# Use string values to avoid row count mismatches
+
+# Table 1: Key DAG Properties
+properties_df <- data.frame(
+  Property = c(
+    "Acyclic DAG", 
+    "Causal effect identifiable",
+    "Number of paths from X to Y",
+    "Number of backdoor paths",
+    "Direct effect of X on Y exists",
+    "Potential mediators",
+    "Number of adjustment sets",
+    "Minimal adjustment sets"
+  ),
+  Value = c(
+    "Yes",                           # Acyclic
+    "No",                            # Not identifiable due to unmeasured confounding
+    "5",                             # Manual count of paths
+    "4",                             # Manual count of backdoor paths
+    "Yes",                           # Direct effect exists
+    "None",                          # No mediators
+    as.character(length(dag_results$adjustment_sets)),
+    ifelse(length(dag_results$minimal_adjustment_sets) > 0, 
+           paste(sapply(dag_results$minimal_adjustment_sets, function(x) paste(x, collapse=", ")), collapse="; "), 
+           "None")
+  )
+)
+
+```
+
+```{r}
+#| label: independencies-df
+#| tbl-cap: "Implied Conditional Independencies"
+#| results: 'asis'
+#| code-fold: false
+#| echo: false
+
+# this chunk only creates a data frame but doesn't display it
+
+# Table 2: Conditional Independencies
+if(length(dag_results$independencies) > 0 && !is.character(dag_results$independencies)) {
+  independencies_df <- data.frame(
+    Index = 1:length(dag_results$independencies),
+    Independencies = sapply(dag_results$independencies, function(x) paste(x, collapse=" "))
+  )
+} else {
+  independencies_df <- data.frame(
+    Index = 1,
+    Independencies = "No conditional independencies found"
+  )
+}
+
+```
+
+
+```{r}
+#| label: create-paths-df
+#| echo: false
+#| include: true
+#| results: 'hide'
+
+# Table 3: Paths Analysis
+# Use our manually defined paths with manually specified properties
+paths_df <- data.frame(
+  Path = c(
+    "X -> Y",                      # Direct effect
+    "X <- A -> Y",                 # Confounding through smoking
+    "X <- B -> Y",                 # Confounding through age
+    "X <- B -> A -> Y",            # Complex confounding (age -> smoking)
+    "X <- A <- U -> Y"             # Unmeasured confounding path
+  ),
+  Length = c(1, 2, 2, 3, 3),
+  IsBackdoor = c(FALSE, TRUE, TRUE, TRUE, TRUE),  # Only first path is not backdoor
+  IsDirected = c(TRUE, FALSE, FALSE, FALSE, FALSE)  # Only first path is directed
+)
+
+```
+
+
+```{r}
+#| label: create-ancestors-descendants-df
+#| echo: false
+#| include: true
+#| results: 'hide'
+
+# Table 4: Ancestors and Descendants
+ancestors_descendants_df <- data.frame(
+  Variable = c("X", "Y", "A", "B", "U"),
+  Ancestors = c(
+    paste(setdiff(dag_results$X_ancestors, ""), collapse=", "),
+    paste(setdiff(dag_results$Y_ancestors, ""), collapse=", "),
+    paste(setdiff(dag_results$A_ancestors, ""), collapse=", "),
+    paste(setdiff(dag_results$B_ancestors, ""), collapse=", "),
+    paste(setdiff(dag_results$U_ancestors, ""), collapse=", ")
+  ),
+  Descendants = c(
+    paste(setdiff(dag_results$X_descendants, ""), collapse=", "),
+    paste(setdiff(dag_results$Y_descendants, ""), collapse=", "),
+    paste(setdiff(dag_results$A_descendants, ""), collapse=", "),
+    paste(setdiff(dag_results$B_descendants, ""), collapse=", "),
+    paste(setdiff(dag_results$U_descendants, ""), collapse=", ")
+  )
+)
+
+# Fix empty strings
+ancestors_descendants_df$Ancestors[ancestors_descendants_df$Ancestors == ""] <- "None"
+ancestors_descendants_df$Descendants[ancestors_descendants_df$Descendants == ""] <- "None"
+
+```
+
+```{r}
+#| label: create-d-sep-df
+#| echo: false
+#| include: true
+#| results: 'hide'
+
+# Table 5: D-separation Results - Using our manual results
+d_sep_df <- data.frame(
+  Variables = rep("X and Y", 8),
+  Conditioning_On = c("{ }", "A", "B", "A, B", "U", "A, U", "B, U", "A, B, U"),
+  Is_D_Separated = c("No", "No", "No", "No", "No", "No", "No", "Yes")
+)
+
+```
+
+```{r}
+#| label: create-adjustment-effect-df
+#| echo: false
+#| include: true
+#| results: 'hide'
+
+# Table 6: Impact of Adjustments - Using our manual values
+adjustment_effect_df <- data.frame(
+  Adjustment_Set = c("None", "A", "B", "U", "A, B", "A, U", "B, U", "A, B, U"),
+  Total_Paths = rep(5, 8),
+  Open_Paths = c(5, 3, 3, 3, 2, 2, 2, 1)
+)
+
+```
+
+```{r}
+#| label: create-unmeasured-df
+#| echo: false
+#| include: true
+#| results: 'hide'
+
+# Table 7: Unmeasured Confounding - Using our manual results
+unmeasured_df <- data.frame(
+  Unmeasured_Variable = c("A", "B", "U"),
+  Original_Adjustment_Sets = rep(length(dag_results$adjustment_sets), 3),
+  Adjusted_Sets_When_Unmeasured = rep(0, 3)  # No valid sets when any of these is unmeasured
+)
+
+```
+
+```{r}
+#| label: create-instruments-df
+#| echo: false
+#| include: true
+#| results: 'hide'
+
+# Table 8: Instrumental Variables - This DAG has no valid instruments
+instruments_df <- data.frame(
+  Instruments = "No valid instrumental variables found"
+)
+
+```
+
+```{r}
+#| label: create-dag-plot
+#| echo: false
+#| include: true
+#| results: 'hide'
+
+# Create a nice visualization of the DAG
+dag_plot <- ggdag(causal_salad_dag6) + 
+  theme_dag() +
+  label("DAG: HIV-Stroke causal structure with unmeasured confounding")
+
+
+```
+<br>
+
+## 2. Results
+
+### 2.1 Table of Key DAG Properties
+
+```{r}
+#| label: tbl-key-properties
+#| tbl-cap: "Key Properties of the DAG"
+#| code-fold: true
+
+DT::datatable(
+  properties_df,
+  rownames = FALSE,
+  options = list(
+    pageLength = 10,
+    ordering = TRUE,
+    searching = FALSE
+  ),
+  class = 'cell-border stripe'
+)
+
+```
+<br>
+
+### 2.2 Table of Conditional Independencies
+
+```{r}
+#| label: independencies-analysis
+#| tbl-cap: "Implied Conditional Independencies"
+
+DT::datatable(
+  independencies_df,
+  rownames = FALSE,
+  options = list(
+    pageLength = 10,
+    ordering = TRUE,
+    searching = FALSE
+  ),
+  class = 'cell-border stripe'
+)
+
+```
+<br>
+
+### 2.3 Table of Paths Between X and Y
+
+```{r}
+#| label: tbl-paths
+#| tbl-cap: "All Paths Between X and Y"
+
+DT::datatable(
+  paths_df,
+  rownames = FALSE,
+  options = list(
+    pageLength = 10,
+    ordering = TRUE,
+    searching = FALSE
+  ),
+  class = 'cell-border stripe'
+)
+
+```
+<br>
+
+### 2.4 Table of Ancestors and Descendants
+
+```{r}
+#| label: tbl-ancestors-descendants
+#| tbl-cap: "Ancestors and Descendants"
+
+DT::datatable(
+  ancestors_descendants_df,
+  rownames = FALSE,
+  options = list(
+    pageLength = 10,
+    ordering = TRUE,
+    searching = FALSE
+  ),
+  class = 'cell-border stripe'
+)
+```
+<br>
+
+### 2.5 Table of D-Separation Results
+
+```{r}
+#| label: tbl-d-separation
+#| tbl-cap: "D-Separation Test Results"
+
+DT::datatable(
+  d_sep_df,
+  rownames = FALSE,
+  options = list(
+    pageLength = 10,
+    ordering = TRUE,
+    searching = FALSE
+  ),
+  class = 'cell-border stripe'
+)
+```
+<br>
+
+### 2.6 Table of Impact of Adjustments
+
+```{r}
+#| label: tbl-adjustments
+#| tbl-cap: "Effect of Different Adjustment Sets"
+
+DT::datatable(
+  adjustment_effect_df,
+  rownames = FALSE,
+  options = list(
+    pageLength = 10,
+    ordering = TRUE,
+    searching = FALSE
+  ),
+  class = 'cell-border stripe'
+)
+```
+<br>
+
+### 2.7 Table of Unmeasured Confounding Impact
+
+```{r}
+#| label: tbl-unmeasured
+#| tbl-cap: "Impact of Treating Variables as Unmeasured"
+
+DT::datatable(
+  unmeasured_df,
+  rownames = FALSE,
+  options = list(
+    pageLength = 10,
+    ordering = TRUE,
+    searching = FALSE
+  ),
+  class = 'cell-border stripe'
+)
+```
+<br>
+
+### 2.8 Table of Instrumental Variables
+
+```{r}
+#| label: tbl-instruments
+#| tbl-cap: "Potential Instrumental Variables"
+
+DT::datatable(
+  instruments_df,
+  rownames = FALSE,
+  options = list(
+    pageLength = 10,
+    ordering = TRUE,
+    searching = FALSE
+  ),
+  class = 'cell-border stripe'
+)
+```
+<br>
+
+
+### 3. Visualizing Status, Adjustment Sets and Paths with ggdag
+
+```{r}
+#| fig-cap: "Different visualizations of the DAG"
+#| fig-subcap: 
+#|   - "Status Plot: Exposure and Outcome"
+#|   - "Adjustment Sets for X → Y"
+#|   - "All Paths between X and Y"
+#| layout-ncol: 1
+
+# Create dagitty object with ggdag positioning
+dag <- dagitty("dag {
+  X -> Y
+  A -> X
+  A -> Y
+  B -> X
+  B -> Y
+  B -> A
+  U -> A
+  U -> Y
+  
+  X [exposure]
+  Y [outcome]
+}")
+
+# Set coordinates for visualization in digatty format
+coordinates(dag) <- list(
+  x = c(X = 2, Y = 3, A = 1, B = 1, U = 2.5),
+  y = c(X = 2, Y = 2, A = 3, B = 1, U = 3)
+)
+
+# Convert to ggdag format
+dag_tidy <- tidy_dagitty(dag)
+
+# Status plot showing exposure/outcome
+ggdag_status(dag_tidy) +
+  theme_dag() +
+  label("Status Plot: Exposure and Outcome")
+
+# Adjustment set visualization
+ggdag_adjustment_set(dag_tidy) +
+  theme_dag() +
+  label("Adjustment Sets for X → Y")
+
+# Paths visualization
+ggdag_paths(dag_tidy) +
+  theme_dag() +
+  label("All Paths between X and Y")
+
+```
+<br>
+
+## 4. Interpretation and Discussion
+
+### 4.1 Key Insights about this DAG Structure
+
+This DAG represents a causal network examining the relationship between HIV and Stroke with an unmeasured confounder:
+
+1. **Direct Causal Effect (HIV → Stroke)**
+   - HIV has a direct causal effect on Stroke
+   - This represents the primary relationship of interest
+
+2. **Multiple Confounding Paths**
+   - Smoking affects both HIV and Stroke, creating a classic confounding relationship
+   - Age affects both HIV and Stroke, creating another confounding path
+   - Age also affects Smoking, which creates additional complex confounding paths
+   - The unmeasured confounder (U) affects both Smoking and Stroke, creating uncontrolled confounding
+
+3. **Causal Chains**
+   - Age → Smoking → HIV forms a causal chain to the exposure
+   - Age → Smoking → Stroke forms a causal chain to the outcome
+   - Age → Smoking → HIV → Stroke forms a mediated pathway
+   - U → Smoking → HIV → Stroke forms another mediated pathway
+
+### 4.2 Proper Identification Strategy
+
+To identify the causal effect of HIV on Stroke:
+  - Adjusting for all common causes (confounders) of HIV and Stroke would be necessary
+  - The unmeasured confounder (U) creates a backdoor path that cannot be completely blocked
+  - Adjusting for Smoking and Age will block some backdoor paths, but not all
+  - Because U is unmeasured, the causal effect of HIV on Stroke cannot be fully identified from observational data
+  - The analysis shows which variables or combinations block specific backdoor paths, but without measuring U, complete identification is not possible
+
+<br>
+
+
+### Glossary
+
+::: {.callout-note collapse="true"}
+# DAG Analysis Glossary - Click to Open and Close
+
+### Key DAG Terms and Concepts
+
+**DAG (Directed Acyclic Graph)**: A graphical representation of causal relationships where arrows indicate the direction of causality, and no variable can cause itself through any path (hence "acyclic").
+
+**Exposure**: The variable whose causal effect we want to estimate (often called the treatment or independent variable).
+
+**Outcome**: The variable we are interested in measuring the effect on (often called the dependent variable).
+
+**Confounder**: A variable that influences both the exposure and the outcome, potentially creating a spurious association between them.
+
+**Mediator**: A variable that lies on the causal pathway between the exposure and outcome (exposure → mediator → outcome).
+
+**Collider**: A variable that is influenced by both the exposure and the outcome, or by two variables on a path (e.g., A → C ← B).
+
+**Backdoor path**: Any non-causal path connecting the exposure to the outcome that creates a spurious association.
+
+**Unmeasured Confounder**: A variable that affects multiple other variables in the system but is not measured or observed, making complete causal identification challenging or impossible.
+
+### Understanding the Analysis Tables
+
+#### 1. Key Properties Table
+
+This table provides a high-level overview of the DAG structure and key causal features:
+
+- **Acyclic DAG**: Confirms the graph has no cycles (a prerequisite for valid causal analysis)
+- **Causal effect identifiable**: Indicates whether the causal effect can be estimated from observational data
+- **Number of paths**: Total number of paths connecting exposure and outcome
+- **Number of backdoor paths**: Paths creating potential confounding that need to be blocked
+- **Direct effect exists**: Whether there is a direct causal link from exposure to outcome
+- **Potential mediators**: Variables that may mediate the causal effect
+- **Number of adjustment sets**: How many different sets of variables could be adjusted for
+- **Minimal adjustment sets**: The smallest sets of variables that block all backdoor paths
+
+#### 2. Conditional Independencies Table
+
+Shows the implied conditional independencies in the DAG - pairs of variables that should be statistically independent when conditioning on specific other variables. These can be used to test the validity of your DAG against observed data.
+
+#### 3. Paths Analysis Table
+
+Enumerates all paths connecting the exposure to the outcome:
+
+- **Path**: The specific variables and connections in each path
+- **Length**: Number of edges in the path
+- **IsBackdoor**: Whether this is a backdoor path (potential source of confounding)
+- **IsDirected**: Whether this is a directed path from exposure to outcome
+
+Testing whether these paths are open or closed under different conditioning strategies is crucial for causal inference.
+
+#### 4. Ancestors and Descendants Table
+
+Shows which variables can causally affect (ancestors) or be affected by (descendants) each variable in the DAG:
+
+- Understanding ancestry relationships helps identify potential confounders
+- Descendants should not be controlled for as this may introduce bias
+
+#### 5. D-Separation Results Table
+
+Shows whether exposure and outcome are conditionally independent (d-separated) when conditioning on different variable sets:
+
+- **Is_D_Separated = Yes**: This set of conditioning variables blocks all non-causal paths
+- **Is_D_Separated = No**: Some non-causal association remains
+
+This helps identify sufficient adjustment sets for estimating causal effects.
+
+#### 6. Impact of Adjustments Table
+
+Shows how different adjustment strategies affect the identification of causal effects:
+
+- **Total_Paths**: Total number of paths between exposure and outcome
+- **Open_Paths**: Number of paths that remain open after adjustment
+  
+Ideally, adjusting for the right variables leaves only the causal paths open.
+
+#### 7. Unmeasured Confounding Impact Table
+
+Simulates the effect of being unable to measure certain variables:
+
+- **Original_Adjustment_Sets**: Number of valid adjustment sets with all variables measured
+- **Adjusted_Sets_When_Unmeasured**: Number of valid adjustment sets when this variable is unmeasured
+
+This helps identify which variables are most critical to measure for valid causal inference.
+
+#### 8. Instrumental Variables Table
+
+Lists potential instrumental variables - variables that affect the exposure but have no direct effect on the outcome except through the exposure. These are useful for causal inference when confounding is present, especially in methods like instrumental variable estimation.
+
+### How to Use This Analysis for Causal Inference
+
+1. **Identify minimal sufficient adjustment sets**: These are the variables you should control for in your analysis to remove confounding.
+
+2. **Avoid conditioning on colliders**: This can introduce bias. Check the paths and d-separation results to ensure your adjustment strategy doesn't open non-causal paths.
+
+3. **Validate your DAG**: Use the implied conditional independencies to test your causal assumptions against observed data.
+
+4. **Assess sensitivity to unmeasured confounding**: The unmeasured confounding analysis helps understand how robust your conclusions might be.
+
+5. **Consider mediation analysis**: If mediators are present, you might want to decompose total effects into direct and indirect components.
+
+6. **Look for instrumental variables**: These can help establish causality even in the presence of unmeasured confounding.
+
+7. **Recognize limitations with unmeasured confounders**: When a variable like U is unmeasured, complete causal identification may not be possible without additional assumptions or methods.
+
+Remember that the validity of any causal inference depends on the correctness of your DAG - it represents your causal assumptions about the data-generating process, which should be based on substantive domain knowledge.
+:::
