@@ -1,38 +1,188 @@
 ---
 title: "Causal Salad DAGs"
-format: 
+subtitle: "and Bad Controls"
+description: ""
+author: 
+  - name: "Dan Swart, CPA (ret)"
+    affiliations:
+      - "SCUC-ISD Board of Trustees"
+      - "Seat 6"
+date: today
+date-format: long
+# bibliography: manual-refs.bib
+format:
   html:
-    toc: true
-    toc-float: true
-    page-layout: article
-    embed-resources: true
-    code-fold: show
-    code-overflow: wrap
-    code-block-bg: "#f8f8f8"
-    code-block-border-left: "#31BAE9"
-    fig-width: 8
-    fig-height: 6
-    fig-align: center
+    resources:
+      - reference-backlinks.js
+    include-after-body:    
+      - text: |
+          # <script type="text/javascript" src="reference-backlinks.js"></script>
+    code-fold: true        # Hide code by default, show on click
+    code-copy: true
+    code-link: true
+    include-in-header: header.html
+    css:
+      - swart.css
+      - tachyons.min.css
+      - r-colors.css
+    fontsize: 18pt
+    lightbox: true
+    page-layout: full
+    fig-width: 12
+    fig-height: 10
+    fig-dpi: 300
     html-math-method: katex
-    css: swart-20250327.css
+    df-print: paged
+    code-overflow: wrap
+    toc: true
+    citeproc: true
+    link-citations: true
+    linestretch: 1.0
+    
+    
+    
+  typst:
+    fig-width: 12
+    fig-height: 10
+    fig-dpi: 300
+    margin:
+      x: 1in
+      y: 1in
+    toc: true
+    fontsize: 14pt
+    mainfont: "Cabin"
+    
+  revealjs:
+    slide-number: true
+    transition: fade
+    code-overflow: wrap
+    center: true
+    smaller: true
+    scrollable: true
+    chalkboard: true
+    multiplex: false
+    theme: solarized
+    reference-location: margin
+    logo: img/red-cross-640-435.png
+    footer: "Footer text"
+    code-block-height: 650px
+
+
+
+  # docx:
+  #   highlight-style: github
+  #   fig_caption: true
+
+
+
+editor: source
+
+quarto:
+  render:
+    cache-refresh: true
+
+
+# for .qmd filesd
+execute:
+  echo: false
+  message: false
+  warning: false
+  eval: true
+  fig-width: 12
+  fig-height: 10
+
+
+# for .rmd files
+knitr:
+  opts_chunk:
+    echo: false
+    error: false
+    warning: false
+    message: false
+    cache: false
+
 ---
 
-```{r setup, include=FALSE}
+
+
+
+```{r}
 #| label: setup
 #| include: false
-knitr::opts_chunk$set(echo = TRUE, message = TRUE, warning = TRUE)
 
-set.seed(1234)
-options("digits" = 2, "width" = 150)
-```
+# Prevent scientific notation globally
+options(scipen = 999)
 
-```{r libraries, echo=FALSE, warning=FALSE, message=FALSE}
-# Load packages
-library(tidyverse)  # For dplyr, ggplot, and friends
+# load libraries
+library(readxl)
+library(writexl) 
+library(tidyr) 
+library(readr) 
+library(purrr) 
+library(stringr) 
+library(forcats) 
+library(lubridate) 
+library(janitor) 
+library(ggtext) 
+library(paletteer) 
+library(viridis) 
+library(RColorBrewer) 
+library(wesanderson) 
+library(dutchmasters) 
+library(gghighlight) 
+library(monochromeR) 
+library(ggforce) 
+library(ggthemes)
+library(gt)
+library(gtExtras)
+library(tidyverse)
+library(plotly)
+library(ggplot2)
+library(tibble)
+library(patchwork)
+library(ppcor)
+library(ggplot2)
+library(corrplot)
+library(ggcorrplot)
+library(car)
+library(WRS2)
+library(boot)
+library(BayesFactor)
+library(pwr)
+library(qgraph)
+library(scales)
+library(here)
 library(ggdag)      # For plotting DAGs
-library(dagitty)    # For analyzing DAG elements
+library(dagitty)    # For working with DAG logic
 library(DiagrammeR) # For complete control of the layout
+library(knitr)      # For controlling rendering
+library(kableExtra) # For tables summarizing results
+library(DT)         # For rendering content that kableExtra cannot (symbols)
+
+
+
+# Set global theme for consistent plots
+theme_set(theme_minimal(base_size = 20) + 
+          theme(
+    plot.title = element_text(face = "bold", size = 26),    # adjust title size
+    plot.subtitle = element_text(face = "bold", size = 24), # adjust subtitle size
+    axis.title.x = element_text(face = "bold", size = 22),
+    axis.title.y = element_text(face = "bold", size = 22),
+    axis.text.x = element_text(face = "bold", size = 22, angle = 45, hjust = 1),
+    legend.position = "bottom",
+    strip.text = element_text(face = "bold"),
+    panel.spacing.x = unit(1.5, "cm"),  # Horizontal spacing only
+    panel.spacing.y = unit(1.5, "cm"),   # Vertical spacing only
+    plot.margin = margin(20, 20, 20, 20, "pt")
+    )
+)
+
+
+# Set seed for reproducibility
+set.seed(123)
+
 ```
+
 
 ## FAR, AND AWAY THE BEST DAG RENDERING IS USING DiagrammeR.
 
@@ -86,7 +236,7 @@ digraph DAG {
 ```
 <br><br>
 
-### Create a purely dagitty DAG and analyze with dagitty functions
+### Same diagram created as a dagitty DAG and analyzed with dagitty functions
 
 ```{r}
 
@@ -115,17 +265,30 @@ dagitty::coordinates(dag) <- list(
 
 # You can also plot the DAG with dagitty's plotting function
 
-# Plot the DAG without a title
-plot(dag)
+# Set graphics parameters FIRST
+par(mar = c(5, 1, 1, 1), 
+    lwd = 3)  # This affects line width
 
-# Set up title padding
-par(mar = c(5, 1, 1, 1))  # c(bottom, left, top, right)
+# Plot ONCE with all settings
+plot(dag, 
+     cex = 1.5,            # Overall scaling
+     cex.lab = 1.0,        # Label size
+     cex.axis = 1.2,       # Axis text size
+     lwd = 4.5,            # Line thickness
+     arr.lwd = 5,          # Arrow line thickness
+     arr.width = 1.00,     # Arrow head width (proportion)
+     arr.type = "curved"   # Arrow style
 
-# Add a title after plotting
+     )
+
+# Add title
 title(main = "Causal Pathways between HIV and Stroke", 
       cex.main = 1.5,
       col.main = "darkred",
       font.main = 2)
+
+
+
 
 # Now you can use any dagitty analysis function
 # Get implied conditional independencies
@@ -251,7 +414,7 @@ results$testable_implications
 <br><br>
 
 
-### Causal Salad DAG #1 viz with ggdag and analyzed with ggdagitty
+### Causal Salad DAG #1 (Fork)
 
 ```{r causal-salad-dag1}
 
@@ -267,7 +430,7 @@ causal_salad_dag1 <- ggdag::dagify(
 
 # using ggdag_status gives you coloring
 ggdag::ggdag_status(causal_salad_dag1) +
-  ggplot2::ggtitle("Causal Salad DAG #1 with Fork F") +
+  ggplot2::ggtitle("Causal Salad DAG #1 - the Fork Z") +
   ggplot2::guides(fill = "none", color = "none") # Disable the legend
 
 
@@ -288,7 +451,8 @@ dagitty::adjustmentSets(causal_salad_dag1)
 ```
 <br><br>
 
-### Display Causal Saled DAG #2 with ggdag and analyze with dagitty
+
+### Causal Saled DAG #2 - Fork + Collider
 
 ```{r causal-salad-dag2}
 
@@ -304,7 +468,7 @@ causal_salad_dag2 <- ggdag::dagify(
 )
 
 ggdag::ggdag_status(causal_salad_dag2) +
-  ggplot2::ggtitle("Causal Salad DAG #2 with Fork Z and Collider C") +
+  ggplot2::ggtitle("Causal Salad DAG #2-Fork Z and Collider C") +
   ggplot2::guides(fill = "none", color = "none") # Disable the legend
 
 # Find all the testable implications from the DAG. If we had a dataset with columns for each of these variables, we could check if this is true by running `cor()` to see if they are related.
@@ -315,21 +479,22 @@ dagitty::paths(causal_salad_dag2)
 
 # Now, graphically
 ggdag::ggdag_paths(causal_salad_dag2) +
-  ggplot2::ggtitle("Causal Salad DAG #2 with Fork Z and Collider C") +
+  ggplot2::ggtitle("Causal Salad DAG #2-Fork Z and Collider C") +
   ggplot2::guides(fill = "none", color = "none") # Disable the legend
 
 # Instead of listing out all the possible paths and identifying backdoors by hand, use the `adjustmentSets()` function in the **dagitty** package to programmatically find all the nodes that need to be adjusted. Here we see that only the { Z } node needs to be controlled for to isolate the `X -> Y` relationship.
 dagitty::adjustmentSets(causal_salad_dag2)
 
 # Now, graphically
-ggdag::ggdag_adjustment_set(causal_salad_dag2, shadow = TRUE)
+ggdag::ggdag_adjustment_set(causal_salad_dag2,
+                            shadow = TRUE)
 
 
 
 ```
 <br><br>
 
-### Display Causal Saled DAG #3 with ggdag and analyze with dagitty
+### Causal Saled DAG #3 - Multiple Forks and Colliders
 
 ```{r causal-salad-dag3}
 
@@ -346,8 +511,8 @@ causal_salad_dag3 <- ggdag::dagify(
 
 ggdag::ggdag_status(causal_salad_dag3) +
   ggplot2::ggtitle("Causal Salad DAG #3 with Multiple Forks and Colliders") +
-  ggplot2::guides(fill = "none", color = "none") # Disable the legend
-
+  ggplot2::guides(fill = "none", color = "none") + # Disable the legend
+  ggdag::theme_dag(base_size = 18)  # This removes axes and grid
 
 # Find all the testable implications from the DAG. If we had a dataset with columns for each of these variables, we could check if this is true by running `cor()` to see if they are related.
 dagitty::impliedConditionalIndependencies(causal_salad_dag3)
@@ -358,8 +523,8 @@ dagitty::paths(causal_salad_dag3)
 # Now, graphically
 ggdag::ggdag_paths(causal_salad_dag3) +
   ggplot2::ggtitle("Causal Salad DAG #2 with Fork Z and Collider C") +
-  ggplot2::guides(fill = "none", color = "none") # Disable the legend
-
+  ggplot2::guides(fill = "none", color = "none") +   # Disable the legend
+  ggdag::theme_dag(base_size = 18)  # This removes axes and grid
 
 # Instead of listing out all the possible paths and identifying backdoors by hand, use the `adjustmentSets()` function in the **dagitty** package to programmatically find all the nodes that need to be adjusted. Here we see that the { B, C, Z } or the { A, C, Z } paths needs to be controlled for to isolate the `X -> Y` relationship.
 dagitty::adjustmentSets(causal_salad_dag3)
@@ -368,10 +533,11 @@ dagitty::adjustmentSets(causal_salad_dag3)
 ggdag::ggdag_adjustment_set(causal_salad_dag3, shadow = TRUE)
 
 ```
+
 <br><br>
 
 
-### Display Causal Saled DAG #4 with ggdag and analyze with dagitty
+### Causal Salad DAG #4 - No Backdoor Paths
 
 ```{r causal-salad-dag4}
 
@@ -387,9 +553,9 @@ causal_salad_dag4 <- ggdag::dagify(
 )
 
 ggdag::ggdag_status(causal_salad_dag4) +
-  ggplot2::ggtitle("Causal Salad DAG #4 with Multiple Forks and Colliders") +
-  ggplot2::guides(fill = "none", color = "none") # Disable the legend
-
+  ggplot2::ggtitle("Causal Salad DAG #4 - No Backdoor Paths") +
+  ggplot2::guides(fill = "none", color = "none") + # Disable the legend
+  ggdag::theme_dag(base_size = 18)  # This removes axes and grid
 
 # Find all the testable implications from the DAG. If we had a dataset with columns for each of these variables, we could check if this is true by running `cor()` to see if they are related.
 dagitty::impliedConditionalIndependencies(causal_salad_dag4)
@@ -399,21 +565,25 @@ dagitty::paths(causal_salad_dag4)
 
 # Now, graphically
 ggdag::ggdag_paths(causal_salad_dag4) +
-  ggplot2::ggtitle("Causal Salad DAG #4 with Multiple Forks and Colliders") +
-  ggplot2::guides(fill = "none", color = "none") # Disable the legend
-
-
+  ggplot2::ggtitle("Causal Salad DAG #4 - No Backdoor Paths") +
+  ggplot2::guides(fill = "none", color = "none") + # Disable the legend
+  ggdag::theme_dag(base_size = 18)  # This removes axes and grid
+   
 # Instead of listing out all the possible paths and identifying backdoors by hand, use the `adjustmentSets()` function in the **dagitty** package to programmatically find all the nodes that need to be adjusted. Here we see that the { B, C, Z } or the { A, C, Z } paths needs to be controlled for to isolate the `X -> Y` relationship.
-dagitty::adjustmentSets(causal_salad_dag4)
+
+  dagitty::adjustmentSets(causal_salad_dag4)
 
 # Now, graphically
-ggdag::ggdag_adjustment_set(causal_salad_dag4, shadow = TRUE)
+ggdag::ggdag_adjustment_set(causal_salad_dag4, shadow = TRUE) +
+   ggdag::theme_dag(base_size = 18)  # This removes axes and grid
 
 ```
+
+
 <br><br>
 
 
-### Visualize Causal Salad DAG #5 with ggdag and analyze with dagitty
+### Causal Salad DAG #5 - HIV and Stroke
 
 ```{r causal-salad-dag5}
 
@@ -433,15 +603,15 @@ causal_salad_dag5 <- ggdag::dagify(
              # C = "Confounder 2", 
              A = "Smokimg", 
              B = "Age"),
-  coords = list(x = c(X = 2, Y = 3, A = 1, B = 1),
-                y = c(X = 2, Y = 2, A = 3, B = 1)
+  coords = list(x = c(X = 2.00, Y = 3.00, A = 1.00, B = 1.00),
+                y = c(X = 2.00, Y = 2.00, A = 4.00, B = 1.00)
                 )
 )
 
 ggdag::ggdag_status(causal_salad_dag5, use_labels = "label", text = FALSE) +
-  ggplot2::ggtitle("Causal Salad DAG #5 with Multiple Forks and Colliders") +
-  ggplot2::guides(fill = "none", color = "none") # Disable the legend
-
+  ggplot2::ggtitle("Causal Salad DAG #5 - HIV and Stroke") +
+  ggplot2::guides(fill = "none", color = "none") + # Disable the legend
+  ggdag::theme_dag(base_size = 18)  # This removes axes and grid
 
 # Find all the testable implications from the DAG. If we had a dataset with columns for each of these variables, we could check if this is true by running `cor()` to see if they are related.
 dagitty::impliedConditionalIndependencies(causal_salad_dag5)
@@ -452,8 +622,8 @@ dagitty::paths(causal_salad_dag5)
 # Now, graphically
 ggdag::ggdag_paths(causal_salad_dag5, use_labels = "label") +
   ggplot2::ggtitle("Causal Salad DAG #5 with Multiple Forks and Colliders") +
-  ggplot2::guides(fill = "none", color = "none") # Disable the legend
-
+  ggplot2::guides(fill = "none", color = "none") + # Disable the legend
+  ggdag::theme_dag(base_size = 18)  # This removes axes and grid
 
 # Instead of listing out all the possible paths and identifying backdoors by hand, use the `adjustmentSets()` function in the **dagitty** package to programmatically find all the nodes that need to be adjusted. Here we see that the { B, C, Z } or the { A, C, Z } paths needs to be controlled for to isolate the `X -> Y` relationship.
 dagitty::adjustmentSets(causal_salad_dag5)
@@ -461,11 +631,14 @@ dagitty::adjustmentSets(causal_salad_dag5)
 # Now, graphically
 ggdag::ggdag_adjustment_set(causal_salad_dag5, shadow = TRUE, use_labels = "label",  label_size = 1.2)
 
+
 ```
+
+
 <br><br>
 
 
-### Visualize Causal Salad DAG #6 with ggdag and analyze with dagitty
+### Causal Salad DAG #6 - HIV and Stroke + Unmeasured Confounder
 
 ```{r causal-salad-dag6}
 
@@ -488,8 +661,10 @@ causal_salad_dag6 <- ggdag::dagify(
 
 # Create the status plot with no node circles, but with node coloring
 ggdag::ggdag_status(causal_salad_dag6, use_labels = "label", text = FALSE) +
-  ggplot2::ggtitle("Causal Salad DAG #6 with Multiple Forks and Colliders") +
-  ggplot2::guides(fill = "none", color = "none") # Disable the legend
+  ggplot2::ggtitle("Causal Salad DAG #6 - HIV and Stroke + Unmeasured Confounder") +
+  ggplot2::guides(fill = "none", color = "none") + # Disable the legend
+  ggdag::theme_dag()
+
 
 # Create a DAG with no nodes, just labels and arrows
 ggdag::ggdag(causal_salad_dag6, 
@@ -497,7 +672,9 @@ ggdag::ggdag(causal_salad_dag6,
             node_size = 0,  # This hides the nodes
             text_size = 4) +  # Make text visible
   ggplot2::theme_void() + 
-  ggplot2::coord_fixed(ratio = 1)
+  ggplot2::coord_fixed(ratio = 1) +
+  ggdag::theme_dag(base_size = 18)  # This removes axes and grid
+
 
 # Find all the testable implications from the DAG
 dagitty::impliedConditionalIndependencies(causal_salad_dag6)
@@ -507,8 +684,10 @@ dagitty::paths(causal_salad_dag6)
 
 # Graphically show paths
 ggdag::ggdag_paths(causal_salad_dag6, use_labels = "label") +
-  ggplot2::ggtitle("Causal Salad DAG #6 with Fork Z and Collider C") +
-  ggplot2::guides(fill = "none", color = "none") # Disable the legend
+  ggplot2::ggtitle("Causal Salad DAG #6 - HIV and Stroke with Unmeasured Confounder") +
+  ggplot2::guides(fill = "none", color = "none") + # Disable the legend
+  ggdag::theme_dag(base_size = 18)  # This removes axes and grid
+
 
 # Find adjustment sets
 dagitty::adjustmentSets(causal_salad_dag6)
@@ -525,11 +704,18 @@ ggdag::ggdag_adjustment_set(causal_salad_dag6,
                            node_size = 0,    # This hides the nodes
                            text = TRUE) +    # Ensures text is displayed
   ggplot2::theme_void() +                    # Clean background
-  ggplot2::ggtitle("Causal Salad DAG #4 with Multiple Forks and Colliders") +
-  ggplot2::coord_fixed(ratio = 1)            # Maintain proper proportions
+  ggplot2::ggtitle("Causal Salad DAG #6 - HIV and Stroke with Unmeasured Confounder") +
+  ggplot2::coord_fixed(ratio = 1) +    # Maintain proper proportions
+  ggdag::theme_dag(base_size = 18)  # This removes axes and grid
 
 ```
+
+
+
+
 <br><br>
+
+### Bad Controls - M-Bias
 
 ```{r m-bias-dag1}
 
@@ -560,7 +746,9 @@ m_bias_dag1 <- ggdag::dagify(
 # Create the status plot
 ggdag::ggdag_status(m_bias_dag1, text = TRUE) +
   ggplot2::ggtitle("Bad Controls - M-Bias") +
-  ggplot2::guides(fill = "none", color = "none") # Disable the legend
+  ggplot2::guides(fill = "none", color = "none") + # Disable the legend
+  ggdag::theme_dag(base_size = 18)  # This removes axes and grid
+
 
 # Find all the testable implications from the DAG
 dagitty::impliedConditionalIndependencies(m_bias_dag1)
@@ -583,6 +771,8 @@ ggdag::ggdag_adjustment_set(m_bias_dag1,
 
 
 <br><br>
+
+### Bad Controls - Post-Treatment Bias
 
 ```{r post-treatment-bias-dag2}
 
@@ -637,6 +827,7 @@ ggdag::ggdag_adjustment_set(post_treatment_bias_dag2,
 
 <br><br>
 
+### Bad Controls - Selection Bias
 
 ```{r selection-bias-dag3}
 
@@ -677,7 +868,7 @@ grViz("
 
 
 
-# Build Selection-Bias DAG with ggdag amd dagitty
+# Build Selection-Bias DAG with ggdag and dagitty
 selection_bias_dag3 <- ggdag::dagify(
   Z ~ X,   # X influences Z
   Z ~ Y,   
@@ -742,6 +933,7 @@ ggdag::ggdag_adjustment_set(selection_bias_dag3,
 
 <br><br>
 
+### Bad Controls - Modified Selection Bias
 
 ```{r modified-selection-bias-dag4}
 
@@ -785,7 +977,7 @@ grViz("
 
 
 
-# Build Modified Selection-Bias DAG with ggdag amd dagitty
+# Build Modified Selection-Bias DAG with ggdag mad dagitty
 
 modified_selection_bias_dag4 <- ggdag::dagify(
   Z ~ X,   # X influences Z
@@ -846,6 +1038,8 @@ ggdag::ggdag_adjustment_set(modified_selection_bias_dag4,
 ```
 
 <br>
+
+### Bad Controls - Case-Control Bias
 
 ```{r case-control-bias-dag5}
 
@@ -924,6 +1118,9 @@ ggdag::ggdag_adjustment_set(case_control_bias_dag5,
 
 <br>
 
+### Bad Controls - Precision Parasite
+
+
 ```{r precision-parasite-bias-dag6}
 
 # Build Precision Parasite-Bias DAG with DiagrammeR
@@ -1000,7 +1197,7 @@ ggdag::ggdag_adjustment_set(precision_parasite_bias_dag6,
 
 
 
-##  bias-amplification-dag7
+###  Bad Controls - Bias Amplification
 
 <br>
 
@@ -1044,91 +1241,6 @@ grViz("
 
 
 # Build Bias Amplification DAG with ggdag and dagitty (only once)
-peer_bias_dag8 <- ggdag::dagify(
-  Y ~ X,   # Y is influenced by X
-  X ~ Z,  
-  X ~ U,
-  Y ~ U,
-  exposure = "X",
-  outcome = "Y",
-  coords = list(x = c(X = 1, Y = 4.0, Z = 1.0, U = 2.5),  
-                y = c(X = 1, Y = 1.0, Z = 2.5, U = 2.0)
-                ) 
-)
-
-# Create the status plot with larger arrows and edges
-ggdag::ggdag_status(bias_amplification_dag7, 
-                    text = TRUE,
-                    node_size = 20,     
-                    text_size = 5,      
-                    edge_width = 2.0,   
-                    arrow_size = 1.5) + 
-  ggplot2::ggtitle("Bad Controls: Bias Amplification") +
-  ggdag::theme_dag(base_size = 18) +
-  ggplot2::labs(caption = "Cinelli, Forney, Pearl 2021 A Crash Course in Good and Bad Controls") +
-  ggplot2::guides(fill = "none", color = "none") 
-
-# Find all the testable implications from the DAG
-dagitty::impliedConditionalIndependencies(bias_amplification_dag7)
-
-# Write all the paths between X and Y to console
-dagitty::paths(bias_amplification_dag7)
-
-# Find adjustment sets
-dagitty::adjustmentSets(bias_amplification_dag7)
-
-# Show adjustment sets graphically
-ggdag::ggdag_adjustment_set(bias_amplification_dag7, 
-                           shadow = TRUE) +
-  ggdag::theme_dag(base_size = 18)  # Added theme
-
-```
-
-<br>
-
-##  bias-amplification-dag7
-
-
-```{r bias-amplification-dag7}
-
-# Build Peer Bias DAG with DiagrammeR
-grViz("
-  digraph DAG {
-    # Graph settings
-    graph [layout=neato, margin=\"1.0, 1.0, 2.0, 1.0\", rankdir=TB, size=\"14,12\"]  
-    
-    # Add a title using a simple label approach
-    labelloc=\"t\"
-    label=\"Bad Controls:  Bias Amplification\\n \\n\"      fontname=\"Cabin\" fontcolor=\"darkgreen\"
-    fontsize=26
-    
-    # Node settings - make nodes larger with fontsize
-    node [shape=plaintext, fontsize=30, fontname=\"Cabin\"] # Increase
-    
-    # Edge settings - make edges thicker and arrows larger
-    edge [penwidth=4.0, color=\"darkblue\", arrowsize=2.0] # Increase
-    
-    # Nodes with exact coordinates
-    X [label=\"X\", pos=\"1.0, 1.0!\", fontcolor=\"dodgerblue\"]
-    Y [label=\"Y\", pos=\"4.0, 1.0!\", fontcolor=\"dodgerblue\"]
-    Z [label=\"Z\", pos=\"1.0, 3.0!\", fontcolor=\"black\"]
-    U [label=\"U\", pos=\"2.5, 2.0!\", fontcolor=\"darkpurple\"]
-    
-    
-    # Edges
-    X -> Y
-    Z -> X
-    U -> X
-    U -> Y
-    
-    # Caption as a separate node at the bottom
-    Caption [shape=plaintext, label=\"Cinelli, Forney, Pearl 2021 A Crash\\nCourse in Good and Bad Controls\", 
-             fontsize=20, pos=\"2.5,0.0!\"]
-  }
-  ")
-
-
-# Build Peer Bias DAG with ggdag and dagitty (only once)
 bias_amplification_dag7 <- ggdag::dagify(
   Y ~ X,   # Y is influenced by X
   X ~ Z,  
@@ -1167,16 +1279,24 @@ ggdag::ggdag_adjustment_set(bias_amplification_dag7,
                            shadow = TRUE) +
   ggdag::theme_dag(base_size = 18)  # Added theme
 
+
 ```
 
 <br>
 
-##  bias-amplification-dag8
-
+###  Bad Controls - Peer Bias
 
 ```{r peer-bias-dag8}
+#| message: false
+#| warning: false
+#| fig-width: 12
+#| fig-height: 10
 
-# Build Bias Amplification DAG with DiagrammeR
+
+# Build Peer Bias DAG with DiagrammeR
+
+library(DiagrammeR)
+
 grViz("
   digraph DAG {
     # Graph settings
@@ -1213,8 +1333,15 @@ grViz("
   }
   ")
 
+```
 
-# Build Bias Amplification DAG with ggdag and dagitty (only once)
+```{r dagify-peer-bias-dag8}
+#| fig-cap: "Cinelli, Forney, Pearl 2021 A Crash Course in Good and Bad Controls"
+#| fig-width: 12
+#| fig-height: 10
+
+
+# Define the DAG
 peer_bias_dag8 <- ggdag::dagify(
   Y ~ X,   # Y is influenced by X
   E ~ X,
@@ -1223,10 +1350,20 @@ peer_bias_dag8 <- ggdag::dagify(
   Y ~ Q,
   exposure = "X",
   outcome = "Y",
+  # Add labels here:
+  labels = c(X = "X", 
+             Y = "Y", 
+             E = "E",
+             Q = "Q"),
   coords = list(x = c(X = 1.0, Y = 4.0, E = 2.5, Q = 4.0),  
-                y = c(X = 1.0, Y = 1.0, E = 3.0, Q = 3.0)
-                ) 
+                y = c(X = 1.0, Y = 1.0, E = 3.0, Q = 3.0))
 )
+
+# Create a nice visualization of the DAG
+ggdag_status(peer_bias_dag8) + 
+  theme_dag(base_size = 18) +
+  labs(title = "Bad Controls: Peer Bias")
+
 
 # Create the status plot with larger arrows and edges
 ggdag::ggdag_status(peer_bias_dag8, 
@@ -1255,6 +1392,8 @@ ggdag::ggdag_adjustment_set(peer_bias_dag8,
   ggdag::theme_dag(base_size = 18)  # Added theme
 
 ```
+
+<br>
 
 
 
