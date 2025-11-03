@@ -1,62 +1,204 @@
 ---
-title: "DAG Analysis: Experimental Causal Structure with Synthetic Data"
-author: "Dan Swart"
-format: 
+title: "DAG Analysis: Mimic Experimental Causal Structure with Synthetic Data"
+subtitle: ""
+description: ""
+author: 
+  - name: "Dan Swart, CPA (ret)"
+    affiliations:
+      - "SCUC-ISD Board of Trustees"
+      - "Seat 6"
+date: today
+date-format: long
+# bibliography: manual-refs.bib
+format:
   html:
-    toc: true
-    toc-float: true
-    page-layout: article
-    embed-resources: true
-    code-fold: true
+    resources:
+      - reference-backlinks.js
+    include-after-body:    
+      - text: |
+          # <script type="text/javascript" src="reference-backlinks.js"></script>
+    default: true         
+    code-copy: true
+    code-link: true        # This adds individual buttons
+    code-fold: true        # Hide code by default, show on click
     code-summary: "Show the code"
-    code-tools: true
     code-overflow: wrap
     code-block-bg: "#FAEBD7"
     code-block-border-left: "#31BAE9"
-    code-link: true          # This adds individual buttons
-    fig-width: 10
-    fig-height: 8
-    fig-align: center
+    embed-resources: true
+    include-in-header: header.html
+    css:
+      - swart.css
+      - tachyons.min.css
+      - r-colors.css
+    fontsize: 18pt
+    lightbox: true
+    page-layout: full
+    fig-width: 12
+    fig-height: 10
+    fig-dpi: 300
     html-math-method: katex
-    css: swart-20250327.css
-  pdf:
+    df-print: paged
     toc: true
-    number-sections: true
-    colorlinks: true
-    papersize: letter
-    geometry:
-      - margin=1in
-    fig-width: 10
-    fig-height: 8
-    fig-pos: 'H'
+    toc-float: true
+    citeproc: true
+    link-citations: true
+    linestretch: 1.0
+    
+    
+    
   typst:
+    fig-width: 12
+    fig-height: 10
+    fig-dpi: 300
+    margin:
+      x: 1in
+      y: 1in
     toc: true
-    fig-width: 10
-    fig-height: 8
-    keep-tex: true
-    prefer-html: true
+    fontsize: 14pt
+    mainfont: "Cabin"
+    
+  revealjs:
+    slide-number: true
+    transition: fade
+    code-overflow: wrap
+    center: true
+    smaller: true
+    scrollable: true
+    chalkboard: true
+    multiplex: false
+    theme: solarized
+    reference-location: margin
+    logo: img/red-cross-640-435.png
+    footer: "Footer text"
+    code-block-height: 650px
+
+
+
+  # docx:
+  #   highlight-style: github
+  #   fig_caption: true
+
+
+
+editor: source
+
+quarto:
+  render:
+    cache-refresh: true
+
+
+# for .qmd filesd
+execute:
+  echo: true
+  message: false
+  warning: false
+  eval: true
+  fig-width: 12
+  fig-height: 10
+
+
+# for .rmd files
+knitr:
+  opts_chunk:
+    echo: true
+    error: false
+    warning: false
+    message: false
+    cache: false
+
 ---
+
+
 
 ```{r}
 #| label: setup
 #| include: false
-knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 
-# Load required libraries
-library(tidyverse)  # For dplyr, ggplot, and data manipulation
+# Prevent scientific notation globally
+options(scipen = 999)
+
+# load libraries
+library(readxl)
+library(writexl) 
+library(tidyr) 
+library(readr) 
+library(purrr) 
+library(stringr) 
+library(forcats) 
+library(lubridate) 
+library(janitor) 
+library(ggtext) 
+library(paletteer) 
+library(viridis) 
+library(RColorBrewer) 
+library(wesanderson) 
+library(dutchmasters) 
+library(gghighlight) 
+library(monochromeR) 
+library(ggforce) 
+library(ggthemes)
+library(gt)
+library(gtExtras)
+library(tidyverse)
+library(plotly)
+library(ggplot2)
+library(tibble)
+library(patchwork)
+library(ppcor)
+library(ggplot2)
+library(corrplot)
+library(ggcorrplot)
+library(car)
+library(WRS2)
+library(boot)
+library(BayesFactor)
+library(pwr)
+library(qgraph)
+library(scales)
+library(here)
 library(ggdag)      # For plotting DAGs
 library(dagitty)    # For working with DAG logic
-library(DiagrammeR) # For DAG visualization
-library(corrplot)   # For correlation plots
-library(DT)         # For interactive tables
-library(lavaan)     # For structural equation modeling
-library(rethinking) # For Bayesian analysis
-library(ggpubr)     # For arranging multiple plots
+library(DiagrammeR) # For complete control of the layout
+library(knitr)      # For controlling rendering
+library(kableExtra) # For tables summarizing results
+library(DT)         # For rendering content that kableExtra cannot (symbols)
+library(lavaan)     # For latent variable analysis
+library(ggpubr)
+library(rethinking)
+library(broom)
+
+
+# Force dplyr's select to take precedence
+select <- dplyr::select
+filter <- dplyr::filter
+
+# Set global theme for consistent plots
+theme_set(theme_minimal(base_size = 20) + 
+          theme(
+    plot.title = element_text(face = "bold", size = 26),    # adjust title size
+    plot.subtitle = element_text(face = "bold", size = 24), # adjust subtitle size
+    axis.title.x = element_text(face = "bold", size = 22),
+    axis.title.y = element_text(face = "bold", size = 22),
+    axis.text.x = element_text(face = "bold", size = 22, angle = 45, hjust = 1),
+    legend.position = "bottom",
+    strip.text = element_text(face = "bold"),
+    panel.spacing.x = unit(1.5, "cm"),  # Horizontal spacing only
+    panel.spacing.y = unit(1.5, "cm"),   # Vertical spacing only
+    plot.margin = margin(20, 20, 20, 20, "pt")
+    )
+)
+
+
+# Set seed for reproducibility
+set.seed(123)
+
 ```
+
 
 ## 1. Introduction: Understanding Experimental Causal Structures
 
-This document explores an experimental causal structure represented by a directed acyclic graph (DAG). The DAG represents the gold standard of causal inference - a randomized controlled trial or experimental design where:
+This document explores an experimental causal structure represented by a directed acyclic graph (DAG). A randomized controlled trial or experimental design represents the gold standard of causal inference where:
 
 - X is an experimentally manipulated exposure variable (treatment/intervention)
 - Y is the outcome variable of interest
@@ -129,7 +271,7 @@ experimental_dag_viz <- grViz("
     A [label=\"A\", pos=\"1.0, 5.0!\", fontcolor=\"purple\"]
     B [label=\"B\", pos=\"5.0, 5.0!\", fontcolor=\"purple\"]
     
-    # Edges with coefficients from our synthetic data
+    # Edges with coefficients from the synthetic data
     X -> Y [label=\"0.4\"]
     Z -> Y [label=\"0.25\"]
     C -> Y [label=\"0.2\"]
@@ -366,7 +508,7 @@ ggplot(dag_data, aes(x = B, y = Y)) +
 
 ## 7. Residual Diagnostics
 
-Let's examine the residuals to ensure our model assumptions are met for the experimental design.
+Let's examine the residuals to ensure the model assumptions are met for the experimental design.
 
 ```{r}
 #| label: model-residuals
@@ -390,7 +532,7 @@ par(mfrow = c(2, 2))
 plot(correct_model)
 ```
 
-The residual plots for our experimental model (simple regression of Y on X) show:
+The residual plots for the experimental model (simple regression of Y on X) show:
 
 1. **Residuals vs Fitted**: Points are randomly scattered around zero with no clear pattern, supporting the linear relationship assumption.
 
@@ -400,7 +542,7 @@ The residual plots for our experimental model (simple regression of Y on X) show
 
 4. **Residuals vs Leverage**: No influential outliers detected.
 
-These diagnostics confirm that the simple linear model is appropriate for our experimental data.
+These diagnostics confirm that the simple linear model is appropriate for the experimental data.
 
 ## 8. Test the Structure by comparing models with and without adjustment
 
@@ -792,7 +934,9 @@ p4 <- ggplot(dag_data, aes(x = X, y = Y, color = A_strata)) +
         plot.title = element_text(size = 28),
         plot.subtitle = element_text(size = 28))
 print(p4)
+
 ```
+
 
 ## Conclusions from Stratification Analysis:
 
@@ -806,13 +950,18 @@ The stratified analysis demonstrates the power of randomization:
 
 4. **Robust causal estimate**: The treatment effect is stable regardless of the levels of other variables.
 
+
+
 ## 13. Structural Equation Modeling (SEM)
 
 ```{r}
 #| label: sem-analysis
 #| tbl-cap: "Structural Equation Model Results for Experimental Design"
+#| eval: true
 
-# Define the SEM model based on our experimental DAG
+
+
+# Define the SEM model based on the experimental DAG
 sem_model <- '
   # Structural equations (following the experimental DAG)
   Z ~ a1*A + b1*B
@@ -827,15 +976,18 @@ sem_model <- '
 '
 
 # Fit the model
-sem_fit <- sem(sem_model, data = dag_data)
+sem_fit <- lavaan::sem(sem_model, data = dag_data)  # Explicitly use lavaan::sem
 
-# Display the results
+
+# Gather summary data
 sem_summary <- summary(sem_fit, standardized = TRUE, fit.measures = TRUE)
 
 # Extract and display path coefficients
 sem_coefs <- parameterEstimates(sem_fit) %>%
-  filter(op %in% c("~", ":=")) %>%
-  select(lhs, op, rhs, est, se, z, pvalue, ci.lower, ci.upper)
+  dplyr::filter(op %in% c("~", ":=")) %>%
+  dplyr::select(lhs, op, rhs, est, se, z, pvalue, ci.lower, ci.upper)
+
+
 
 # Create a formatted results table
 sem_results <- sem_coefs %>%
@@ -853,7 +1005,8 @@ sem_results <- sem_coefs %>%
     `P-value` = round(pvalue, 3),
     `95% CI` = paste0("[", round(ci.lower, 3), ", ", round(ci.upper, 3), "]")
   ) %>%
-  select(Path, Estimate, SE, `Z-value`, `P-value`, `95% CI`)
+  dplyr::select(Path, Estimate, SE, `Z-value`, `P-value`, `95% CI`)  # Use dplyr::select
+
 
 # Display the results table  
 datatable(sem_results,
@@ -861,6 +1014,7 @@ datatable(sem_results,
           options = list(pageLength = 15, scrollX = TRUE),
           rownames = FALSE,
           class = 'cell-border stripe compact responsive')
+
 ```
 
 ```{r}
@@ -910,7 +1064,7 @@ The structural equation model confirms the experimental design principles:
 
 1. **Excellent model fit**: All fit indices indicate the model represents the data well.
 
-2. **Direct treatment effect**: The X → Y coefficient matches our expected causal effect closely.
+2. **Direct treatment effect**: The X → Y coefficient matches the expected causal effect closely.
 
 3. **No indirect effects through X**: Since X is randomized, there are no indirect pathways from other variables through X.
 
@@ -1022,7 +1176,7 @@ sample_sizes <- c(100, 250, 500, 750, 1000)
 
 # Function to calculate power for a given effect size and sample size
 calculate_power <- function(effect_size, n, alpha = 0.05) {
-  # Assume residual standard error from our model
+  # Assume residual standard error from the model
   residual_se <- summary(model_unadjusted)$sigma
   
   # Standard error of treatment coefficient
@@ -1412,7 +1566,7 @@ The sensitivity analysis highlights the value of randomization:
 #| label: forest-plot
 #| fig-cap: "Forest plot of treatment effect estimates under different modeling approaches"
 
-# Create forest plot data from our comparison table
+# Create forest plot data from the comparison table
 forest_data <- comparison_df %>%
   filter(Model != "True Causal Effect") %>%
   mutate(
@@ -1641,9 +1795,9 @@ Think of randomization as being like a perfectly clean laboratory - it isolates 
 
 ## 22. Simpson's Paradox Detection Analysis
 
-Simpson's Paradox occurs when the direction of an association between two variables reverses when conditioning on a third variable. In our experimental causal structure DAG, we can examine whether this phenomenon occurs by stratifying our data based on different levels of the prognostic factors Z, C, and B.
+Simpson's Paradox occurs when the direction of an association between two variables reverses when conditioning on a third variable. In the experimental causal structure DAG, we can examine whether this phenomenon occurs by stratifying the data based on different levels of the prognostic factors Z, C, and B.
 
-Think of Simpson's Paradox like a magic trick in statistics - what appears to be true at the surface level completely reverses when you look deeper. In our experimental DAG, we might find that overall, X appears to have one effect on Y, but within each level of the prognostic factors, the relationship tells a different story. However, because X is randomized, we would expect the relationship to remain consistent across strata.
+Think of Simpson's Paradox like a magic trick in statistics - what appears to be true at the surface level completely reverses when you look deeper. In the experimental DAG, we might find that overall, X appears to have one effect on Y, but within each level of the prognostic factors, the relationship tells a different story. However, because X is randomized, we would expect the relationship to remain consistent across strata.
 
 ### 22.1 Simpson's Paradox Detection Analysis
 
@@ -1830,7 +1984,7 @@ DT::datatable(all_binary,
 
 ### 22.4 Visual Detection of Simpson's Paradox
 
-Let's create visualizations to clearly demonstrate whether Simpson's Paradox is present in our experimental data:
+Let's create visualizations to clearly demonstrate whether Simpson's Paradox is present in the experimental data:
 
 ```{r}
 #| label: visualize-simpsons-paradox-exp
@@ -2089,7 +2243,7 @@ DT::datatable(weighted_analysis,
 
 ### 22.8 Conclusions from Simpson's Paradox Analysis
 
-Based on our comprehensive analysis, here are the key findings about Simpson's Paradox in this experimental dataset:
+Based on the comprehensive analysis, here are the key findings about Simpson's Paradox in this experimental dataset:
 
 ```{r}
 #| label: simpsons-conclusions-exp
@@ -2155,13 +2309,13 @@ DT::datatable(final_summary,
               colnames = c("Category", "Key Result", "Interpretation"))
 ```
 
-Our Simpson's Paradox analysis reveals important insights about experimental design and causal inference. In this experimental dataset, we observe **`r dominant_status`**, which demonstrates how randomization of X prevents the systematic occurrence of Simpson's Paradox that might be seen in observational data.
+The Simpson's Paradox analysis reveals important insights about experimental design and causal inference. In this experimental dataset, we observe **`r dominant_status`**, which demonstrates how randomization of X prevents the systematic occurrence of Simpson's Paradox that might be seen in observational data.
 
-The key insight is that Simpson's Paradox rarely occurs in well-designed experiments because randomization breaks the association between treatment assignment and potential confounders. In our experimental structure DAG, the prognostic factors Z, C, and B affect the outcome Y but are independent of the randomized exposure X, creating a causal structure where the marginal and conditional relationships remain consistent.
+The key insight is that Simpson's Paradox rarely occurs in well-designed experiments because randomization breaks the association between treatment assignment and potential confounders. In the experimental structure DAG, the prognostic factors Z, C, and B affect the outcome Y but are independent of the randomized exposure X, creating a causal structure where the marginal and conditional relationships remain consistent.
 
-The minimal variation we observe across strata (average maximum difference of **`r round(avg_max_difference, 3)`** units) represents normal sampling variation rather than systematic confounding. This analysis reinforces our earlier findings about the power of randomization in eliminating confounding and ensuring that simple analyses provide unbiased causal estimates.
+The minimal variation we observe across strata (average maximum difference of **`r round(avg_max_difference, 3)`** units) represents normal sampling variation rather than systematic confounding. This analysis reinforces the earlier findings about the power of randomization in eliminating confounding and ensuring that simple analyses provide unbiased causal estimates.
 
-The absence of meaningful Simpson's Paradox in our experimental data underscores a fundamental principle: when treatment assignment is truly randomized, the causal effect can be estimated without complex adjustments or concerns about paradoxical reversals across subgroups. This is why randomized controlled trials remain the gold standard for causal inference - they create a causal structure where Simpson's Paradox cannot systematically mislead us about true causal relationships.
+The absence of meaningful Simpson's Paradox in the experimental data underscores a fundamental principle: when treatment assignment is truly randomized, the causal effect can be estimated without complex adjustments or concerns about paradoxical reversals across subgroups. This is why randomized controlled trials remain the gold standard for causal inference - they create a causal structure where Simpson's Paradox cannot systematically mislead us about true causal relationships.
 
 
 
@@ -2174,9 +2328,8 @@ The absence of meaningful Simpson's Paradox in our experimental data underscores
 
 ```{r}
 #| label: session-info
-#| echo: false
 
 # Session information for reproducibility
-sessionInfo()
+# sessionInfo()
 ```
 

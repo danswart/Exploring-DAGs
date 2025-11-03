@@ -1,62 +1,206 @@
 ---
-title: "DAG Summary - Experimental Causal Structure"
-author: "Dan Swart"
-format: 
+title: "Understanding Causal Salad DAG4 - Mimic Experimental Causal Structure"
+subtitle: ""
+description: ""
+author: 
+  - name: "Dan Swart, CPA (ret)"
+    affiliations:
+      - "SCUC-ISD Board of Trustees"
+      - "Seat 6"
+date: today
+date-format: long
+# bibliography: manual-refs.bib
+format:
   html:
-    toc: true
-    toc-float: true
-    page-layout: article
-    embed-resources: true
-    code-fold: true
+    resources:
+      - reference-backlinks.js
+    include-after-body:    
+      - text: |
+          # <script type="text/javascript" src="reference-backlinks.js"></script>
+    default: true         
+    code-copy: true
+    code-link: true        # This adds individual buttons
+    code-fold: true        # Hide code by default, show on click
     code-summary: "Show the code"
-    code-tools: true
     code-overflow: wrap
     code-block-bg: "#FAEBD7"
     code-block-border-left: "#31BAE9"
-    code-link: true          # This adds individual buttons
-    fig-width: 8
-    fig-height: 6
-    fig-align: center
+    embed-resources: true
+    include-in-header: header.html
+    css:
+      - swart.css
+      - tachyons.min.css
+      - r-colors.css
+    fontsize: 18pt
+    lightbox: true
+    page-layout: full
+    fig-width: 12
+    fig-height: 10
+    fig-dpi: 300
     html-math-method: katex
-    css: swart-20250327.css
-  pdf:
+    df-print: paged
     toc: true
-    number-sections: true
-    colorlinks: true
-    papersize: letter
-    geometry:
-      - margin=1in
-    fig-width: 8
-    fig-height: 6
-    fig-pos: 'H'
+    toc-float: true
+    citeproc: true
+    link-citations: true
+    linestretch: 1.0
+    
+    
+    
   typst:
+    fig-width: 12
+    fig-height: 10
+    fig-dpi: 300
+    margin:
+      x: 1in
+      y: 1in
     toc: true
-    fig-width: 8
-    fig-height: 6
-    keep-tex: true
-    prefer-html: true
+    fontsize: 14pt
+    mainfont: "Cabin"
+    
+  revealjs:
+    slide-number: true
+    transition: fade
+    code-overflow: wrap
+    center: true
+    smaller: true
+    scrollable: true
+    chalkboard: true
+    multiplex: false
+    theme: solarized
+    reference-location: margin
+    logo: img/red-cross-640-435.png
+    footer: "Footer text"
+    code-block-height: 650px
+
+
+
+  # docx:
+  #   highlight-style: github
+  #   fig_caption: true
+
+
+
+editor: source
+
+quarto:
+  render:
+    cache-refresh: true
+
+
+# for .qmd filesd
+execute:
+  echo: true
+  message: false
+  warning: false
+  eval: true
+  fig-width: 12
+  fig-height: 10
+
+
+# for .rmd files
+knitr:
+  opts_chunk:
+    echo: true
+    error: false
+    warning: false
+    message: false
+    cache: false
+
 ---
+
+
 
 ```{r}
 #| label: setup
 #| include: false
-knitr::opts_chunk$set(echo = TRUE, FALSE, message = TRUE, warning = TRUE)
 
-library(tidyverse)  # For dplyr, ggplot, and friends
+# Prevent scientific notation globally
+options(scipen = 999)
+
+# load libraries
+library(readxl)
+library(writexl) 
+library(tidyr) 
+library(readr) 
+library(purrr) 
+library(stringr) 
+library(forcats) 
+library(lubridate) 
+library(janitor) 
+library(ggtext) 
+library(paletteer) 
+library(viridis) 
+library(RColorBrewer) 
+library(wesanderson) 
+library(dutchmasters) 
+library(gghighlight) 
+library(monochromeR) 
+library(ggforce) 
+library(ggthemes)
+library(gt)
+library(gtExtras)
+library(tidyverse)
+library(plotly)
+library(ggplot2)
+library(tibble)
+library(patchwork)
+library(ppcor)
+library(ggplot2)
+library(corrplot)
+library(ggcorrplot)
+library(car)
+library(WRS2)
+library(boot)
+library(BayesFactor)
+library(pwr)
+library(qgraph)
+library(scales)
+library(here)
 library(ggdag)      # For plotting DAGs
 library(dagitty)    # For working with DAG logic
 library(DiagrammeR) # For complete control of the layout
 library(knitr)      # For controlling rendering
 library(kableExtra) # For tables summarizing results
 library(DT)         # For rendering content that kableExtra cannot (symbols)
+library(lavaan)     # For latent variable analysis
+library(ggpubr)
+library(rethinking)
+library(broom)
+
+
+# Force dplyr's select to take precedence
+select <- dplyr::select
+filter <- dplyr::filter
+
+# Set global theme for consistent plots
+theme_set(theme_minimal(base_size = 20) + 
+          theme(
+    plot.title = element_text(face = "bold", size = 26),    # adjust title size
+    plot.subtitle = element_text(face = "bold", size = 24), # adjust subtitle size
+    axis.title.x = element_text(face = "bold", size = 22),
+    axis.title.y = element_text(face = "bold", size = 22),
+    axis.text.x = element_text(face = "bold", size = 22, angle = 45, hjust = 1),
+    legend.position = "bottom",
+    strip.text = element_text(face = "bold"),
+    panel.spacing.x = unit(1.5, "cm"),  # Horizontal spacing only
+    panel.spacing.y = unit(1.5, "cm"),   # Vertical spacing only
+    plot.margin = margin(20, 20, 20, 20, "pt")
+    )
+)
+
+
+# Set seed for reproducibility
+set.seed(123)
 
 ```
+
 <br>
 
 
 ## DAG RENDERING USING DiagrammeR.
 
-There is no analysis with DiagrammeR, but analysis follows below.
+(There is no analysis with DiagrammeR, but analysis follows below.)
 
 ```{r DiagrammeR-dag}
 #| message: false
@@ -107,6 +251,8 @@ grViz("
   ")
 
 ```
+
+
 <br>
 
 ### DAG Visualization using ggdag and dagitty
@@ -149,6 +295,8 @@ An experimental causal structure represents a scenario where the exposure variab
 3. **Other influences on Y**: Z, C, and B all directly cause Y, representing other factors that affect the outcome
 4. **No confounding of X and Y**: There are no backdoor paths between X and Y, as no common causes exist
 
+
+
 ### Why is this Structure Important?
 
 In experimental causal structures:
@@ -157,10 +305,14 @@ In experimental causal structures:
 2. **Unbiased estimation**: The effect estimate is unbiased due to the independence of X from other causal factors
 3. **Maximum statistical power**: No adjustment variables means greater statistical efficiency
 
+
+
 ### Minimal Sufficient Adjustment Sets
 
 For this DAG, the minimal sufficient adjustment set is empty {}:
 - No adjustment is necessary because X is independent of all other causes of Y
+
+
 
 ### Real-World Example
 
@@ -172,6 +324,8 @@ Consider a randomized controlled trial testing a new medication (X) on blood pre
 
 Because the medication is randomly assigned, researchers do not need to control for any variables to estimate its causal effect on blood pressure.
 
+
+
 ### How to Handle Experimental Structures
 
 1. Verify the true independence of the exposure variable
@@ -181,6 +335,8 @@ Because the medication is randomly assigned, researchers do not need to control 
 
 Experimental causal structures represent the gold standard for causal inference because they eliminate confounding by design, allowing for straightforward estimation of causal effects.
 :::
+
+
 
 ## Executive Summary: The Randomization Principle
 
@@ -195,6 +351,7 @@ This DAG illustrates the randomization principle, a fundamental concept in causa
 3. **Causal effect is directly identifiable**: The association between X and Y represents the true causal effect without bias
 
 
+
 ### Why Randomization Solves the Confounding Problem
 
 The randomization principle works because:
@@ -204,6 +361,8 @@ The randomization principle works because:
 2. **Creates balance on all variables**: Randomization balances both measured and unmeasured variables between treatment groups
 
 3. **Eliminates selection bias**: Random assignment prevents systematic differences between groups
+
+
 
 
 ### Real-World Application
@@ -216,6 +375,8 @@ In a clinical trial testing a new drug (X) on patient recovery (Y):
   - Other treatments
 
 - Any observed difference in recovery between treatment and control groups can be attributed to the drug itself
+
+
 
 
 ### Practical Considerations
@@ -233,9 +394,8 @@ Understanding the randomization principle explains why randomized controlled tri
 
 ```{r}
 #| message: false
-#| warning: false
-#| code-fold: false
-#| echo: false
+
+
 
 # Create a function to display DAG analysis results as a table
 display_dag_analysis <- function(dag) {
@@ -531,9 +691,7 @@ display_dag_analysis <- function(dag) {
 
 ```{r run-the-analysis}
 #| include: true
-#| echo: false
-#| results: 'hide'
-#| code-fold: false
+
 
 # Define the experimental structure DAG
 experiment_dag <- dagitty::dagitty("dag {
@@ -736,8 +894,7 @@ properties_df <- data.frame(
 #| label: independencies-df
 #| tbl-cap: "Implied Conditional Independencies"
 #| results: 'asis'
-#| code-fold: false
-#| echo: false
+
 
 # this chunk only creates a data frame but doesn't display it
 
@@ -752,9 +909,7 @@ adjustment_effect_df <- data.frame(
 
 ```{r}
 #| label: create-unmeasured-df
-#| echo: false
-#| include: true
-#| results: 'hide'
+
 
 # this chunk only creates a data frame but doesn't display it
 
@@ -778,9 +933,7 @@ if(length(dag_results$unmeasured_impact) > 0) {
 
 ```{r}
 #| label: create-dag-plot
-#| echo: false
-#| include: true
-#| results: 'hide'
+
 
 # this chunk only creates a plot object but doesn't display it
 
@@ -791,7 +944,10 @@ dag_plot <- ggdag(causal_salad_dag4) +
 
 
 ```
+
+
 <br>
+
 
 ## 2. Results
 
@@ -800,7 +956,7 @@ dag_plot <- ggdag(causal_salad_dag4) +
 ```{r}
 #| label: tbl-key-properties-exp
 #| tbl-cap: "Key Properties of the DAG"
-#| code-fold: true
+
 
 DT::datatable(
   properties_df,
@@ -814,7 +970,10 @@ DT::datatable(
 )
 
 ```
+
+
 <br>
+
 
 ### 2.2 Table of Conditional Independencies
 
@@ -834,7 +993,9 @@ DT::datatable(
 )
 
 ```
+
 <br>
+
 
 ### 2.3 Table of Paths Between X and Y
 
@@ -854,7 +1015,10 @@ DT::datatable(
 )
 
 ```
+
+
 <br>
+
 
 ### 2.4 Table of Ancestors and Descendants
 
@@ -875,7 +1039,9 @@ DT::datatable(
 # kable(ancestors_descendants_df) %>%
 #   kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
 ```
+
 <br>
+
 
 ### 2.5 Table of D-Separation Results
 
@@ -897,6 +1063,8 @@ DT::datatable(
 # kable(d_sep_df) %>%
 #   kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
 ```
+
+
 <br>
 
 ### 2.6 Table of Impact of Adjustments
@@ -919,6 +1087,8 @@ DT::datatable(
 # kable(adjustment_effect_df) %>%
 #   kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
 ```
+
+
 <br>
 
 ### 2.7 Table of Unmeasured Confounding Impact
@@ -941,7 +1111,10 @@ DT::datatable(
 # kable(unmeasured_df) %>%
 #   kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
 ```
+
+
 <br>
+
 
 ### 2.8 Table of Instrumental Variables
 
@@ -964,6 +1137,7 @@ DT::datatable(
 #   kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
 
 ```
+
 <br>
 
 
@@ -996,6 +1170,8 @@ ggdag_paths(experiment_dag_tidy) +
   label("All Paths between X and Y")
 
 ```
+
+
 <br>
 
 
@@ -1025,6 +1201,7 @@ This experimental DAG illustrates several important causal principles:
    - These do not bias the X-Y relationship due to independence of X
 
 
+
 ### 4.2 Proper Identification Strategy
 
 To identify the causal effect of X on Y:
@@ -1037,6 +1214,7 @@ To identify the causal effect of X on Y:
 
 
 ::: {.callout-note collapse="true" title="<span style='font-size: 20px;'>Key DAG Terms and Concepts</span> <span style='color: darkblue; font-size: 22px;'>(click to open and close)</span>"}
+
 
 
 ### Key DAG Terms and Concepts
@@ -1054,6 +1232,8 @@ To identify the causal effect of X on Y:
 **Collider**: A variable that is influenced by both the exposure and the outcome, or by two variables on a path (e.g., A → C ← B).
 
 **Backdoor path**: Any non-causal path connecting the exposure to the outcome that creates a spurious association.
+
+
 
 ### Understanding the Analysis Tables
 
@@ -1077,9 +1257,13 @@ This table provides a high-level overview of the DAG structure and key causal fe
 
 - **Minimal adjustment sets**: The smallest sets of variables that block all backdoor paths
 
+
+
 #### 2. Conditional Independencies Table
 
 Shows the implied conditional independencies in the DAG - pairs of variables that should be statistically independent when conditioning on specific other variables. These can be used to test the validity of your DAG against observed data.
+
+
 
 #### 3. Paths Analysis Table
 
@@ -1095,6 +1279,8 @@ Enumerates all paths connecting the exposure to the outcome:
 
 Testing whether these paths are open or closed under different conditioning strategies is crucial for causal inference.
 
+
+
 #### 4. Ancestors and Descendants Table
 
 Shows which variables can causally affect (ancestors) or be affected by (descendants) each variable in the DAG:
@@ -1102,6 +1288,8 @@ Shows which variables can causally affect (ancestors) or be affected by (descend
 - Understanding ancestry relationships helps identify potential confounders
 
 - Descendants should not be controlled for as this may introduce bias
+
+
 
 #### 5. D-Separation Results Table
 
@@ -1113,6 +1301,8 @@ Shows whether exposure and outcome are conditionally independent (d-separated) w
 
 This helps identify sufficient adjustment sets for estimating causal effects.
 
+
+
 #### 6. Impact of Adjustments Table
 
 Shows how different adjustment strategies affect the identification of causal effects:
@@ -1122,6 +1312,8 @@ Shows how different adjustment strategies affect the identification of causal ef
 - **Open_Paths**: Number of paths that remain open after adjustment
   
 Ideally, adjusting for the right variables leaves only the causal paths open.
+
+
 
 #### 7. Unmeasured Confounding Impact Table
 
@@ -1133,9 +1325,13 @@ Simulates the effect of being unable to measure certain variables:
 
 This helps identify which variables are most critical to measure for valid causal inference.
 
+
+
 #### 8. Instrumental Variables Table
 
 Lists potential instrumental variables - variables that affect the exposure but have no direct effect on the outcome except through the exposure. These are useful for causal inference when confounding is present, especially in methods like instrumental variable estimation.
+
+
 
 ### How to Use This Analysis for Causal Inference
 
@@ -1153,4 +1349,6 @@ Lists potential instrumental variables - variables that affect the exposure but 
 
 Remember that the validity of any causal inference depends on the correctness of your DAG - it represents your causal assumptions about the data-generating process, which should be based on substantive domain knowledge.
 :::
+
+
 

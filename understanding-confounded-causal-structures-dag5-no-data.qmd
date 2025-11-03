@@ -1,56 +1,201 @@
 ---
-title: "DAG Summary - Confounded Causal Structure"
-author: "Dan Swart"
-format: 
+title: "DAG Summary - Confound"
+subtitle: ""
+description: ""
+author: 
+  - name: "Dan Swart, CPA (ret)"
+    affiliations:
+      - "SCUC-ISD Board of Trustees"
+      - "Seat 6"
+date: today
+date-format: long
+# bibliography: manual-refs.bib
+format:
   html:
-    toc: true
-    toc-float: true
-    page-layout: article
-    embed-resources: true
-    code-fold: true
+    resources:
+      - reference-backlinks.js
+    include-after-body:    
+      - text: |
+          # <script type="text/javascript" src="reference-backlinks.js"></script>
+    default: true         
+    code-copy: true
+    code-link: true        # This adds individual buttons
+    code-fold: true        # Hide code by default, show on click
     code-summary: "Show the code"
-    code-tools: true
     code-overflow: wrap
     code-block-bg: "#FAEBD7"
     code-block-border-left: "#31BAE9"
-    code-link: true          # This adds individual buttons
-    fig-width: 8
-    fig-height: 6
-    fig-align: center
+    embed-resources: true
+    include-in-header: header.html
+    css:
+      - swart.css
+      - tachyons.min.css
+      - r-colors.css
+    fontsize: 18pt
+    lightbox: true
+    page-layout: full
+    fig-width: 12
+    fig-height: 10
+    fig-dpi: 300
     html-math-method: katex
-    css: swart-20250327.css
-  pdf:
+    df-print: paged
     toc: true
-    number-sections: true
-    colorlinks: true
-    papersize: letter
-    geometry:
-      - margin=1in
-    fig-width: 8
-    fig-height: 6
-    fig-pos: 'H'
+    toc-float: true
+    citeproc: true
+    link-citations: true
+    linestretch: 1.0
+    
+    
+    
   typst:
+    fig-width: 12
+    fig-height: 10
+    fig-dpi: 300
+    margin:
+      x: 1in
+      y: 1in
     toc: true
-    fig-width: 8
-    fig-height: 6
-    keep-tex: true
-    prefer-html: true
+    fontsize: 14pt
+    mainfont: "Cabin"
+    
+  revealjs:
+    slide-number: true
+    transition: fade
+    code-overflow: wrap
+    center: true
+    smaller: true
+    scrollable: true
+    chalkboard: true
+    multiplex: false
+    theme: solarized
+    reference-location: margin
+    logo: img/red-cross-640-435.png
+    footer: "Footer text"
+    code-block-height: 650px
+
+
+
+  # docx:
+  #   highlight-style: github
+  #   fig_caption: true
+
+
+
+editor: source
+
+quarto:
+  render:
+    cache-refresh: true
+
+
+# for .qmd filesd
+execute:
+  echo: true
+  message: false
+  warning: false
+  eval: true
+  fig-width: 12
+  fig-height: 10
+
+
+# for .rmd files
+knitr:
+  opts_chunk:
+    echo: true
+    error: false
+    warning: false
+    message: false
+    cache: false
+
 ---
+
+
 
 ```{r}
 #| label: setup
 #| include: false
-knitr::opts_chunk$set(echo = TRUE, FALSE, message = TRUE, warning = TRUE)
 
-library(tidyverse)  # For dplyr, ggplot, and friends
-library(ggdag)      # For plotting DAGs
-library(dagitty)    # For working with DAG logic
-library(DiagrammeR) # For complete control of the layout
-library(knitr)      # For controlling rendering
-library(kableExtra) # For tables summarizing results
-library(DT)         # For rendering content that kableExtra cannot (symbols)
+# Prevent scientific notation globally
+options(scipen = 999)
+
+# # load libraries
+# library(readxl) # Read Excel Files
+# library(writexl) # Export Data Frames to Excel 'xlsx' Format 
+# library(tidyr) # Tidy Messy Data 
+# library(readr) # Read Rectangular Text Data 
+# library(purrr) # Functional Programming Tools 
+# library(stringr) # Simple, Consistent Wrappers for Common String Operations 
+# library(forcats) # Tools for Working with Categorical Variables (Factors) 
+# library(lubridate) # Make Dealing with Dates a Little Easier 
+# library(janitor) # Simple Tools for Examining and Cleaning Dirty Data 
+# library(ggtext) # Improved Text Rendering Support for 'ggplot2' 
+# library(paletteer) # Comprehensive Collection of Color Palettes 
+# library(viridis) # Colorblind-Friendly Color Maps for R 
+# library(RColorBrewer) # ColorBrewer Palettes 
+# library(wesanderson) # A Wes Anderson Palette Generator 
+# library(dutchmasters) # Colour Pallettes based on Famous Paintings 
+# library(gghighlight) # Highlight Lines and Points in 'ggplot2' 
+# library(monochromeR) # Easily Create, View and Use Monochrome Colour Palettes 
+# library(ggforce) # Accelerating 'ggplot2' 
+# library(ggthemes) # Extra Themes, Scales and Geoms for 'ggplot2'
+# library(gt) # Easily Create Presentation-Ready Display Tables
+# library(gtExtras) # Extending 'gt' for Beautiful HTML Tables
+# library(tidyverse) # Easily Install and Load the 'Tidyverse'
+# library(plotly) # Create Interactive Web Graphics via 'plotly.js'
+# library(ggplot2) # Create Elegant Data Visualisations Using the Grammar of Graphics # Create Elegant Data # Visualisations Using the Grammar of Graphics
+# library(tibble) # Simple Data Frames
+# library(patchwork) # The Composer of Plots
+# library(ppcor) # Partial and Semi-Partial (Part) Correlation
+# library(ggplot2) # Create Elegant Data Visualisations Using the Grammar of Graphics
+# library(corrplot) # Visualization of a Correlation Matrix
+# library(ggcorrplot) # Visualization of a Correlation Matrix using 'ggplot2'
+# library(car) # Companion to Applied Regression
+# library(WRS2) # A Collection of Robust Statistical Methods
+# library(boot) # Bootstrap Functions
+# library(BayesFactor) # Computation of Bayes Factors for Common Designs
+# library(pwr) # Basic Functions for Power Analysis
+# library(qgraph) # Graph Plotting Methods, Psychometric Data Visualization and Graphical Model Estimation
+# library(scales) # Scale Functions for Visualization
+# library(here) # A Simpler Way to Find Your Files
+# library(ggdag) # Analyze and Create Elegant Directed Acyclic Graphs      
+# library(dagitty) # Graphical Analysis of Structural Causal Models    
+# library(DiagrammeR) # Graph/Network Visualization # Graph/Network Visualization 
+# library(knitr) # A General-Purpose Package for Dynamic Report Generation in R      
+# library(kableExtra) # Construct Complex Table with 'kable' and Pipe Syntax 
+# library(DT) # A Wrapper of the JavaScript Library 'DataTables'         
+# library(lavaan) # Latent Variable Analysis     
+# library(ggpubr) # 'ggplot2' Based Publication Ready Plots
+# library(rethinking) # Statistical Rethinking book package
+# library(broom) # Convert Statistical Objects into Tidy Tibbles
+# library(dplyr) # A Grammar of Data Manipulation
+
+
+# Force dplyr's select to take precedence
+select <- dplyr::select
+filter <- dplyr::filter
+
+# Set global theme for consistent plots
+ggplot2::theme_set(ggplot2::theme_minimal(base_size = 20) + 
+          ggplot2::theme(
+    plot.title = ggplot2::element_text(face = "bold", size = 26),    # adjust title size
+    plot.subtitle = ggplot2::element_text(face = "bold", size = 24), # adjust subtitle size
+    axis.title.x = ggplot2::element_text(face = "bold", size = 22),
+    axis.title.y = ggplot2::element_text(face = "bold", size = 22),
+    axis.text.x = ggplot2::element_text(face = "bold", size = 22, angle = 45, hjust = 1),
+    legend.position = "bottom",
+    strip.text = ggplot2::element_text(face = "bold"),
+    panel.spacing.x = ggplot2::unit(1.5, "cm"),  # Horizontal spacing only
+    panel.spacing.y = ggplot2::unit(1.5, "cm"),   # Vertical spacing only
+    plot.margin = ggplot2::margin(20, 20, 20, 20, "pt")
+    )
+)
+
+
+# Set seed for reproducibility
+set.seed(123)
 
 ```
+
 <br>
 
 
@@ -63,9 +208,9 @@ There is no analysis with DiagrammeR, but analysis follows below.
 #| warning: false
 
 
-library(DiagrammeR)
+library(DiagrammeR) # Graph/Network Visualization # Graph/Network Visualization
 
-grViz("
+DiagrammeR::grViz("
   digraph DAG {
     # Graph settings
     graph [layout=neato, margin=\"0.0, 0.0, 0.0, 0.0\"]  # Increase margins (format:   \"top,right,bottom,left\")
@@ -82,10 +227,10 @@ grViz("
     edge [penwidth=1.50, color=\"darkblue\", arrowsize=1.00]
     
     # Nodes with exact coordinates
-    X [label=\"HIV\", pos=\"2.0, 2.0!\", fontcolor=\"dodgerblue\"]
-    Y [label=\"Stroke\", pos=\"3.0, 2.0!\", fontcolor=\"dodgerblue\"]
-    A [label=\"Smoking\", pos=\"1.0, 3.0!\", fontcolor=\"red\"]
-    B [label=\"Age\", pos=\"1.0, 1.0!\", fontcolor=\"orange\"]
+    X [label=\"HIV\", pos=\"2.0, 2.0!\", fontcolor=\"red\"]
+    Y [label=\"Stroke\", pos=\"3.0, 2.0!\", fontcolor=\"red\"]
+    A [label=\"Smoking\", pos=\"1.0, 3.0!\", fontcolor=\"blue\"]
+    B [label=\"Age\", pos=\"1.0, 1.0!\", fontcolor=\"darkgreen\"]
     
     # Edges
     X -> Y
@@ -131,9 +276,9 @@ causal_salad_dag5 <- ggdag::dagify(
 )
 
 # Create a nice visualization of the DAG
-ggdag(causal_salad_dag5) + 
-  theme_dag() +
-  label("DAG: Confounded Causal Structure")
+ggdag::ggdag(causal_salad_dag5) + 
+  ggdag::theme_dag() +
+  ggdag::label("DAG: Confounded Causal Structure")
 
 ```
 
@@ -678,9 +823,9 @@ if(length(dag_results$unmeasured_impact) > 0) {
 # this chunk only creates a plot object but doesn't display it
 
 # Create a nice visualization of the DAG for confounded structure
-dag_plot <- ggdag(causal_salad_dag5) + 
-  theme_dag() +
-  label("DAG: Confounded Causal Structure")
+dag_plot <- ggdag::ggdag(causal_salad_dag5) + 
+  ggdag::theme_dag() +
+  ggdag::label("DAG: Confounded Causal Structure")
 
 ```
 <br>
@@ -859,22 +1004,22 @@ DT::datatable(
 #| layout-ncol: 1
 
 # Use causal_salad_dag5 directly instead of confounded_dag
-confounded_dag_tidy <- tidy_dagitty(causal_salad_dag5)
+confounded_dag_tidy <- ggdag::tidy_dagitty(causal_salad_dag5)
 
 # Status plot showing exposure/outcome
-ggdag_status(confounded_dag_tidy) +
-  theme_dag() +
-  label("Status Plot: Exposure and Outcome")
+ggdag::ggdag_status(confounded_dag_tidy) +
+  ggdag::theme_dag() +
+  ggdag::label("Status Plot: Exposure and Outcome")
 
 # Adjustment set visualization
-ggdag_adjustment_set(confounded_dag_tidy) +
-  theme_dag() +
-  label("Adjustment Sets for X → Y")
+ggdag::ggdag_adjustment_set(confounded_dag_tidy) +
+  ggdag::theme_dag() +
+  ggdag::label("Adjustment Sets for X → Y")
 
 # Paths visualization
-ggdag_paths(confounded_dag_tidy) +
-  theme_dag() +
-  label("All Paths between X and Y")
+ggdag::ggdag_paths(confounded_dag_tidy) +
+  ggdag::theme_dag() +
+  ggdag::label("All Paths between X and Y")
 
 ```
 <br>
@@ -1038,3 +1183,4 @@ Lists potential instrumental variables - variables that affect the exposure but 
 
 Remember that the validity of any causal inference depends on the correctness of your DAG - it represents your causal assumptions about the data-generating process, which should be based on substantive domain knowledge.
 :::
+

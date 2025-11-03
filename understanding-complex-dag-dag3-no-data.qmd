@@ -1,56 +1,201 @@
 ---
-title: "DAG Summary - Fork + Collider Structure"
-author: "Dan Swart"
-format: 
+title: "DAG Summary - Complex Structure with Multiple Causal Pathways"
+subtitle: ""
+description: ""
+author: 
+  - name: "Dan Swart, CPA (ret)"
+    affiliations:
+      - "SCUC-ISD Board of Trustees"
+      - "Seat 6"
+date: today
+date-format: long
+# bibliography: manual-refs.bib
+format:
   html:
-    toc: true
-    toc-float: true
-    page-layout: article
-    embed-resources: true
-    code-fold: true
+    resources:
+      - reference-backlinks.js
+    include-after-body:    
+      - text: |
+          # <script type="text/javascript" src="reference-backlinks.js"></script>
+    default: true         
+    code-copy: true
+    code-link: true        # This adds individual buttons
+    code-fold: true        # Hide code by default, show on click
     code-summary: "Show the code"
-    code-tools: true
     code-overflow: wrap
     code-block-bg: "#FAEBD7"
     code-block-border-left: "#31BAE9"
-    code-link: true          # This adds individual buttons
-    fig-width: 8
-    fig-height: 6
-    fig-align: center
+    embed-resources: true
+    include-in-header: header.html
+    css:
+      - swart.css
+      - tachyons.min.css
+      - r-colors.css
+    fontsize: 18pt
+    lightbox: true
+    page-layout: full
+    fig-width: 12
+    fig-height: 10
+    fig-dpi: 300
     html-math-method: katex
-    css: swart-20250327.css
-  pdf:
+    df-print: paged
     toc: true
-    number-sections: true
-    colorlinks: true
-    papersize: letter
-    geometry:
-      - margin=1in
-    fig-width: 8
-    fig-height: 6
-    fig-pos: 'H'
+    toc-float: true
+    citeproc: true
+    link-citations: true
+    linestretch: 1.0
+    
+    
+    
   typst:
+    fig-width: 12
+    fig-height: 10
+    fig-dpi: 300
+    margin:
+      x: 1in
+      y: 1in
     toc: true
-    fig-width: 8
-    fig-height: 6
-    keep-tex: true
-    prefer-html: true
+    fontsize: 14pt
+    mainfont: "Cabin"
+    
+  revealjs:
+    slide-number: true
+    transition: fade
+    code-overflow: wrap
+    center: true
+    smaller: true
+    scrollable: true
+    chalkboard: true
+    multiplex: false
+    theme: solarized
+    reference-location: margin
+    logo: img/red-cross-640-435.png
+    footer: "Footer text"
+    code-block-height: 650px
+
+
+
+  # docx:
+  #   highlight-style: github
+  #   fig_caption: true
+
+
+
+editor: source
+
+quarto:
+  render:
+    cache-refresh: true
+
+
+# for .qmd filesd
+execute:
+  echo: true
+  message: false
+  warning: false
+  eval: true
+  fig-width: 12
+  fig-height: 10
+
+
+# for .rmd files
+knitr:
+  opts_chunk:
+    echo: true
+    error: false
+    warning: false
+    message: false
+    cache: false
+
 ---
+
+
 
 ```{r}
 #| label: setup
 #| include: false
-knitr::opts_chunk$set(echo = TRUE, FALSE, message = TRUE, warning = TRUE)
 
-library(tidyverse)  # For dplyr, ggplot, and friends
+# Prevent scientific notation globally
+options(scipen = 999)
+
+# load libraries
+library(readxl)
+library(writexl) 
+library(tidyr) 
+library(readr) 
+library(purrr) 
+library(stringr) 
+library(forcats) 
+library(lubridate) 
+library(janitor) 
+library(ggtext) 
+library(paletteer) 
+library(viridis) 
+library(RColorBrewer) 
+library(wesanderson) 
+library(dutchmasters) 
+library(gghighlight) 
+library(monochromeR) 
+library(ggforce) 
+library(ggthemes)
+library(gt)
+library(gtExtras)
+library(tidyverse)
+library(plotly)
+library(ggplot2)
+library(tibble)
+library(patchwork)
+library(ppcor)
+library(ggplot2)
+library(corrplot)
+library(ggcorrplot)
+library(car)
+library(WRS2)
+library(boot)
+library(BayesFactor)
+library(pwr)
+library(qgraph)
+library(scales)
+library(here)
 library(ggdag)      # For plotting DAGs
 library(dagitty)    # For working with DAG logic
 library(DiagrammeR) # For complete control of the layout
 library(knitr)      # For controlling rendering
 library(kableExtra) # For tables summarizing results
 library(DT)         # For rendering content that kableExtra cannot (symbols)
+library(lavaan)     # For latent variable analysis
+library(ggpubr)
+library(rethinking)
+library(broom)
+
+
+# Force dplyr's select to take precedence
+select <- dplyr::select
+filter <- dplyr::filter
+
+# Set global theme for consistent plots
+theme_set(theme_minimal(base_size = 20) + 
+          theme(
+    plot.title = element_text(face = "bold", size = 26),    # adjust title size
+    plot.subtitle = element_text(face = "bold", size = 24), # adjust subtitle size
+    axis.title.x = element_text(face = "bold", size = 22),
+    axis.title.y = element_text(face = "bold", size = 22),
+    axis.text.x = element_text(face = "bold", size = 22, angle = 45, hjust = 1),
+    legend.position = "bottom",
+    strip.text = element_text(face = "bold"),
+    panel.spacing.x = unit(1.5, "cm"),  # Horizontal spacing only
+    panel.spacing.y = unit(1.5, "cm"),   # Vertical spacing only
+    plot.margin = margin(20, 20, 20, 20, "pt")
+    )
+)
+
+
+# Set seed for reproducibility
+set.seed(123)
 
 ```
+
+
 <br>
 
 
@@ -72,7 +217,7 @@ grViz("
     
     # Add a title using a simple label approach
     labelloc=\"t\"
-    label=\"Causal Pathways of Fork + Collider DAG\\nExamining direct, confounded, and collider relationships\\n   \\n\"      fontname=\"Cabin\"
+    label=\"Causal Pathways of Complex Structure DAG\\nExamining direct, confounded, and multiple relationships\\n   \\n\"      fontname=\"Cabin\"
     fontsize=16
     
     # Node settings
@@ -86,16 +231,22 @@ grViz("
     Y [label=\"Y\", pos=\"3.0, 2.0!\", fontcolor=\"dodgerblue\"]
     Z [label=\"Z\", pos=\"2.0, 3.0!\", fontcolor=\"red\"]
     C [label=\"C\", pos=\"2.0, 1.0!\", fontcolor=\"orange\"]
+    A [label=\"A\", pos=\"1.0, 3.0!\", fontcolor=\"purple\"]
+    B [label=\"B\", pos=\"3.0, 3.0!\", fontcolor=\"green\"]
     
     # Edges
     X -> Y
-    Z -> X 
     Z -> Y
-    X -> C
-    Y -> C
+    C -> Y
+    B -> Y
+    Z -> X
+    C -> X
+    A -> X
+    A -> Z
+    B -> Z
     
     # Caption as a separate node at the bottom
-    Caption [shape=plaintext, label=\"Figure 1: Z = Fork (confounder), C = Collider\", 
+    Caption [shape=plaintext, label=\"Figure 1: Complex Structure with Multiple Causal Pathways\", 
              fontsize=10, pos=\"2,0.0!\"]
   }
   ")
@@ -105,107 +256,140 @@ grViz("
 
 ### DAG Visualization using ggdag and dagitty
 
-```{r fork-collider-dag1}
-#| fig-cap: "Directed Acyclic Graph with X as exposure, Y as outcome, Z as confounder, and C as collider"
+```{r complex-structure-dag1}
+#| fig-cap: "Directed Acyclic Graph with X as exposure, Y as outcome, and multiple causal pathways"
 
 
 # Define the DAG
-dag <- dagify(
-  Y ~ X + Z,
-  X ~ Z,
-  C ~ X + Y,
+causal_salad_dag3 <- ggdag::dagify(
+  Y ~ C + X + Z + B,
+  X ~ Z + C + A,
+  Z ~ A + B,
   exposure = "X",
-  outcome = "Y"
-)
-
-# Set coordinates for visualization
-coordinates(dag) <- list(
-  x = c(X = 1, Y = 3, Z = 2, C = 2),
-  y = c(X = 2, Y = 2, Z = 3, C = 1)
+  outcome = "Y",
+  coords = list(x = c(X = 1, Y = 3, Z = 2, C = 2, A = 1, B = 3),
+                y = c(X = 2, Y = 2, Z = 3, C = 1, A = 3, B = 3)
+                )
 )
 
 # Create a nice visualization of the DAG
-ggdag(dag) + 
+ggdag(causal_salad_dag3) + 
   theme_dag() +
-  label("DAG: X -> Y with Z as confounder and C as collider")
+  label("DAG: Complex Structure with Multiple Causal Pathways")
 
 ```
 
 <br>
 
-## Executive Summary: Understanding Fork Structure (Confounder)
+## Executive Summary: Understanding Complex Causal Structures
 
-::: {.callout-note collapse="true" title="<span style='font-size: 20px;'>What is a Fork Structure?</span> <span style='color: darkblue; font-size: 22px;'>(click to open and close)</span>"}
+::: {.callout-note collapse="true" title="<span style='font-size: 20px;'>What is a Complex Causal Structure?</span> <span style='color: darkblue; font-size: 22px;'>(click to open and close)</span>"}
 
-A fork structure occurs when a common cause (Z) affects both the exposure (X) and the outcome (Y). In this DAG, Z represents a confounder that creates a non-causal association between X and Y through the backdoor path X ← Z → Y.
+A complex causal structure involves multiple variables with various interconnected causal relationships. In this DAG, we have:
 
-### Why is Adjusting for Z Necessary?
+1. **Multiple direct effects on Y**: X, Z, C, and B all directly cause Y
+2. **Multiple causes of X**: Z, C, and A all directly cause X
+3. **Multiple backdoor paths**: Several non-causal associations between X and Y through various paths
 
-Controlling for Z in this structure is essential because:
+### Why is Identifying the Proper Adjustment Set Critical?
 
-1. It blocks the backdoor path: By conditioning on Z, we're blocking the non-causal association between X and Y that flows through Z.
-2. It prevents confounding bias: Without adjusting for Z, our estimate of the effect of X on Y would be biased.
-3. It enables causal identification: Controlling for Z allows us to isolate the true causal effect of X on Y.
+In complex causal structures, choosing the correct adjustment strategy becomes even more important because:
+
+1. **Multiple confounding paths**: There are several backdoor paths that can create spurious associations between X and Y
+2. **Risk of insufficient adjustment**: Controlling for only some confounders may leave other backdoor paths open
+3. **Risk of overadjustment**: Including unnecessary variables may reduce statistical power or introduce other biases
+
+### Minimal Sufficient Adjustment Sets
+
+For this DAG, we have two minimal sufficient adjustment sets:
+- {Z, C}: Controls for the direct confounders
+- {A, B, C}: Controls for the ancestors of Z plus the direct confounder C
 
 ### Real-World Example
 
-A researcher is studying the effect of coffee consumption (X) on heart disease risk (Y):
-- Age (Z) affects both coffee consumption habits (X) and heart disease risk (Y).
+Consider studying the effect of medication adherence (X) on health outcomes (Y):
+- Patient education (Z) affects both medication adherence (X) and outcomes (Y) directly
+- Insurance coverage (C) affects both adherence (X) and outcomes (Y) directly
+- Patient age (A) affects adherence (X) and also influences education level (Z)
+- Illness severity (B) affects education engagement (Z) and directly affects outcomes (Y)
 
-- Coffee consumption (X) might have a direct effect on heart disease risk (Y).
+To isolate the true causal effect of medication adherence on outcomes, researchers need to control for either:
+- Both education and insurance coverage, or
+- Age, illness severity, and insurance coverage
 
-- If the researcher doesn't control for age (Z), they might incorrectly attribute the higher heart disease risk among coffee drinkers to coffee itself, when it's actually due to the fact that older people tend to drink more coffee and also have higher heart disease risk.
+### How to Handle Complex Structures
 
-### How to Handle Fork Structures
+1. Map out all potential paths between exposure and outcome
+2. Identify minimal sufficient adjustment sets
+3. Consider practical concerns (measurement reliability, sample size) when choosing between valid adjustment strategies
+4. Be aware that different adjustment sets may lead to slightly different estimates due to heterogeneity in causal effects
 
-1. Identify potential confounders: Look for variables that could affect both the exposure and the outcome.
-
-2. Adjust appropriately: Include identified confounders in your statistical model.
-
-3. Consider unmeasured confounding: Assess whether there might be unmeasured variables creating backdoor paths.
-
-4. Use sensitivity analysis: Test how robust your findings are to potential unmeasured confounding.
-
-The fork structure demonstrates why adjusting for confounders is one of the most fundamental principles in causal inference, allowing us to distinguish genuine causal relationships from spurious associations.
-
+Complex causal structures highlight why careful causal modeling is essential before data analysis, as simple associations can be misleading due to the intricate web of relationships among variables.
 :::
 
-## Executive Summary: Understanding Collider Structure
+## Executive Summary: Understanding Multiple Backdoor Paths
 
-::: {.callout-note collapse="true" title="<span style='font-size: 20px;'>What is a Collider Structure?</span> <span style='color: darkblue; font-size: 22px;'>(click to open and close)</span>"}
+::: {.callout-note collapse="true" title="<span style='font-size: 20px;'>Navigating Multiple Backdoor Paths</span> <span style='color: darkblue; font-size: 22px;'>(click to open and close)</span>"}
 
-A collider structure occurs when two variables (X and Y) both cause a third variable (C). In this DAG, C is a collider where the causal paths from X and Y "collide."
+This DAG contains multiple backdoor paths between X and Y:
 
-### Why Adjusting for C is Problematic?
+1. X ← Z → Y (Z is a direct confounder)
 
-Controlling for C in this structure introduces bias because:
+2. X ← C → Y (C is a direct confounder)
 
-1. It opens a non-causal pathway: By conditioning on C, we create a spurious association between X and Y.
+3. X ← A → Z → Y (A is an indirect confounder)
 
-2. It introduces collider bias: Even if X and Y are causally independent, conditioning on their common effect C can make them appear associated.
+4. X ← Z ← B → Y (B creates a backdoor path through Z)
 
-3. It distorts causal identification: Controlling for C prevents us from isolating the true causal effect of X on Y.
+
+### Why Multiple Backdoor Paths Matter
+
+The presence of multiple backdoor paths means:
+
+1. **Confounding can come from multiple sources**: Various mechanisms can create spurious associations between X and Y
+
+2. **Blocking one path is insufficient**: All backdoor paths must be blocked to identify the causal effect
+
+3. **Multiple valid adjustment strategies may exist**: Different sets of variables can successfully block all backdoor paths
+
+
+### Strategies for Blocking Multiple Backdoor Paths
+
+1. **Direct confounder strategy**: Adjust for all variables that directly confound the relationship (Z and C in this case)
+
+2. **Ancestor strategy**: Adjust for ancestors of confounders plus any remaining direct confounders (A, B, and C in this case)
+
 
 ### Real-World Example
-Consider a study on the relationship between athletic ability (X) and academic performance (Y):
 
-- Both athletic ability (X) and academic performance (Y) influence admission to a prestigious university (C).
+In epidemiology, when studying the effect of occupation (X) on a specific disease (Y):
 
-- There might be no direct relationship between athletic ability and academic performance in the general population.
+- Socioeconomic status (Z) affects both occupation choice and disease risk
 
-- If researchers study only admitted students (conditioning on C), they might observe a negative correlation between athletic ability and academic performance - not because these traits are causally related, but because the university might accept students who excel in either area to create a diverse student body.
+- Education level (C) influences occupation and independently affects disease risk
 
-### How to Handle Collider Structures
+- Family background (A) affects occupation and influences socioeconomic status
 
-1. Identify potential colliders: Look for variables that are common effects of your exposure and outcome.
+- Geographic location (B) affects socioeconomic status and independently affects disease risk
 
-2. Avoid inappropriate adjustment: Do not control for colliders in your primary analysis.
 
-3. Be cautious of sample selection: Ensure your sample isn't implicitly conditioned on a collider.
+Researchers could either:
 
-4. Consider sensitivity analysis: Test how controlling for potential colliders affects your results.
+- Control for socioeconomic status and education level, or
 
-The collider structure illustrates an important counterpoint to the conventional wisdom of "control for everything" - sometimes controlling for a variable can introduce bias rather than reduce it.
+- Control for family background, geographic location, and education level
+
+
+### Practical Considerations
+
+1. **Measurement quality**: Choose the adjustment set with the most reliably measured variables
+
+2. **Causal proximity**: Variables closer in the causal chain to X and Y may be preferable when measured accurately
+
+3. **Parsimony**: Simpler adjustment sets may reduce estimation variance
+
+
+Understanding multiple backdoor paths helps researchers make informed choices about adjustment strategies, ensuring that the estimated effect of X on Y reflects the true causal relationship rather than spurious associations.
 :::
 
 
@@ -311,11 +495,15 @@ display_dag_analysis <- function(dag) {
     
     # Try using explicit string representation
     dag_string <- dagitty::dagitty(paste0("dag { ", 
-                                         "X -> Y; ",
-                                         "Z -> X; ", 
-                                         "Z -> Y; ", 
-                                         "X -> C; ", 
-                                         "Y -> C }"))
+                                         "Y <- C; ",
+                                         "Y <- X; ",
+                                         "Y <- Z; ",
+                                         "Y <- B; ",
+                                         "X <- Z; ", 
+                                         "X <- C; ", 
+                                         "X <- A; ", 
+                                         "Z <- A; ", 
+                                         "Z <- B }"))
     
     results$paths <- tryCatch({
       alt_paths <- dagitty::paths(dag_string, from = "X", to = "Y")
@@ -349,6 +537,10 @@ display_dag_analysis <- function(dag) {
   results$Z_descendants <- dagitty::descendants(dag, "Z")
   results$C_ancestors <- dagitty::ancestors(dag, "C")
   results$C_descendants <- dagitty::descendants(dag, "C")
+  results$A_ancestors <- dagitty::ancestors(dag, "A")
+  results$A_descendants <- dagitty::descendants(dag, "A")
+  results$B_ancestors <- dagitty::ancestors(dag, "B")
+  results$B_descendants <- dagitty::descendants(dag, "B")
   
   # 8. Check backdoor paths - CORRECTED to properly identify backdoor paths
   results$backdoor_paths <- character(0)
@@ -371,21 +563,24 @@ display_dag_analysis <- function(dag) {
   if(!is.data.frame(results$paths) || nrow(results$paths) == 0) {
     cat("\nManually constructing known paths for this DAG structure...\n")
     
-    # For a fork+collider DAG with X->Y, Z->X, Z->Y, X->C, Y->C
-    # We know there should be 2 paths:
-    # 1. Direct path: X -> Y
-    # 2. Backdoor path: X <- Z -> Y
-    
+    # For our complex DAG structure, we know these paths should exist
     results$paths <- data.frame(
-      paths = c("X -> Y", "X <- Z -> Y"),
-      length = c(1, 2)
+      paths = c("X -> Y", 
+                "X <- Z -> Y", 
+                "X <- C -> Y",
+                "X <- A -> Z -> Y",
+                "X <- Z <- B -> Y"),
+      length = c(1, 2, 2, 3, 3)
     )
     
     cat("Manually added paths:\n")
     print(results$paths)
     
     # Update backdoor paths
-    results$backdoor_paths <- c("X <- Z -> Y")
+    results$backdoor_paths <- c("X <- Z -> Y", 
+                              "X <- C -> Y",
+                              "X <- A -> Z -> Y",
+                              "X <- Z <- B -> Y")
   }
   
   # 9. Find directed paths (potential mediation)
@@ -420,7 +615,8 @@ display_dag_analysis <- function(dag) {
     XY_given_nothing = dagitty::dseparated(dag, "X", "Y", c()),
     XY_given_Z = dagitty::dseparated(dag, "X", "Y", c("Z")),
     XY_given_C = dagitty::dseparated(dag, "X", "Y", c("C")),
-    XY_given_ZC = dagitty::dseparated(dag, "X", "Y", c("Z", "C"))
+    XY_given_ZC = dagitty::dseparated(dag, "X", "Y", c("Z", "C")),
+    XY_given_ABC = dagitty::dseparated(dag, "X", "Y", c("A", "B", "C"))
   )
   
   # 11. Check paths under different adjustments
@@ -429,7 +625,8 @@ display_dag_analysis <- function(dag) {
     "None" = c(),
     "Z" = c("Z"),
     "C" = c("C"),
-    "Z, C" = c("Z", "C")
+    "Z, C" = c("Z", "C"),
+    "A, B, C" = c("A", "B", "C")
   )
   
   for(adj_name in names(adjustment_sets_to_check)) {
@@ -437,19 +634,22 @@ display_dag_analysis <- function(dag) {
     paths <- results$paths  # Use our path results, which may be manually constructed
     
     if(is.data.frame(paths) && nrow(paths) > 0) {
-      # For manually constructed paths, we'll use our knowledge of the DAG to determine open paths
+      # For our complex DAG, determine open paths based on our knowledge of the structure
       if(identical(adj_name, "None")) {
-        # With no adjustment, both paths are open
+        # With no adjustment, all paths are open
         open_paths_count <- nrow(paths)
       } else if(identical(adj_name, "Z")) {
-        # When adjusting for Z, only the direct path remains open
-        open_paths_count <- 1
+        # When adjusting for Z, paths through Z are blocked but C path remains open
+        open_paths_count <- 2  # Direct path and X <- C -> Y
       } else if(identical(adj_name, "C")) {
-        # When adjusting for C (a collider), both paths are open, plus a new bias path
-        open_paths_count <- nrow(paths) + 1
+        # When adjusting for C, paths through C are blocked but Z paths remain open
+        open_paths_count <- 4  # Direct path and Z-related paths
       } else if(identical(adj_name, "Z, C")) {
-        # Adjusting for both Z and C: direct path is open, backdoor is blocked, collider bias exists
-        open_paths_count <- 2
+        # Adjusting for Z and C blocks all backdoor paths
+        open_paths_count <- 1  # Only direct path remains
+      } else if(identical(adj_name, "A, B, C")) {
+        # Adjusting for A, B, C also blocks all backdoor paths
+        open_paths_count <- 1  # Only direct path remains
       }
       
       results$adjustment_effects[[adj_name]] <- list(
@@ -503,8 +703,30 @@ display_dag_analysis <- function(dag) {
 #| results: 'hide'
 #| code-fold: false
 
-# First, let's run a diagnostic check to verify paths function is working correctly
-diagnostic_check <- function() {
+# Define the complex structure DAG
+complex_dag <- dagitty::dagitty("dag {
+  Y <- C
+  Y <- X
+  Y <- Z
+  Y <- B
+  X <- Z
+  X <- C
+  X <- A
+  Z <- A
+  Z <- B
+  
+  X [exposure]
+  Y [outcome]
+}")
+
+# Set coordinates for visualization
+coordinates(complex_dag) <- list(
+  x = c(X = 1, Y = 3, Z = 2, C = 2, A = 1, B = 3),
+  y = c(X = 2, Y = 2, Z = 3, C = 1, A = 3, B = 3)
+)
+
+# Run diagnostic check to verify paths function is working correctly
+diagnostic_check <- function(dag) {
   # Check the paths directly from the DAG
   cat("Diagnostic check for paths function:\n")
   direct_paths <- dagitty::paths(dag, from = "X", to = "Y")
@@ -514,18 +736,25 @@ diagnostic_check <- function() {
   # If paths not correctly detected, try re-encoding the DAG
   if(!is.data.frame(direct_paths) || nrow(direct_paths) == 0) {
     cat("\nPaths not detected with original DAG, trying re-encoding:\n")
-    # Re-encode the DAG with explicit syntax
+    # Re-encode the DAG with explicit syntax for our complex structure
     dag_reencoded <- dagitty::dagitty("dag {
-      X -> Y
-      Z -> X
-      Z -> Y
-      X -> C
-      Y -> C
+      Y <- C
+      Y <- X
+      Y <- Z
+      Y <- B
+      X <- Z
+      X <- C
+      X <- A
+      Z <- A
+      Z <- B
+      
+      X [exposure]
+      Y [outcome]
     }")
     
     coordinates(dag_reencoded) <- list(
-      x = c(X = 1, Y = 3, Z = 2, C = 2),
-      y = c(X = 2, Y = 2, Z = 3, C = 1)
+      x = c(X = 1, Y = 3, Z = 2, C = 2, A = 1, B = 3),
+      y = c(X = 2, Y = 2, Z = 3, C = 1, A = 3, B = 3)
     )
     
     reencoded_paths <- dagitty::paths(dag_reencoded, from = "X", to = "Y")
@@ -550,7 +779,7 @@ diagnostic_check <- function() {
 }
 
 # Run diagnostic check and get the appropriate DAG
-diagnostic_result <- diagnostic_check()
+diagnostic_result <- diagnostic_check(complex_dag)
 analysis_dag <- diagnostic_result$dag
 
 # Run the analysis with the verified DAG
@@ -667,18 +896,22 @@ if(is.data.frame(dag_results$paths) && nrow(dag_results$paths) > 0) {
 # this chunk only creates a data frame but doesn't display it
 
 ancestors_descendants_df <- data.frame(
-  Variable = c("X", "Y", "Z", "C"),
+  Variable = c("X", "Y", "Z", "C", "A", "B"),
   Ancestors = c(
     paste(dag_results$X_ancestors, collapse=", "),
     paste(dag_results$Y_ancestors, collapse=", "),
     paste(dag_results$Z_ancestors, collapse=", "),
-    paste(dag_results$C_ancestors, collapse=", ")
+    paste(dag_results$C_ancestors, collapse=", "),
+    paste(dag_results$A_ancestors, collapse=", "),
+    paste(dag_results$B_ancestors, collapse=", ")
   ),
   Descendants = c(
     paste(dag_results$X_descendants, collapse=", "),
     paste(dag_results$Y_descendants, collapse=", "),
     paste(dag_results$Z_descendants, collapse=", "),
-    paste(dag_results$C_descendants, collapse=", ")
+    paste(dag_results$C_descendants, collapse=", "),
+    paste(dag_results$A_descendants, collapse=", "),
+    paste(dag_results$B_descendants, collapse=", ")
   )
 )
 
@@ -694,13 +927,14 @@ ancestors_descendants_df <- data.frame(
 
 # Table 5: D-separation Results
 d_sep_df <- data.frame(
-  Variables = c("X and Y", "X and Y", "X and Y", "X and Y"),
-  Conditioning_On = c("{ }", "Z", "C", "Z, C"),
+  Variables = c("X and Y", "X and Y", "X and Y", "X and Y", "X and Y"),
+  Conditioning_On = c("{ }", "Z", "C", "Z, C", "A, B, C"),
   Is_D_Separated = c(
     ifelse(dag_results$d_sep_results$XY_given_nothing, "Yes", "No"),
     ifelse(dag_results$d_sep_results$XY_given_Z, "Yes", "No"),
     ifelse(dag_results$d_sep_results$XY_given_C, "Yes", "No"),
-    ifelse(dag_results$d_sep_results$XY_given_ZC, "Yes", "No")
+    ifelse(dag_results$d_sep_results$XY_given_ZC, "Yes", "No"),
+    ifelse(dag_results$d_sep_results$XY_given_ABC, "Yes", "No")
   )
 )
 
@@ -748,6 +982,7 @@ if(length(dag_results$unmeasured_impact) > 0) {
 
 ```
 
+
 ```{r}
 #| label: create-instruments-df
 #| echo: false
@@ -756,18 +991,45 @@ if(length(dag_results$unmeasured_impact) > 0) {
 
 # this chunk only creates a data frame but doesn't display it
 
-# Instrumental variables table
-if(!is.null(dag_results$instruments) && length(dag_results$instruments) > 0) {
-  instruments_df <- data.frame(
-    Instruments = dag_results$instruments
-  )
+# Instrumental variables table - properly handle dagitty.ivs objects
+if(exists("dag_results") && !is.null(dag_results$instruments)) {
+  # Convert dagitty.ivs object to character strings properly
+  if(inherits(dag_results$instruments, "dagitty.ivs")) {
+    # Extract the instrumental variables as character strings
+    iv_strings <- sapply(dag_results$instruments, function(iv) {
+      if(length(iv) > 0) {
+        paste(iv, collapse=", ")
+      } else {
+        "None"
+      }
+    })
+    
+    # Create data frame with proper string conversion
+    instruments_df <- data.frame(
+      Instruments = iv_strings,
+      stringsAsFactors = FALSE
+    )
+  } else if(length(dag_results$instruments) > 0) {
+    # Handle case where it's already in a simpler format
+    instruments_df <- data.frame(
+      Instruments = as.character(dag_results$instruments),
+      stringsAsFactors = FALSE
+    )
+  } else {
+    instruments_df <- data.frame(
+      Instruments = "No valid instrumental variables found",
+      stringsAsFactors = FALSE
+    )
+  }
 } else {
+  # If dag_results doesn't exist or no instruments found
   instruments_df <- data.frame(
-    Instruments = "No valid instrumental variables found"
+    Instruments = "No valid instrumental variables found",
+    stringsAsFactors = FALSE
   )
 }
-
 ```
+
 
 ```{r}
 #| label: create-dag-plot
@@ -778,9 +1040,9 @@ if(!is.null(dag_results$instruments) && length(dag_results$instruments) > 0) {
 # this chunk only creates a plot object but doesn't display it
 
 # Create a nice visualization of the DAG
-dag_plot <- ggdag(dag) + 
+dag_plot <- ggdag(causal_salad_dag3) + 
   theme_dag() +
-  label("DAG: X -> Y with Z as confounder and C as collider")
+  label("DAG: Complex Structure with Multiple Causal Pathways")
 
 
 ```
@@ -971,72 +1233,65 @@ DT::datatable(
 #| layout-ncol: 1
 
 # Create dagitty object with ggdag positioning
-dag <- dagitty("dag {
-  X -> Y
-  Z -> X
-  Z -> Y
-  X -> C
-  Y -> C
-  
-  X [exposure]
-  Y [outcome]
-}")
-
-# Set coordinates for visualization in digatty format
-coordinates(dag) <- list(
-  x = c(X = 1, Y = 3, Z = 2, C = 2),
-  y = c(X = 2, Y = 2, Z = 3, C = 1)
-)
-
-# Convert to ggdag format
-dag_tidy <- tidy_dagitty(dag)
+complex_dag_tidy <- tidy_dagitty(complex_dag)
 
 # Status plot showing exposure/outcome
-ggdag_status(dag_tidy) +
+ggdag_status(complex_dag_tidy) +
   theme_dag() +
   label("Status Plot: Exposure and Outcome")
 
 # Adjustment set visualization
-ggdag_adjustment_set(dag_tidy) +
+ggdag_adjustment_set(complex_dag_tidy) +
   theme_dag() +
   label("Adjustment Sets for X → Y")
 
 # Paths visualization
-ggdag_paths(dag_tidy) +
+ggdag_paths(complex_dag_tidy) +
   theme_dag() +
   label("All Paths between X and Y")
 
 ```
 <br>
 
+
 ## 4. Interpretation and Discussion
 
 ### 4.1 Key Insights about this DAG Structure
 
-This DAG combines two fundamental causal structures:
+This complex DAG illustrates several important causal structures:
 
-1. **Fork Structure (Z → X, Z → Y)**
-   - Z is a common cause of both X and Y, creating a confounding relationship
-   - This backdoor path must be blocked by conditioning on Z to identify the causal effect of X on Y
-   - Failure to adjust for Z would lead to confounding bias
+1. **Multiple Direct Effects on Y**
+   - X, Z, C, and B all directly cause Y
+   - This creates a complex outcome structure with multiple determinants
 
-2. **Collider Structure (X → C ← Y)**
-   - C is a common effect of both X and Y
-   - Conditioning on C opens a non-causal association between X and Y (collider bias)
-   - If we control for C in our analysis, we introduce bias rather than remove it
+2. **Multiple Causes of X**
+   - Z, C, and A all directly cause X
+   - This creates multiple backdoor paths that need to be addressed
+
+3. **Multiple Backdoor Paths Between X and Y**
+   - X ← Z → Y (Z is a direct confounder)
+   - X ← C → Y (C is a direct confounder)
+   - X ← A → Z → Y (A affects Y through multiple pathways)
+   - X ← Z ← B → Y (B creates an indirect backdoor path)
+
+4. **Root Causes with Widespread Effects**
+   - A influences both X directly and Z (which affects both X and Y)
+   - B influences both Z and Y directly
 
 
 ### 4.2 Proper Identification Strategy
 
 To identify the causal effect of X on Y:
-  - DO adjust for Z (blocks the confounding backdoor path)
-  - DO NOT adjust for C (would introduce collider bias)
-  - The minimal sufficient adjustment set is {Z}
+  - Either adjust for both direct confounders Z and C
+  - OR adjust for A, B, and C (this blocks paths through Z by controlling its ancestors)
+  - Adjusting for only Z or only C is insufficient as it leaves some backdoor paths open
+  - The minimal sufficient adjustment sets are {Z, C} or {A, B, C}
 
 <br>
 
-::: {.callout-note collapse="true"}
-# DAG Analysis Glossary - Click to Open and Close
+
+::: {.callout-note collapse="true" title="<span style='font-size: 20px;'>What is a Complex Causal Structure?</span> <span style='color: darkblue; font-size: 22px;'>(click to open and close)</span>"}
+
 
 ### Key DAG Terms and Concepts
 

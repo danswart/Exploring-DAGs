@@ -1,4 +1,12 @@
-/* AS OF 2025-04-10 /*
+/* Current as of: 2025-08-25 */
+
+
+
+/*-- scss:defaults --*/
+
+/*  // Sass Variables
+/*  // https://quarto.org/docs/output-formats/html-themes.html#sass-variables
+
 
 /* Edit the CSS properties in this file to create a custom
    Distill theme. Only edit values in the right column
@@ -9,12 +17,15 @@
 
 /* Optional: embed custom fonts here with `@import`          */
 /* This must remain at the top of this file.                 */
+
+/* Fonts */
 @import url('https://fonts.googleapis.com/css2?family=Lato');
 @import url('https://fonts.googleapis.com/css2?family=Fira+Mono');
 @import url('https://fonts.googleapis.com/css2?family=Montserrat');
 @import url('https://fonts.googleapis.com/css2?family=Cabin');         /* swart */
 @import url('https://fonts.googleapis.com/css2?family=Roboto+Slab');   /* swart */
 @import url('https://fonts.googleapis.com/css2?family=Schoolbell');    /* swart */
+
 
 
 .table {
@@ -110,6 +121,12 @@ body {
   color: black;
 }
 
+/* Alternative selector that's more specific */
+title {
+    color: #2c3e50;
+    font-weight: bold;
+}
+
 
 h1 {
   font-family: "Cabin", sans-serif;
@@ -135,7 +152,7 @@ h3 {
 h4 {
   font-family: "Cabin", sans-serif;
   font-size: 20px;
-  color: darkred;
+  color: blue;
 }
 
 
