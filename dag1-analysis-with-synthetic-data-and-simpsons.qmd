@@ -38,7 +38,7 @@ format:
 ---
 
 ```{r}
-#| label: init-setup
+#| label: setup
 #| include: false
 knitr::opts_chunk$set(echo = TRUE, message = TRUE, warning = TRUE)
 
