@@ -125,93 +125,8 @@ knitr:
 # Rstudio 2025.9.2.418 (Cucumberleaf Sunflower)
 # 
 
-# install.packages(c("mapview", "survey", "srvyr", "arcgislayers"))
-
-# census_api_key("95496766c51541ee6f402c1e1a8658581285b759", install = TRUE, overwrite = TRUE)
-
-
-# @ load libraries
-
-# library(BayesFactor) # Computation of Bayes Factors for Common Designs
-# library(boot) # Bootstrap Functions
-# library(broom) # Convert Statistical Objects into Tidy Tibbles
-# library(colorspace) # A Toolbox for Manipulating and Assessing Colors and Palettes
-# library(camcorder) # Record Your Plot History
-# library(car) # Companion to Applied Regression
-# library(causaldata) # Example Data Sets for Causal Inference Textbooks
-# library(corrplot) # Visualization of a Correlation Matrix
-# library(cowplot) # Streamlined Plot Theme and Plot Annotations for 'ggplot2'
-# library(dagitty) # Graphical Analysis of Structural Causal Models  
-# library(DiagrammeR) # Graph/Network Visualization 
-# library(dlookr) # Tools for Data Diagnosis, Exploration, Transformation 
-library(dplyr) # A Grammar of Data Manipulation
-# library(DT) # A Wrapper of the JavaScript Library 'DataTables'
-# library(dutchmasters) # Color Palettes based on Famous Paintings 
-# library(flexdashboard) # R Markdown Format for Flexible Dashboards
-# library(flextable) # Functions for Tabular Reporting  
-# library(forcats) # Tools for Working with Categorical Variables (Factors)
-# library(gganimate) # A Grammar of Animated Graphics
-# library(ggcorrplot) # Visualization of a Correlation Matrix using 'ggplot2'
-# library(ggdag) # Analyze and Create Elegant Directed Acyclic Graphs      
-# library(ggforce) # Accelerating 'ggplot2' 
-# library(gghighlight) # Highlight Lines and Points in 'ggplot2' 
-# library(ggplot2) # Create Elegant Data Visualizations Using the Grammar of Graphics
-# library(ggokabeito) # 'Okabe-Ito' Scales for 'ggplot2' and 'ggraph'
-# library(ggpubr) # 'ggplot2' Based Publication Ready Plots
-# library(ggrepel) # Automatically Position Non-Overlapping Text Labels with 'ggplot2'
-# library(ggtext) # Improved Text Rendering Support for 'ggplot2' 
-# library(ggthemes) # Extra Themes, Scales and Geoms for 'ggplot2'
-# library(glue) # Interpreted String Literals    
-# library(grid) # The Grid Graphics Package
-# library(gt) # Easily Create Presentation-Ready Display Tables
-# library(gtExtras) # Extending 'gt' for Beautiful HTML Tables
-# library(halfmoon) # Techniques to Build Better Balance
-# library(haven) # Import and Export 'SPSS', 'Stata' and 'SAS' Files
-# library(here) # A Simpler Way to Find Your Files
-# library(htmltools) # Tools for HTML
-# library(htmlwidgets) # HTML Widgets for R
-# library(janitor) # Simple Tools for Examining and Cleaning Dirty Data 
-# library(kableExtra) # Construct Complex Table with 'kable' and Pipe Syntax
-# library(knitr) # A General-Purpose Package for Dynamic Report Generation in R   
-# library(lavaan) # Latent Variable Analysis     
-# library(lubridate) # Make Dealing with Dates a Little Easier
-# library(monochromeR) # Easily Create, View and Use Monochrome Color Palettes 
-# library(paletteer) # Comprehensive Collection of Color Palettes 
-# library(patchwork) # The Composer of Plots
-# library(plotly) # Create Interactive Web Graphics via 'plotly.js'
-# library(ppcor) # Partial and Semi-Partial (Part) Correlation
-# library(propensity) # A Toolkit for Calculating and Working with Propensity Scores
-# library(prettycode) # Pretty Print R Code in the Terminal
-# library(PSW) # Propensity Score Weighting Methods for Dichotomous Treatments
-# library(purrr) # Functional Programming Tools
-# library(pwr) # Basic Functions for Power Analysis
-# library(qgraph) # Graph Plotting Methods, Psychometric Data Visualization and Graphical Model Estimation
-# library(qicharts2) # Quality Improvement Charts
-# library(RColorBrewer) # ColorBrewer Palettes 
-# library(readr) # Read Rectangular Text Data
-# library(readxl) # Read Excel Files
-# library(rethinking) # Statistical Rethinking book package
-# library(rlang) # Functions for Base Types and Core R and 'Tidyverse' Features
-# library(rsample) # General Resampling Infrastructure
-# library(scales) # Scale Functions for Visualization
-# library(shiny) # Web Application Framework for R
-# library(shinyobjects) # Access Reactive Data Interactively   
-# library(skimr) # Compact and Flexible Summaries of Data
-# library(stringr) # Simple, Consistent Wrappers for Common String Operations
-# library(tibble) # Simple Data Frames
-# library(tidycensus) # Load US Census Boundary and Attribute Data as 'tidyverse' and 'sf'-Ready Data Frames
-# library(tidylog) # Logging for 'dplyr' and 'tidyr' Functions
-# library(tidyr) # Tidy Messy Data
-# library(tidytext) # Text Mining using 'dplyr', 'ggplot2', and Other Tidy Tools 
-# library(tsibble) # Tidy Temporal Data Frames and Tools        
-# library(viridis) # Colorblind-Friendly Color Maps for R 
-# library(visdat) # Preliminary Visualization of Data
-# library(vroom) # Read and Write Rectangular Text Data Quickly    
-# library(wesanderson) # A Wes Anderson Palette Generator 
-# library(writexl) # Export Data Frames to Excel 'xlsx' Format 
-# library(WRS2) # A Collection of Robust Statistical Methods
-
-
+# All packages now called with namespace syntax (package::function)
+# No library() calls needed - reduces overhead and prevents namespace conflicts
 
 # Force dplyr's select to take precedence
 select <- dplyr::select
@@ -219,40 +134,31 @@ filter <- dplyr::filter
 
 # Options
 options(scipen = 999)
-options(qic.clshade = T) # NO LONGER NEEDED; CHARTS ALL PREPARED WITH GGPLOT2 ONLY
-options(qic.linecol = 'black') # NO LONGER NEEDED; CHARTS ALL PREPARED WITH GGPLOT2 ONLY
-options(qic.signalcol = "red") # NO LONGER NEEDED; CHARTS ALL PREPARED WITH GGPLOT2 ONLY
-options(qic.targetcol = "purple") # NO LONGER NEEDED; CHARTS ALL PREPARED WITH GGPLOT2 ONLY
-options(DT.options = list(dom = 'pBlfrti')) # Add buttons, filtering, and top (t) pagination controls
-options(shiny.maxRequestSize = 50 * 1024^2) # Set upload maximum to 50 MB
+options(qic.clshade = TRUE)
+options(qic.linecol = 'black')
+options(qic.signalcol = "red")
+options(qic.targetcol = "purple")
+options(DT.options = list(dom = 'pBlfrti'))
+options(shiny.maxRequestSize = 50 * 1024^2)
 options(tigris_use_cache = TRUE)
 
 
 # Set global theme for consistent plots
-ggplot2::theme_set(ggplot2::theme_minimal(base_size = 20) + 
-                   ggplot2::theme(plot.title = ggplot2::element_text(face = "bold",
-                                                                      size = 26),
-                                  plot.subtitle = ggplot2::element_text(face = "bold",
-                                                                         size = 24),
-                                  axis.title.x = ggplot2::element_text(face = "bold",
-                                                                        size = 22),
-                                  axis.title.y = ggplot2::element_text(face = "bold",
-                                                                        size = 22),
-                                  axis.text.x = ggplot2::element_text(face = "bold",
-                                                                       size = 22,
-                                                                       angle = 45,
-                                                                       hjust = 1),
-                                  legend.position = "bottom",
-                                  strip.text = ggplot2::element_text(face = "bold"),
-                                  panel.spacing.x = grid::unit(1.5,
-                                                                "cm"),
-                                  panel.spacing.y = grid::unit(1.5,
-                                                                "cm"),
-                                  plot.margin = ggplot2::margin(20,
-                                                                 20,
-                                                                 20,
-                                                                 20,
-                                                                 "pt")))
+ggplot2::theme_set(
+  ggplot2::theme_minimal(base_size = 20) + 
+  ggplot2::theme(
+    plot.title = ggplot2::element_text(face = "bold", size = 26),
+    plot.subtitle = ggplot2::element_text(face = "bold", size = 24),
+    axis.title.x = ggplot2::element_text(face = "bold", size = 22),
+    axis.title.y = ggplot2::element_text(face = "bold", size = 22),
+    axis.text.x = ggplot2::element_text(face = "bold", size = 22, angle = 45, hjust = 1),
+    legend.position = "bottom",
+    strip.text = ggplot2::element_text(face = "bold"),
+    panel.spacing.x = grid::unit(1.5, "cm"),
+    panel.spacing.y = grid::unit(1.5, "cm"),
+    plot.margin = ggplot2::margin(20, 20, 20, 20, "pt")
+  )
+)
 
 
 # Set seed for reproducibility
@@ -277,10 +183,8 @@ Let's start by visualizing the DAG structure we'll be testing.
 #| label: diagrammer-visualization-fork-collider
 #| fig-cap: "Directed Acyclic Graph of Fork and Collider Structure"
 
-library(DiagrammeR)
-
 # Create the DAG using DiagrammeR for detailed control
-fork_collider_dag_viz <- grViz("
+fork_collider_dag_viz <- DiagrammeR::grViz("
   digraph DAG {
     # Graph settings
     graph [layout=neato, margin=\"0.0, 0.0, 0.0, 0.0\"]
@@ -324,12 +228,8 @@ fork_collider_dag_viz
 ```{r dag-structure, out.width="100%"}
 #| fig-cap: "The conceptual DAG structure with fork (Z) and collider (C)"
 
-library(tidyverse)
-library(ggdag)
-library(dagitty)
-
 # Create the DAG using ggdag
-dag <- dagify(
+dag <- ggdag::dagify(
   Y ~ X + Z,
   X ~ Z,
   C ~ X + Y,
@@ -337,18 +237,20 @@ dag <- dagify(
   outcome = "Y"
 )
 
-# Set coordinates for visualization
-coordinates(dag) <- list(
+# Set coordinates for visualization - NOTE: coordinates is a dagitty function!
+dagitty::coordinates(dag) <- list(
   x = c(X = 1, Y = 3, Z = 2, C = 2),
   y = c(X = 2, Y = 2, Z = 3, C = 1)
 )
 
 # Visualize the DAG
-ggdag(dag) + 
-  theme_dag() +
-  ggtitle("DAG: X -> Y with Z as confounder and C as collider") +
-  theme(plot.title = element_text(size = 14, hjust = 0.5),
-        plot.margin = margin(0.5, 0.5, 0.5, 0.5, "cm"))
+ggdag::ggdag(dag) + 
+  ggdag::theme_dag() +
+  ggplot2::ggtitle("DAG: X -> Y with Z as confounder and C as collider") +
+  ggplot2::theme(
+    plot.title = ggplot2::element_text(size = 14, hjust = 0.5),
+    plot.margin = ggplot2::margin(0.5, 0.5, 0.5, 0.5, "cm")
+  )
 
 ```
 
@@ -359,12 +261,6 @@ We'll generate synthetic data that follows the causal structure defined in our D
 ```{r generate-data, out.width="100%"}
 #| fig-cap: "Correlation plot of synthetic data"
 
-library(tidyverse)
-library(ggdag)
-library(dagitty)
-library(DT)
-
-
 set.seed(2025) # For reproducibility
 
 # Number of observations
@@ -374,53 +270,56 @@ n <- 1000
 # 1. Start with the exogenous variable Z
 
 Z <- rnorm(n, mean = 50, sd = 10)
-Z <- round(Z, 3)  # Round to 4 decimal places
+Z <- round(Z, 3)  # Round to 3 decimal places
 
 # 2. X depends on Z (fork)
 X <- 0.5 * Z + rnorm(n, mean = 0, sd = 5)
-X <- round(X, 3)  # Round to 4 decimal places
+X <- round(X, 3)  # Round to 3 decimal places
 
 # 3. Y depends on both X and Z (fork and direct effect)
 Y <- 0.4 * X + 0.3 * Z + rnorm(n, mean = 0, sd = 5)
-Y <- round(Y, 3)  # Round to 4 decimal places
+Y <- round(Y, 3)  # Round to 3 decimal places
 
 # 4. C depends on both X and Y (collider)
 C <- 0.6 * X + 0.7 * Y + rnorm(n, mean = 0, sd = 5)
-C <- round(C, 3)  # Round to 4 decimal places
+C <- round(C, 3)  # Round to 3 decimal places
 
 # Combine into a data frame
-dag_data <- tibble(X = X, Y = Y, Z = Z, C = C)
+dag_data <- tibble::tibble(X = X, Y = Y, Z = Z, C = C)
 
 
-DT::datatable(head(dag_data),
-              options = list(
-                pageLength = 6,
-                searching = TRUE,
-                info = FALSE,
-                paging = FALSE,
-                scrollX = TRUE  # Enable horizontal scrolling if needed
-                             ),
-              class = 'cell-border stripe compact responsive',
-              rownames = FALSE,
-              width = "90%"
-              )
+DT::datatable(
+  head(dag_data),
+  options = list(
+    pageLength = 6,
+    searching = TRUE,
+    info = FALSE,
+    paging = FALSE,
+    scrollX = TRUE
+  ),
+  class = 'cell-border stripe compact responsive',
+  rownames = FALSE,
+  width = "90%"
+)
 
 # Correlation matrix visualization to verify relationships
 cor_matrix <- cor(dag_data)
 
 # Use the built-in color sequences in corrplot
-corrplot::corrplot(cor_matrix, 
-                  method = "color", 
-                  type = "upper",
-                  addCoef.col = "black", 
-                  number.cex = 1.5,
-                  tl.cex = 1.2,
-                  tl.col = "darkblue", 
-                  tl.srt = 45,
-                  col = colorRampPalette(c("white", "lightgreen", "pink", "orange", "lightblue"))(5),
-                  diag = TRUE,
-                  title = "Correlation Matrix of Synthetic Data",
-                  mar = c(0, 0, 2, 0))  # Add this line: increases top margin for title
+corrplot::corrplot(
+  cor_matrix, 
+  method = "color", 
+  type = "upper",
+  addCoef.col = "black", 
+  number.cex = 1.5,
+  tl.cex = 1.2,
+  tl.col = "darkblue", 
+  tl.srt = 45,
+  col = grDevices::colorRampPalette(c("white", "lightgreen", "pink", "orange", "lightblue"))(5),
+  diag = TRUE,
+  title = "Correlation Matrix of Synthetic Data",
+  mar = c(0, 0, 2, 0)
+)
 
 # Add a description of the correlation levels
 text(x = 0.5, y = -0.1, 
@@ -437,20 +336,20 @@ Let's first look at the marginal relationships between variables without any con
 #| fig-cap: "Scatter plots showing marginal relationships between variables"
 
 # Create a panel of scatter plots
-dag_data %>%
-  pivot_longer(-X, names_to = "variable", values_to = "value") %>%
-  ggplot(aes(x = X, y = value)) +
-  geom_point(alpha = 0.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "blue") +
-  facet_wrap(~ variable, scales = "free") +
-  labs(title = "Relationship between X and other variables",
-       y = "Variable Value")
+dag_data |>
+  tidyr::pivot_longer(-X, names_to = "variable", values_to = "value") |>
+  ggplot2::ggplot(ggplot2::aes(x = X, y = value)) +
+  ggplot2::geom_point(alpha = 0.5) +
+  ggplot2::geom_smooth(method = "lm", se = TRUE, color = "blue") +
+  ggplot2::facet_wrap(~ variable, scales = "free") +
+  ggplot2::labs(title = "Relationship between X and other variables",
+                y = "Variable Value")
 
 # Also look at Z's relationship with Y
-ggplot(dag_data, aes(x = Z, y = Y)) +
-  geom_point(alpha = 0.5) +
-  geom_smooth(method = "lm", se = TRUE, color = "red") +
-  labs(title = "Relationship between Z and Y (Confounder Effect)")
+ggplot2::ggplot(dag_data, ggplot2::aes(x = Z, y = Y)) +
+  ggplot2::geom_point(alpha = 0.5) +
+  ggplot2::geom_smooth(method = "lm", se = TRUE, color = "red") +
+  ggplot2::labs(title = "Relationship between Z and Y (Confounder Effect)")
 
 ```
 
@@ -470,25 +369,27 @@ model_naive <- lm(Y ~ X, data = dag_data)
 model_adjusted <- lm(Y ~ X + Z, data = dag_data)
 
 # Compare coefficients
-models_comparison <- bind_rows(
-  tidy(model_naive) %>% mutate(model = "Naive (Y ~ X)"),
-  tidy(model_adjusted) %>% mutate(model = "Adjusted (Y ~ X + Z)")
-) %>%
-  filter(term == "X") %>%
-  dplyr::select(model, term, estimate, std.error, p.value) %>% 
-  mutate(across(where(is.numeric), ~round(., 3)))  # Round all numeric columns to 4 decimal places
+models_comparison <- dplyr::bind_rows(
+  broom::tidy(model_naive) |> dplyr::mutate(model = "Naive (Y ~ X)"),
+  broom::tidy(model_adjusted) |> dplyr::mutate(model = "Adjusted (Y ~ X + Z)")
+) |>
+  dplyr::filter(term == "X") |>
+  dplyr::select(model, term, estimate, std.error, p.value) |> 
+  dplyr::mutate(dplyr::across(dplyr::where(is.numeric), ~round(., 3)))
 
 # Display comparison
-DT::datatable(models_comparison,
-              options = list(
-                pageLength = 10,
-                ordering = TRUE,
-                searching = FALSE,
-                scrollX = TRUE
-              ),
-              class = 'cell-border stripe compact responsive',
-              rownames = FALSE,
-              width = "90%")
+DT::datatable(
+  models_comparison,
+  options = list(
+    pageLength = 10,
+    ordering = TRUE,
+    searching = FALSE,
+    scrollX = TRUE
+  ),
+  class = 'cell-border stripe compact responsive',
+  rownames = FALSE,
+  width = "90%"
+)
 ```
 
 ### A2. Residual Diagnostics
@@ -541,25 +442,27 @@ model_true <- lm(Y ~ X + Z, data = dag_data)
 model_collider_bias <- lm(Y ~ X + Z + C, data = dag_data)
 
 # Compare coefficient on X
-collider_comparison <- bind_rows(
-  tidy(model_true) %>% mutate(model = "Correct (Y ~ X + Z)"),
-  tidy(model_collider_bias) %>% mutate(model = "Collider Bias (Y ~ X + Z + C)")
-) %>%
-  filter(term == "X") %>%
-  dplyr::select(model, term, estimate, std.error, p.value) %>% 
-  mutate(across(where(is.numeric), ~round(., 3)))  # Round all numeric columns to 4 decimal places
+collider_comparison <- dplyr::bind_rows(
+  broom::tidy(model_true) |> dplyr::mutate(model = "Correct (Y ~ X + Z)"),
+  broom::tidy(model_collider_bias) |> dplyr::mutate(model = "Collider Bias (Y ~ X + Z + C)")
+) |>
+  dplyr::filter(term == "X") |>
+  dplyr::select(model, term, estimate, std.error, p.value) |> 
+  dplyr::mutate(dplyr::across(dplyr::where(is.numeric), ~round(., 3)))
 
 # Display comparison
-DT::datatable(collider_comparison,
-              options = list(
-                pageLength = 10,
-                ordering = TRUE,
-                searching = FALSE,
-                scrollX = TRUE
-              ),
-              class = 'cell-border stripe compact responsive',
-              rownames = FALSE,
-              width = "90%")
+DT::datatable(
+  collider_comparison,
+  options = list(
+    pageLength = 10,
+    ordering = TRUE,
+    searching = FALSE,
+    scrollX = TRUE
+  ),
+  class = 'cell-border stripe compact responsive',
+  rownames = FALSE,
+  width = "90%"
+)
 
 # Calculate the collider bias
 collider_bias <- collider_comparison$estimate[2] - collider_comparison$estimate[1]
@@ -583,30 +486,34 @@ Let's visualize how the relationship between X and Y changes across different st
 #| layout-ncol: 1
 
 # Create Z strata
-dag_data <- dag_data %>%
-  mutate(Z_strata = cut(Z, breaks = 3, labels = c("Low Z", "Medium Z", "High Z")))
+dag_data <- dag_data |>
+  dplyr::mutate(Z_strata = cut(Z, breaks = 3, labels = c("Low Z", "Medium Z", "High Z")))
 
 # Stratified analysis by Z (confounder)
-ggplot(dag_data, aes(x = X, y = Y, color = Z_strata)) +
-  geom_point(alpha = 0.5) +
-  geom_smooth(method = "lm", se = TRUE) +
-  facet_wrap(~ Z_strata) +
-  labs(title = "X-Y Relationship Stratified by Z (Confounder)",
-       subtitle = "Properly adjusting for the confounder") +
-  theme(legend.position = "bottom")
+ggplot2::ggplot(dag_data, ggplot2::aes(x = X, y = Y, color = Z_strata)) +
+  ggplot2::geom_point(alpha = 0.5) +
+  ggplot2::geom_smooth(method = "lm", se = TRUE) +
+  ggplot2::facet_wrap(~ Z_strata) +
+  ggplot2::labs(
+    title = "X-Y Relationship Stratified by Z (Confounder)",
+    subtitle = "Properly adjusting for the confounder"
+  ) +
+  ggplot2::theme(legend.position = "bottom")
 
 # Create C strata
-dag_data <- dag_data %>%
-  mutate(C_strata = cut(C, breaks = 3, labels = c("Low C", "Medium C", "High C")))
+dag_data <- dag_data |>
+  dplyr::mutate(C_strata = cut(C, breaks = 3, labels = c("Low C", "Medium C", "High C")))
 
 # Stratified analysis by C (collider)
-ggplot(dag_data, aes(x = X, y = Y, color = C_strata)) +
-  geom_point(alpha = 0.5) +
-  geom_smooth(method = "lm", se = TRUE) +
-  facet_wrap(~ C_strata) +
-  labs(title = "X-Y Relationship Stratified by C (Collider)",
-       subtitle = "Illustrating collider bias when stratifying incorrectly") +
-  theme(legend.position = "bottom")
+ggplot2::ggplot(dag_data, ggplot2::aes(x = X, y = Y, color = C_strata)) +
+  ggplot2::geom_point(alpha = 0.5) +
+  ggplot2::geom_smooth(method = "lm", se = TRUE) +
+  ggplot2::facet_wrap(~ C_strata) +
+  ggplot2::labs(
+    title = "X-Y Relationship Stratified by C (Collider)",
+    subtitle = "Illustrating collider bias when stratifying incorrectly"
+  ) +
+  ggplot2::theme(legend.position = "bottom")
 ```
 
 The stratification analysis visually demonstrates:
@@ -634,20 +541,20 @@ sem_model <- '
 '
 
 # Fit the model
-sem_fit <- sem(sem_model, data = dag_data)
+sem_fit <- lavaan::sem(sem_model, data = dag_data)
 
 # Display the results
 summary(sem_fit, standardized = TRUE, fit.measures = TRUE)
 
 # Extract and display path coefficients
-sem_coefs <- parameterEstimates(sem_fit) %>%
-  filter(op %in% c("~", ":=")) %>%
-  select(lhs, op, rhs, est, se, z, pvalue, ci.lower, ci.upper)
+sem_coefs <- lavaan::parameterEstimates(sem_fit) |>
+  dplyr::filter(op %in% c("~", ":=")) |>
+  dplyr::select(lhs, op, rhs, est, se, z, pvalue, ci.lower, ci.upper)
 
 # Create a data frame with the formatted columns first
-sem_results <- sem_coefs %>%
-  mutate(
-    Path = case_when(
+sem_results <- sem_coefs |>
+  dplyr::mutate(
+    Path = dplyr::case_when(
       op == "~" ~ paste(lhs, "<-", rhs),
       op == ":=" & rhs == "a*b" ~ "Indirect effect (X <- Z -> Y)",
       op == ":=" & rhs == "b + XY_indirect" ~ "Total effect of X on Y",
@@ -658,8 +565,8 @@ sem_results <- sem_coefs %>%
     `Z-value` = round(z, 3),
     `P-value` = round(pvalue, 3),
     `95% CI` = paste0("[", round(ci.lower, 3), ", ", round(ci.upper, 3), "]")
-  ) %>%
-  select(Path, Estimate, SE, `Z-value`, `P-value`, `95% CI`)
+  ) |>
+  dplyr::select(Path, Estimate, SE, `Z-value`, `P-value`, `95% CI`)
 
 # Display the results table
 DT::datatable(
@@ -670,9 +577,9 @@ DT::datatable(
     searching = FALSE,
     scrollX = TRUE
   ),
- class = 'cell-border stripe compact responsive',
- rownames = FALSE,
- width = "90%"
+  class = 'cell-border stripe compact responsive',
+  rownames = FALSE,
+  width = "90%"
 )
 ```
 
@@ -684,8 +591,6 @@ Let's test the conditional independence claims implied by the DAG using partial 
 
 ```{r d-separation}
 #| tbl-cap: "D-Separation Tests"
-
-# Let's rewrite the d-separation testing code completely to avoid the issues
 
 # Create manual tests for key relationships in our DAG
 # 1. Test X and Y without conditioning (should be correlated)
@@ -722,7 +627,7 @@ resid_y_given_zc <- residuals(model_y_zc)
 cor_xy_given_zc <- cor.test(resid_x_given_zc, resid_y_given_zc)
 
 # Compile results
-independence_results <- tibble(
+independence_results <- tibble::tibble(
   Claim = c("X ⊥ Y", "X ⊥ Y | Z", "X ⊥ Y | C", "X ⊥ Y | Z,C"),
   Correlation = c(
     cor_xy$estimate, 
@@ -745,17 +650,19 @@ independence_results <- tibble(
 )
 
 # Display the results
-DT::datatable(independence_results %>% 
-                mutate(across(c(Correlation, `P-value`), ~round(., 3))),
-              options = list(
-                pageLength = 10,
-                ordering = TRUE,
-                searching = FALSE,
-                scrollX = TRUE
-              ),
-              class = 'cell-border stripe compact responsive',
-              rownames = FALSE,
-              width = "90%")
+DT::datatable(
+  independence_results |> 
+    dplyr::mutate(dplyr::across(c(Correlation, `P-value`), ~round(., 3))),
+  options = list(
+    pageLength = 10,
+    ordering = TRUE,
+    searching = FALSE,
+    scrollX = TRUE
+  ),
+  class = 'cell-border stripe compact responsive',
+  rownames = FALSE,
+  width = "90%"
+)
 ```
 
 The d-separation tests reveal:
@@ -780,7 +687,7 @@ models <- list(
 )
 
 # Extract coefficients for X (without rounding yet)
-adjustment_results <- tibble(
+adjustment_results <- tibble::tibble(
   `Adjustment Set` = names(models),
   `X Coefficient` = sapply(models, function(m) coef(m)["X"]),
   `Std. Error` = sapply(models, function(m) summary(m)$coefficients["X", "Std. Error"]),
@@ -792,24 +699,26 @@ adjustment_results <- tibble(
 # Calculate bias relative to the correctly specified model (adjusting for Z only)
 true_effect <- adjustment_results$`X Coefficient`[adjustment_results$`Adjustment Set` == "Z"]
 
-adjustment_results <- adjustment_results %>%
-  mutate(
+adjustment_results <- adjustment_results |>
+  dplyr::mutate(
     Bias = `X Coefficient` - true_effect,
     `Percent Bias` = (Bias / true_effect) * 100
-  ) %>%
-  mutate(across(where(is.numeric), ~round(., 3)))  # Round all numeric columns to 4 decimal places
+  ) |>
+  dplyr::mutate(dplyr::across(dplyr::where(is.numeric), ~round(., 3)))
 
 # Display the results
-DT::datatable(adjustment_results,
-              options = list(
-                pageLength = 10,
-                ordering = TRUE,
-                searching = FALSE,
-                scrollX = TRUE
-              ),
-              class = 'cell-border stripe compact responsive',
-              rownames = FALSE,
-              width = "90%")
+DT::datatable(
+  adjustment_results,
+  options = list(
+    pageLength = 10,
+    ordering = TRUE,
+    searching = FALSE,
+    scrollX = TRUE
+  ),
+  class = 'cell-border stripe compact responsive',
+  rownames = FALSE,
+  width = "90%"
+)
 ```
 
 ## 10. Visualization of Causal Effects Under Different Adjustments
@@ -820,22 +729,27 @@ Let's visualize how the estimated causal effect of X on Y changes under differen
 #| fig-cap: "Visualization of causal effect estimates under different adjustment strategies"
 
 # Create a forest plot of X coefficients
-adjustment_results %>%
-  mutate(`Adjustment Set` = factor(`Adjustment Set`, 
-                                  levels = c("None", "Z", "C", "Z, C"))) %>%
-  ggplot(aes(x = `X Coefficient`, y = `Adjustment Set`, 
-             xmin = `X Coefficient` - 1.96 * `Std. Error`, 
-             xmax = `X Coefficient` + 1.96 * `Std. Error`,
-             color = `Adjustment Set` == "Z")) +
-  geom_pointrange() +
-  geom_vline(xintercept = true_effect, linetype = "dashed", color = "darkgreen") +
-  scale_color_manual(values = c("red", "darkgreen")) +
-  labs(title = "Causal Effect Estimates Under Different Adjustment Strategies",
-       subtitle = "Dashed line represents the true causal effect (adjusting for Z only)",
-       x = "Estimated Causal Effect of X on Y",
-       y = "Adjustment Strategy") +
-  theme_minimal() +
-  theme(legend.position = "none")
+adjustment_results |>
+  dplyr::mutate(`Adjustment Set` = factor(`Adjustment Set`, 
+                                          levels = c("None", "Z", "C", "Z, C"))) |>
+  ggplot2::ggplot(ggplot2::aes(
+    x = `X Coefficient`, 
+    y = `Adjustment Set`, 
+    xmin = `X Coefficient` - 1.96 * `Std. Error`, 
+    xmax = `X Coefficient` + 1.96 * `Std. Error`,
+    color = `Adjustment Set` == "Z"
+  )) +
+  ggplot2::geom_pointrange() +
+  ggplot2::geom_vline(xintercept = true_effect, linetype = "dashed", color = "darkgreen") +
+  ggplot2::scale_color_manual(values = c("red", "darkgreen")) +
+  ggplot2::labs(
+    title = "Causal Effect Estimates Under Different Adjustment Strategies",
+    subtitle = "Dashed line represents the true causal effect (adjusting for Z only)",
+    x = "Estimated Causal Effect of X on Y",
+    y = "Adjustment Strategy"
+  ) +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(legend.position = "none")
 ```
 
 ## 11. Bayesian Causal Inference Analysis
@@ -854,26 +768,18 @@ Let's implement this approach using the `rethinking` package:
 #| warning: false
 #| results: 'hide'
 
-# Load required packages if not already loaded
-if (!require("rethinking")) {
-  # Install if needed (uncomment if needed)
-  # install.packages("cmdstanr", repos = c("https://mc-stan.org/r-packages/", getOption("repos")))
-  # install.packages("rethinking", dependencies = TRUE, repos = c("https://mc-stan.org/r-packages/", getOption("repos")))
-  library(rethinking)
-}
-
 # Standardize variables for better model fitting
 # First check which variables exist in the dataset
 dag_var_names <- names(dag_data)
 print(paste("Variables in dag_data:", paste(dag_var_names, collapse=", ")))
 
 # Standardize all numeric variables in the dataset
-dag_data_std <- dag_data %>%
-  mutate(across(where(is.numeric), scale))
+dag_data_std <- dag_data |>
+  dplyr::mutate(dplyr::across(dplyr::where(is.numeric), scale))
 
 # Define and fit Bayesian models for different adjustment sets
 # 1. No adjustment (biased)
-m_none <- quap(
+m_none <- rethinking::quap(
   alist(
     Y ~ dnorm(mu, sigma),
     mu <- a + bX * X,
@@ -885,7 +791,7 @@ m_none <- quap(
 )
 
 # 2. Adjusting for Z (confounder)
-m_adjusted <- quap(
+m_adjusted <- rethinking::quap(
   alist(
     Y ~ dnorm(mu, sigma),
     mu <- a + bX * X + bZ * Z,
@@ -898,7 +804,7 @@ m_adjusted <- quap(
 )
 
 # 3. Full model with collider (typically not recommended)
-m_full <- quap(
+m_full <- rethinking::quap(
   alist(
     Y ~ dnorm(mu, sigma),
     mu <- a + bX * X + bZ * Z + bC * C,
@@ -918,14 +824,14 @@ Now let's extract the posterior distributions and compile the results:
 #| label: extract-bayesian-posteriors
 
 # Extract samples from the posterior distributions
-post_none <- extract.samples(m_none)
-post_adjusted <- extract.samples(m_adjusted)
-post_full <- extract.samples(m_full)
+post_none <- rethinking::extract.samples(m_none)
+post_adjusted <- rethinking::extract.samples(m_adjusted)
+post_full <- rethinking::extract.samples(m_full)
 
 # Create a function to summarize posteriors
 summarize_posterior <- function(posterior, name) {
   data.frame(
-    Adjustment_Set = name,  # Using underscore to avoid conversion issues
+    Adjustment_Set = name,
     Mean = mean(posterior$bX),
     Median = median(posterior$bX),
     SD = sd(posterior$bX),
@@ -943,12 +849,13 @@ bayesian_results <- rbind(
 )
 
 # Display the results using DT
-library(DT)
-datatable(bayesian_results, 
-          caption = "Bayesian estimates of the causal effect of X on Y under different adjustment strategies",
-          options = list(pageLength = 5, dom = 't'),
-          rownames = FALSE) %>%
-  formatRound(columns = c("Mean", "Median", "SD", "CI_Lower", "CI_Upper", "Width"), digits = 3)
+DT::datatable(
+  bayesian_results, 
+  caption = "Bayesian estimates of the causal effect of X on Y under different adjustment strategies",
+  options = list(pageLength = 5, dom = 't'),
+  rownames = FALSE
+) |>
+  DT::formatRound(columns = c("Mean", "Median", "SD", "CI_Lower", "CI_Upper", "Width"), digits = 3)
 ```
 
 Let's visualize the posterior distributions to better understand the uncertainty in our causal effect estimates:
@@ -967,34 +874,41 @@ all_posteriors <- data.frame(
 )
 
 # Convert to long format for plotting
-library(tidyr)
-long_posteriors <- all_posteriors %>%
-  pivot_longer(cols = everything(), 
-               names_to = "Adjustment_Set", 
-               values_to = "Effect_Estimate")
+long_posteriors <- all_posteriors |>
+  tidyr::pivot_longer(
+    cols = dplyr::everything(), 
+    names_to = "Adjustment_Set", 
+    values_to = "Effect_Estimate"
+  )
 
 # Set factor levels for consistent ordering
-long_posteriors$Adjustment_Set <- factor(long_posteriors$Adjustment_Set,
-                                        levels = c("None", "Z_only", "Z_and_C"))
+long_posteriors$Adjustment_Set <- factor(
+  long_posteriors$Adjustment_Set,
+  levels = c("None", "Z_only", "Z_and_C")
+)
 
 # Plot density curves for all adjustment sets
-ggplot(long_posteriors, aes(x = Effect_Estimate, fill = Adjustment_Set)) +
-  geom_density(alpha = 0.5) +
-  geom_vline(data = bayesian_results, 
-             aes(xintercept = Mean, color = Adjustment_Set),
-             linetype = "dashed") +
-  scale_fill_brewer(palette = "Set1") +
-  scale_color_brewer(palette = "Set1") +
-  labs(
+ggplot2::ggplot(long_posteriors, ggplot2::aes(x = Effect_Estimate, fill = Adjustment_Set)) +
+  ggplot2::geom_density(alpha = 0.5) +
+  ggplot2::geom_vline(
+    data = bayesian_results, 
+    ggplot2::aes(xintercept = Mean, color = Adjustment_Set),
+    linetype = "dashed"
+  ) +
+  ggplot2::scale_fill_brewer(palette = "Set1") +
+  ggplot2::scale_color_brewer(palette = "Set1") +
+  ggplot2::labs(
     title = "Posterior Distributions of the Causal Effect of X on Y",
     subtitle = "Under different adjustment strategies",
     x = "Causal Effect (Standardized)",
     y = "Density"
   ) +
-  theme_minimal() +
-  theme(legend.position = "bottom") +
-  guides(fill = guide_legend(title = "Adjustment Strategy"),
-         color = guide_legend(title = "Adjustment Strategy"))
+  ggplot2::theme_minimal() +
+  ggplot2::theme(legend.position = "bottom") +
+  ggplot2::guides(
+    fill = ggplot2::guide_legend(title = "Adjustment Strategy"),
+    color = ggplot2::guide_legend(title = "Adjustment Strategy")
+  )
 ```
 
 For a more direct comparison with our frequentist approach, let's create a forest plot:
@@ -1009,21 +923,27 @@ For a more direct comparison with our frequentist approach, let's create a fores
 true_effect_std <- 0.4 / sd(dag_data$Y) * sd(dag_data$X)
 
 # Create forest plot
-ggplot(bayesian_results, 
-       aes(x = Mean, y = Adjustment_Set, 
-           xmin = CI_Lower, xmax = CI_Upper,
-           color = Adjustment_Set == "Z only")) +
-  geom_pointrange(size = 1) +
-  geom_vline(xintercept = true_effect_std, linetype = "dashed", color = "darkgreen") +
-  scale_color_manual(values = c("red", "darkgreen", "red")) +
-  labs(
+ggplot2::ggplot(
+  bayesian_results, 
+  ggplot2::aes(
+    x = Mean, 
+    y = Adjustment_Set, 
+    xmin = CI_Lower, 
+    xmax = CI_Upper,
+    color = Adjustment_Set == "Z only"
+  )
+) +
+  ggplot2::geom_pointrange(size = 1) +
+  ggplot2::geom_vline(xintercept = true_effect_std, linetype = "dashed", color = "darkgreen") +
+  ggplot2::scale_color_manual(values = c("red", "darkgreen", "red")) +
+  ggplot2::labs(
     title = "Bayesian Causal Effect Estimates Under Different Adjustment Strategies",
     subtitle = "Green represents the correctly specified adjustment set (Z only)",
     x = "Estimated Causal Effect of X on Y (Standardized)",
     y = "Adjustment Strategy"
   ) +
-  theme_minimal() +
-  theme(legend.position = "none")
+  ggplot2::theme_minimal() +
+  ggplot2::theme(legend.position = "none")
 ```
 
 ### Interpretation of Bayesian Causal Analysis
@@ -1078,16 +998,18 @@ overall_cor <- cor(dag_data$X, dag_data$Y)
 overall_slope <- coef(lm(Y ~ X, data = dag_data))[2]
 
 # Create Z quartiles for stratified analysis
-dag_data$Z_quartile <- cut(dag_data$Z, 
-                          breaks = quantile(dag_data$Z, probs = c(0, 0.25, 0.5, 0.75, 1)), 
-                          labels = c("Q1 (Low)", "Q2", "Q3", "Q4 (High)"),
-                          include.lowest = TRUE)
+dag_data$Z_quartile <- cut(
+  dag_data$Z, 
+  breaks = quantile(dag_data$Z, probs = c(0, 0.25, 0.5, 0.75, 1)), 
+  labels = c("Q1 (Low)", "Q2", "Q3", "Q4 (High)"),
+  include.lowest = TRUE
+)
 
 # Calculate correlations and slopes within each Z quartile
-stratified_results <- dag_data %>%
-  group_by(Z_quartile) %>%
-  summarise(
-    n = n(),
+stratified_results <- dag_data |>
+  dplyr::group_by(Z_quartile) |>
+  dplyr::summarise(
+    n = dplyr::n(),
     cor_XY = cor(X, Y),
     slope_XY = coef(lm(Y ~ X))[2],
     mean_Z = mean(Z),
@@ -1108,18 +1030,20 @@ overall_results <- data.frame(
 )
 
 # Combine results
-simpson_analysis <- bind_rows(overall_results, stratified_results)
+simpson_analysis <- dplyr::bind_rows(overall_results, stratified_results)
 
 # Round for display
-simpson_analysis <- simpson_analysis %>%
-  mutate(across(where(is.numeric), ~ round(., 3)))
+simpson_analysis <- simpson_analysis |>
+  dplyr::mutate(dplyr::across(dplyr::where(is.numeric), ~ round(., 3)))
 
 # Display results
-DT::datatable(simpson_analysis,
-              caption = "Simpson's Paradox Detection: Overall vs Stratified Analysis",
-              options = list(pageLength = 10, scrollX = TRUE),
-              colnames = c("Z Group", "N", "Correlation X-Y", "Slope X→Y", 
-                          "Mean Z", "Mean X", "Mean Y")) %>%
+DT::datatable(
+  simpson_analysis,
+  caption = "Simpson's Paradox Detection: Overall vs Stratified Analysis",
+  options = list(pageLength = 10, scrollX = TRUE),
+  colnames = c("Z Group", "N", "Correlation X-Y", "Slope X→Y", 
+              "Mean Z", "Mean X", "Mean Y")
+) |>
   DT::formatRound(columns = c("cor_XY", "slope_XY", "mean_Z", "mean_X", "mean_Y"), digits = 3)
 ```
 
@@ -1170,10 +1094,12 @@ simpson_summary <- data.frame(
 )
 
 # Display summary
-DT::datatable(simpson_summary,
-              caption = "Simpson's Paradox Status Summary",
-              options = list(pageLength = 10, dom = 't'),
-              colnames = c("Measure", "Value"))
+DT::datatable(
+  simpson_summary,
+  caption = "Simpson's Paradox Status Summary",
+  options = list(pageLength = 10, dom = 't'),
+  colnames = c("Measure", "Value")
+)
 ```
 
 ### 12.3 Testing for Simpson's Paradox by Groups
@@ -1189,10 +1115,10 @@ Let's examine the phenomenon more systematically by creating binary high/low gro
 dag_data$Z_binary <- ifelse(dag_data$Z > median(dag_data$Z), "High Z", "Low Z")
 
 # Calculate slopes and correlations for binary groups
-binary_analysis <- dag_data %>%
-  group_by(Z_binary) %>%
-  summarise(
-    n = n(),
+binary_analysis <- dag_data |>
+  dplyr::group_by(Z_binary) |>
+  dplyr::summarise(
+    n = dplyr::n(),
     cor_XY = cor(X, Y),
     slope_XY = coef(lm(Y ~ X))[2],
     intercept_XY = coef(lm(Y ~ X))[1],
@@ -1219,18 +1145,22 @@ for (group in unique(dag_data$Z_binary)) {
 }
 
 # Round for display
-binary_analysis <- binary_analysis %>%
-  mutate(across(where(is.numeric), ~ round(., 3)))
+binary_analysis <- binary_analysis |>
+  dplyr::mutate(dplyr::across(dplyr::where(is.numeric), ~ round(., 3)))
 
 # Display binary group analysis
-DT::datatable(binary_analysis,
-              caption = "Binary Group Analysis for Simpson's Paradox Detection",
-              options = list(pageLength = 10, scrollX = TRUE),
-              colnames = c("Z Group", "N", "Correlation", "Slope", "Intercept", 
-                          "Mean Z", "Mean X", "Mean Y", "Slope SE", "CI Lower", "CI Upper")) %>%
-  DT::formatRound(columns = c("cor_XY", "slope_XY", "intercept_XY", "mean_Z", 
-                              "mean_X", "mean_Y", "slope_se", "slope_ci_lower", "slope_ci_upper"), 
-                  digits = 3)
+DT::datatable(
+  binary_analysis,
+  caption = "Binary Group Analysis for Simpson's Paradox Detection",
+  options = list(pageLength = 10, scrollX = TRUE),
+  colnames = c("Z Group", "N", "Correlation", "Slope", "Intercept", 
+              "Mean Z", "Mean X", "Mean Y", "Slope SE", "CI Lower", "CI Upper")
+) |>
+  DT::formatRound(
+    columns = c("cor_XY", "slope_XY", "intercept_XY", "mean_Z", 
+                "mean_X", "mean_Y", "slope_se", "slope_ci_lower", "slope_ci_upper"), 
+    digits = 3
+  )
 ```
 
 ### 12.4 Visual Detection of Simpson's Paradox
@@ -1247,46 +1177,71 @@ Let's create visualizations to clearly demonstrate whether Simpson's Paradox is 
 #| layout-ncol: 1
 
 # Plot 1: Overall vs Stratified (Quartiles)
-p1 <- ggplot(dag_data, aes(x = X, y = Y)) +
+p1 <- ggplot2::ggplot(dag_data, ggplot2::aes(x = X, y = Y)) +
   # Overall regression line
-  geom_smooth(method = "lm", formula = y ~ x, color = "red", linewidth = 1.5, 
-              linetype = "dashed", se = FALSE) +
+  ggplot2::geom_smooth(
+    method = "lm", 
+    formula = y ~ x, 
+    color = "red", 
+    linewidth = 1.5, 
+    linetype = "dashed", 
+    se = FALSE
+  ) +
   # Stratified regression lines
-  geom_smooth(aes(color = Z_quartile), method = "lm", formula = y ~ x, 
-              linewidth = 1, se = FALSE) +
+  ggplot2::geom_smooth(
+    ggplot2::aes(color = Z_quartile), 
+    method = "lm", 
+    formula = y ~ x, 
+    linewidth = 1, 
+    se = FALSE
+  ) +
   # Points colored by quartile
-  geom_point(aes(color = Z_quartile), alpha = 0.6) +
-  scale_color_viridis_d(name = "Z Quartile") +
-  labs(
+  ggplot2::geom_point(ggplot2::aes(color = Z_quartile), alpha = 0.6) +
+  ggplot2::scale_color_viridis_d(name = "Z Quartile") +
+  ggplot2::labs(
     title = "Simpson's Paradox Analysis: Overall vs Stratified Relationships",
     subtitle = paste("Overall slope (red dashed):", round(overall_slope, 3),
                     "| Simpson's Status:", simpson_status),
     x = "X (Exposure)",
     y = "Y (Outcome)"
   ) +
-  theme_minimal() +
-  theme(legend.position = "bottom")
+  ggplot2::theme_minimal() +
+  ggplot2::theme(legend.position = "bottom")
 
 # Plot 2: Binary Group Analysis
-p2 <- ggplot(dag_data, aes(x = X, y = Y)) +
+p2 <- ggplot2::ggplot(dag_data, ggplot2::aes(x = X, y = Y)) +
   # Overall regression line
-  geom_smooth(method = "lm", formula = y ~ x, color = "red", linewidth = 1.5, 
-              linetype = "dashed", se = FALSE) +
+  ggplot2::geom_smooth(
+    method = "lm", 
+    formula = y ~ x, 
+    color = "red", 
+    linewidth = 1.5, 
+    linetype = "dashed", 
+    se = FALSE
+  ) +
   # Stratified regression lines for binary groups
-  geom_smooth(aes(color = Z_binary), method = "lm", formula = y ~ x, 
-              linewidth = 1.2, se = TRUE, alpha = 0.3) +
+  ggplot2::geom_smooth(
+    ggplot2::aes(color = Z_binary), 
+    method = "lm", 
+    formula = y ~ x, 
+    linewidth = 1.2, 
+    se = TRUE, 
+    alpha = 0.3
+  ) +
   # Points colored by binary group
-  geom_point(aes(color = Z_binary), alpha = 0.6) +
-  scale_color_manual(values = c("High Z" = "darkblue", "Low Z" = "darkgreen"),
-                     name = "Z Group") +
-  labs(
+  ggplot2::geom_point(ggplot2::aes(color = Z_binary), alpha = 0.6) +
+  ggplot2::scale_color_manual(
+    values = c("High Z" = "darkblue", "Low Z" = "darkgreen"),
+    name = "Z Group"
+  ) +
+  ggplot2::labs(
     title = "Binary Group Analysis for Simpson's Paradox",
     subtitle = "Red dashed line: Overall relationship | Colored lines: Group-specific relationships",
     x = "X (Exposure)",
     y = "Y (Outcome)"
   ) +
-  theme_minimal() +
-  theme(legend.position = "bottom")
+  ggplot2::theme_minimal() +
+  ggplot2::theme(legend.position = "bottom")
 
 # Plot 3: Slope Comparison
 slope_comparison <- data.frame(
@@ -1295,19 +1250,22 @@ slope_comparison <- data.frame(
   Type = c("Overall", rep("Quartile", 4), rep("Binary", 2))
 )
 
-p3 <- ggplot(slope_comparison, aes(x = reorder(Group, Slope), y = Slope, fill = Type)) +
-  geom_col(alpha = 0.8) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
-  geom_hline(yintercept = 0.4, linetype = "dotted", color = "red", alpha = 0.7) +
-  scale_fill_manual(values = c("Overall" = "red", "Quartile" = "steelblue", "Binary" = "darkgreen")) +
-  labs(
+p3 <- ggplot2::ggplot(
+  slope_comparison, 
+  ggplot2::aes(x = reorder(Group, Slope), y = Slope, fill = Type)
+) +
+  ggplot2::geom_col(alpha = 0.8) +
+  ggplot2::geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  ggplot2::geom_hline(yintercept = 0.4, linetype = "dotted", color = "red", alpha = 0.7) +
+  ggplot2::scale_fill_manual(values = c("Overall" = "red", "Quartile" = "steelblue", "Binary" = "darkgreen")) +
+  ggplot2::labs(
     title = "Slope Comparison Across Different Stratifications",
     subtitle = "Red dotted line shows true causal effect (0.4)",
     x = "Group",
     y = "Slope of X → Y"
   ) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  ggplot2::theme_minimal() +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
 
 # Display plots
 p1
@@ -1361,11 +1319,16 @@ test_results <- data.frame(
 )
 
 # Display test results
-DT::datatable(test_results,
-              caption = "Formal Statistical Tests for Slope Differences",
-              options = list(pageLength = 10, scrollX = TRUE)) %>%
-  DT::formatRound(columns = c("Overall_Slope", "Stratified_Slope", "Difference", 
-                              "Z_Statistic", "P_Value"), digits = 3)
+DT::datatable(
+  test_results,
+  caption = "Formal Statistical Tests for Slope Differences",
+  options = list(pageLength = 10, scrollX = TRUE)
+) |>
+  DT::formatRound(
+    columns = c("Overall_Slope", "Stratified_Slope", "Difference", 
+                "Z_Statistic", "P_Value"), 
+    digits = 3
+  )
 ```
 
 ### 12.6 Magnitude of Simpson's Paradox Effect
@@ -1402,10 +1365,12 @@ simpson_magnitude <- data.frame(
 )
 
 # Display magnitude analysis
-DT::datatable(simpson_magnitude,
-              caption = "Magnitude of Simpson's Paradox Effect",
-              options = list(pageLength = 10, dom = 't'),
-              colnames = c("Measure", "Value"))
+DT::datatable(
+  simpson_magnitude,
+  caption = "Magnitude of Simpson's Paradox Effect",
+  options = list(pageLength = 10, dom = 't'),
+  colnames = c("Measure", "Value")
+)
 ```
 
 ### 12.7 Weighted vs Unweighted Analysis
@@ -1426,13 +1391,13 @@ unweighted_slope <- mean(stratified_results$slope_XY)
 unweighted_cor <- mean(stratified_results$cor_XY)
 
 # Group size analysis
-group_size_analysis <- stratified_results %>%
-  mutate(
+group_size_analysis <- stratified_results |>
+  dplyr::mutate(
     prop_of_total = round(n / sum(n), 3),
     slope_weight = round(slope_XY * prop_of_total, 3),
     cor_weight = round(cor_XY * prop_of_total, 3)
-  ) %>%
-  select(Z_quartile, n, prop_of_total, slope_XY, slope_weight, cor_XY, cor_weight)
+  ) |>
+  dplyr::select(Z_quartile, n, prop_of_total, slope_XY, slope_weight, cor_XY, cor_weight)
 
 # Add summary row
 summary_row <- data.frame(
@@ -1445,16 +1410,21 @@ summary_row <- data.frame(
   cor_weight = round(sum(group_size_analysis$cor_weight), 3)
 )
 
-group_analysis_complete <- bind_rows(group_size_analysis, summary_row)
+group_analysis_complete <- dplyr::bind_rows(group_size_analysis, summary_row)
 
 # Display weighted analysis
-DT::datatable(group_analysis_complete,
-              caption = "Weighted vs Unweighted Analysis by Group Size",
-              options = list(pageLength = 10, scrollX = TRUE),
-              colnames = c("Z Group", "N", "Proportion", "Slope", "Weighted Slope", 
-                          "Correlation", "Weighted Correlation")) %>%
-  DT::formatRound(columns = c("prop_of_total", "slope_XY", "slope_weight", 
-                              "cor_XY", "cor_weight"), digits = 3)
+DT::datatable(
+  group_analysis_complete,
+  caption = "Weighted vs Unweighted Analysis by Group Size",
+  options = list(pageLength = 10, scrollX = TRUE),
+  colnames = c("Z Group", "N", "Proportion", "Slope", "Weighted Slope", 
+              "Correlation", "Weighted Correlation")
+) |>
+  DT::formatRound(
+    columns = c("prop_of_total", "slope_XY", "slope_weight", 
+                "cor_XY", "cor_weight"), 
+    digits = 3
+  )
 
 # Summary comparison table
 weighting_comparison <- data.frame(
@@ -1466,10 +1436,12 @@ weighting_comparison <- data.frame(
                  round(weighted_cor, 3), NA)
 )
 
-DT::datatable(weighting_comparison,
-              caption = "Comparison of Different Analysis Approaches",
-              options = list(pageLength = 10, dom = 't'),
-              colnames = c("Analysis Type", "Slope Estimate", "Correlation"))
+DT::datatable(
+  weighting_comparison,
+  caption = "Comparison of Different Analysis Approaches",
+  options = list(pageLength = 10, dom = 't'),
+  colnames = c("Analysis Type", "Slope Estimate", "Correlation")
+)
 ```
 
 ### 12.8 Conclusions from Simpson's Paradox Analysis
@@ -1511,10 +1483,12 @@ conclusions_data <- data.frame(
 )
 
 # Display conclusions
-DT::datatable(conclusions_data,
-              caption = "Summary of Simpson's Paradox Analysis Conclusions",
-              options = list(pageLength = 10, dom = 't', scrollX = TRUE),
-              colnames = c("Key Finding", "Result/Interpretation"))
+DT::datatable(
+  conclusions_data,
+  caption = "Summary of Simpson's Paradox Analysis Conclusions",
+  options = list(pageLength = 10, dom = 't', scrollX = TRUE),
+  colnames = c("Key Finding", "Result/Interpretation")
+)
 
 # Create comprehensive summary table for key conclusions
 paradox_present <- simpson_status != "No Simpson's Paradox"
@@ -1545,9 +1519,11 @@ key_conclusions <- data.frame(
   Result = c(
     ifelse(paradox_present, "✓ YES - Detected", "✗ NO - Not detected"),
     simpson_status,
-    ifelse(paradox_present, 
-           "Confounding creates paradoxical marginal vs conditional relationships",
-           "Relationships remain consistent across Z strata"),
+    ifelse(
+      paradox_present, 
+      "Confounding creates paradoxical marginal vs conditional relationships",
+      "Relationships remain consistent across Z strata"
+    ),
     round(overall_slope, 3),
     round(mean(stratified_slopes), 3),
     paste(round(relative_magnitude, 1), "%"),
@@ -1558,17 +1534,19 @@ key_conclusions <- data.frame(
 )
 
 # Display the comprehensive conclusions table
-DT::datatable(key_conclusions,
-              caption = "Key Conclusions from Simpson's Paradox Analysis",
-              options = list(
-                pageLength = 15,
-                ordering = FALSE,
-                searching = FALSE,
-                scrollX = TRUE
-              ),
-              class = 'cell-border stripe compact responsive',
-              rownames = FALSE,
-              width = "90%")
+DT::datatable(
+  key_conclusions,
+  caption = "Key Conclusions from Simpson's Paradox Analysis",
+  options = list(
+    pageLength = 15,
+    ordering = FALSE,
+    searching = FALSE,
+    scrollX = TRUE
+  ),
+  class = 'cell-border stripe compact responsive',
+  rownames = FALSE,
+  width = "90%"
+)
 ```
 
 Our Simpson's Paradox analysis reveals important insights about the nature of confounding in causal inference. In this synthetic dataset, we observe **`r simpson_status`**, which demonstrates how the confounder Z creates different patterns when we examine the marginal (overall) versus conditional (stratified) relationships between X and Y.
@@ -1592,8 +1570,3 @@ The magnitude of the Simpson's Paradox effect in our data (**`r paste(round(rela
 sessionInfo()
 
 ```
-
-
-
-
-

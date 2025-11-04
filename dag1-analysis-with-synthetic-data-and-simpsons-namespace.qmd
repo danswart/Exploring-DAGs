@@ -1,7 +1,5 @@
 ---
-title: "DAG Analysis with Synthetic Data-Fork Structure"
-subtitle: "Includes Simpsons Analysis"
-description: ""
+title: "DAG Analysis with Synthetic Data - Fork Structure"
 authors: 
   - name: "Dan Swart, CPA (ret)"
   - name: "Claude Sonnet 4.5"
@@ -330,34 +328,34 @@ Let's visualize the distributions and relationships in our synthetic data:
 #| layout-ncol: 2
 
 # Distributions of variables
-dag_data %>%
-  pivot_longer(cols = everything(), names_to = "Variable", values_to = "Value") %>%
-  ggplot(aes(x = Value)) +
-  geom_histogram(fill = "steelblue", alpha = 0.7, bins = 30) +
-  facet_wrap(~ Variable, scales = "free") +
-  theme_minimal() +
-  ggtitle("Distributions of X, Y, and Z")
+dag_data |>
+  tidyr::pivot_longer(cols = dplyr::everything(), names_to = "Variable", values_to = "Value") |>
+  ggplot2::ggplot(ggplot2::aes(x = Value)) +
+  ggplot2::geom_histogram(fill = "steelblue", alpha = 0.7, bins = 30) +
+  ggplot2::facet_wrap(~ Variable, scales = "free") +
+  ggplot2::theme_minimal() +
+  ggplot2::ggtitle("Distributions of X, Y, and Z")
 
 # X vs Y scatterplot
-ggplot(dag_data, aes(x = X, y = Y)) +
-  geom_point(alpha = 0.3, color = "dodgerblue") +
-  geom_smooth(method = "lm", formula = y ~ x, color = "darkred") +
-  theme_minimal() +
-  ggtitle("Relationship between X and Y")
+ggplot2::ggplot(dag_data, ggplot2::aes(x = X, y = Y)) +
+  ggplot2::geom_point(alpha = 0.3, color = "dodgerblue") +
+  ggplot2::geom_smooth(method = "lm", formula = y ~ x, color = "darkred") +
+  ggplot2::theme_minimal() +
+  ggplot2::ggtitle("Relationship between X and Y")
 
 # Z vs X scatterplot
-ggplot(dag_data, aes(x = Z, y = X)) +
-  geom_point(alpha = 0.3, color = "darkgreen") +
-  geom_smooth(method = "lm", formula = y ~ x, color = "darkred") +
-  theme_minimal() +
-  ggtitle("Relationship between Z and X")
+ggplot2::ggplot(dag_data, ggplot2::aes(x = Z, y = X)) +
+  ggplot2::geom_point(alpha = 0.3, color = "darkgreen") +
+  ggplot2::geom_smooth(method = "lm", formula = y ~ x, color = "darkred") +
+  ggplot2::theme_minimal() +
+  ggplot2::ggtitle("Relationship between Z and X")
 
 # Z vs Y scatterplot
-ggplot(dag_data, aes(x = Z, y = Y)) +
-  geom_point(alpha = 0.3, color = "purple") +
-  geom_smooth(method = "lm", formula = y ~ x, color = "darkred") +
-  theme_minimal() +
-  ggtitle("Relationship between Z and Y")
+ggplot2::ggplot(dag_data, ggplot2::aes(x = Z, y = Y)) +
+  ggplot2::geom_point(alpha = 0.3, color = "purple") +
+  ggplot2::geom_smooth(method = "lm", formula = y ~ x, color = "darkred") +
+  ggplot2::theme_minimal() +
+  ggplot2::ggtitle("Relationship between Z and Y")
 ```
 
 ## 3. Recreating the DAG for Reference
@@ -375,7 +373,7 @@ Let's recreate the DAG using DiagrammeR and ggdag for reference:
 #| layout-ncol: 1
 
 # Visualize DAG with DiagrammeR
-grViz("
+DiagrammeR::grViz("
   digraph DAG {
     # Graph settings
     graph [layout=neato, margin=\"0.0, 0.0, 0.0, 0.0\"]
@@ -408,7 +406,7 @@ grViz("
 ")
 
 # Define the DAG using ggdag
-dag <- dagify(
+dag <- ggdag::dagify(
   Y ~ X + Z,
   X ~ Z,
   exposure = "X",
@@ -419,19 +417,19 @@ dag <- dagify(
 )
 
 # Set coordinates for nice visualization
-coordinates(dag) <- list(
+dagitty::coordinates(dag) <- list(
   x = c(X = 1, Y = 3, Z = 2),
   y = c(X = 1, Y = 1, Z = 3)
 )
 
 # Create nice visualization with ggdag
-ggdag(dag, edge_type = "link") + 
-  geom_dag_point(color = "lightblue", size = 14, alpha = 0.7) +
-  geom_dag_text(color = "black") +
-  geom_dag_edges(edge_colour = "blue", edge_width = 1.0, arrow_size = 0.6) +
-  theme_dag() +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  ggtitle("DAG: X → Y with Z as confounder")
+ggdag::ggdag(dag, edge_type = "link") + 
+  ggdag::geom_dag_point(color = "lightblue", size = 14, alpha = 0.7) +
+  ggdag::geom_dag_text(color = "black") +
+  ggdag::geom_dag_edges(edge_colour = "blue", edge_width = 1.0, arrow_size = 0.6) +
+  ggdag::theme_dag() +
+  ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5)) +
+  ggplot2::ggtitle("DAG: X → Y with Z as confounder")
 ```
 
 ## 4. Testing Causal Relationships
@@ -500,10 +498,10 @@ comparison_df$Error <- round(comparison_df$Error, 4)
 comparison_df$BiasPercent <- round(comparison_df$BiasPercent, 2)
 
 # Display as a table
-kable(comparison_df, 
+knitr::kable(comparison_df, 
       col.names = c("Model", "Coefficient of X on Y", "Absolute Error", "Bias (%)"),
-      caption = "Comparison of estimated effects of X on Y") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+      caption = "Comparison of estimated effects of X on Y") |>
+  kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
 ```
 
 ### 4.4 Testing for Significant Differences Between Models
@@ -567,10 +565,10 @@ significance_df <- data.frame(
 )
 
 # Display as a table
-kable(significance_df, 
+knitr::kable(significance_df, 
       col.names = c("Comparison", "Test", "Statistic", "P-value", "Conclusion"),
-      caption = "Statistical tests for model comparisons") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+      caption = "Statistical tests for model comparisons") |>
+  kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
 ```
 
 These tests confirm that:
@@ -619,10 +617,10 @@ cor_tests <- data.frame(
 cor_tests$Correlation <- round(cor_tests$Correlation, 4)
 
 # Display as a table
-kable(cor_tests, 
+knitr::kable(cor_tests, 
       col.names = c("Test", "Correlation"),
-      caption = "Testing conditional independences") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+      caption = "Testing conditional independences") |>
+  kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
 ```
 
 The results confirm our understanding of the DAG structure:
@@ -645,9 +643,9 @@ Let's visualize these paths:
 #| fig-cap: "Path analysis in our DAG"
 
 # Use ggdag to visualize paths
-ggdag_paths(dag, from = "X", to = "Y", shadow = TRUE) +
-  theme_dag() +
-  ggtitle("All paths from X to Y")
+ggdag::ggdag_paths(dag, from = "X", to = "Y", shadow = TRUE) +
+  ggdag::theme_dag() +
+  ggplot2::ggtitle("All paths from X to Y")
 ```
 
 Now, let's use ggdag to highlight the appropriate adjustment set:
@@ -659,9 +657,9 @@ Now, let's use ggdag to highlight the appropriate adjustment set:
 #| fig-cap: "Adjustment set for estimating the causal effect of X on Y"
 
 # Visualize the adjustment set
-ggdag_adjustment_set(dag, exposure = "X", outcome = "Y", shadow = TRUE) +
-  theme_dag() +
-  ggtitle("Adjustment set to estimate causal effect of X on Y")
+ggdag::ggdag_adjustment_set(dag, exposure = "X", outcome = "Y", shadow = TRUE) +
+  ggdag::theme_dag() +
+  ggplot2::ggtitle("Adjustment set to estimate causal effect of X on Y")
 ```
 
 ## 7. Examining the Backdoor Criterion
@@ -681,37 +679,37 @@ Let's see how controlling for Z changes the estimated relationship between X and
 #| layout-ncol: 2
 
 # 1. X-Y relationship (unadjusted)
-p1 <- ggplot(dag_data, aes(x = X, y = Y)) +
-  geom_point(alpha = 0.3, color = "dodgerblue") +
-  geom_smooth(method = "lm", formula = y ~ x, color = "darkred") +
-  theme_minimal() +
-  annotate("text", x = min(dag_data$X) + 0.2*(max(dag_data$X)-min(dag_data$X)), 
+p1 <- ggplot2::ggplot(dag_data, ggplot2::aes(x = X, y = Y)) +
+  ggplot2::geom_point(alpha = 0.3, color = "dodgerblue") +
+  ggplot2::geom_smooth(method = "lm", formula = y ~ x, color = "darkred") +
+  ggplot2::theme_minimal() +
+  ggplot2::annotate("text", x = min(dag_data$X) + 0.2*(max(dag_data$X)-min(dag_data$X)), 
            y = max(dag_data$Y) - 0.1*(max(dag_data$Y)-min(dag_data$Y)), 
            label = paste("Slope =", round(coef(lm(Y ~ X, dag_data))[2], 3)),
            hjust = 0) +
-  ggtitle("Unadjusted X-Y relationship")
+  ggplot2::ggtitle("Unadjusted X-Y relationship")
 
 # 2. Z-X relationship (correctly labeled with Z as predictor)
-p2 <- ggplot(dag_data, aes(x = Z, y = X)) +
-  geom_smooth(method = "lm", formula = y ~ x, color = "darkred") +
-  geom_point(alpha = 0.3, color = "darkgreen") +
-  theme_minimal() +
-  annotate("text", x = min(dag_data$Z) + 0.2*(max(dag_data$Z)-min(dag_data$Z)), 
+p2 <- ggplot2::ggplot(dag_data, ggplot2::aes(x = Z, y = X)) +
+  ggplot2::geom_smooth(method = "lm", formula = y ~ x, color = "darkred") +
+  ggplot2::geom_point(alpha = 0.3, color = "darkgreen") +
+  ggplot2::theme_minimal() +
+  ggplot2::annotate("text", x = min(dag_data$Z) + 0.2*(max(dag_data$Z)-min(dag_data$Z)), 
            y = max(dag_data$X) - 0.1*(max(dag_data$X)-min(dag_data$X)), 
            label = paste("Slope =", round(coef(lm(X ~ Z, dag_data))[2], 3)),
            hjust = 0) +
-  ggtitle("Z → X relationship (confounder affects exposure)")
+  ggplot2::ggtitle("Z → X relationship (confounder affects exposure)")
 
 # 3. Z-Y relationship (correctly labeled with Z as predictor)
-p3 <- ggplot(dag_data, aes(x = Z, y = Y)) +
-  geom_smooth(method = "lm", formula = y ~ x, color = "darkred") +
-  geom_point(alpha = 0.3, color = "purple") +
-  theme_minimal() +
-  annotate("text", x = min(dag_data$Z) + 0.2*(max(dag_data$Z)-min(dag_data$Z)), 
+p3 <- ggplot2::ggplot(dag_data, ggplot2::aes(x = Z, y = Y)) +
+  ggplot2::geom_smooth(method = "lm", formula = y ~ x, color = "darkred") +
+  ggplot2::geom_point(alpha = 0.3, color = "purple") +
+  ggplot2::theme_minimal() +
+  ggplot2::annotate("text", x = min(dag_data$Z) + 0.2*(max(dag_data$Z)-min(dag_data$Z)), 
            y = max(dag_data$Y) - 0.1*(max(dag_data$Y)-min(dag_data$Y)), 
            label = paste("Slope =", round(coef(lm(Y ~ Z, dag_data))[2], 3)),
            hjust = 0) +
-  ggtitle("Z → Y relationship (confounder affects outcome)")
+  ggplot2::ggtitle("Z → Y relationship (confounder affects outcome)")
 
 # 4. X-Y relationship (adjusted for Z) - using residuals
 # Create residuals
@@ -720,17 +718,17 @@ y_resid <- residuals(lm(Y ~ Z, data = dag_data))
 resid_data <- data.frame(x_resid = x_resid, y_resid = y_resid)
 
 # Plot relationship between residuals
-p4 <- ggplot(resid_data, aes(x = x_resid, y = y_resid)) +
-  geom_smooth(method = "lm", formula = y ~ x, color = "darkred") +
-  geom_point(alpha = 0.3, color = "orange") +
-  theme_minimal() +
-  annotate("text", x = min(resid_data$x_resid) + 0.2*(max(resid_data$x_resid)-min(resid_data$x_resid)), 
+p4 <- ggplot2::ggplot(resid_data, ggplot2::aes(x = x_resid, y = y_resid)) +
+  ggplot2::geom_smooth(method = "lm", formula = y ~ x, color = "darkred") +
+  ggplot2::geom_point(alpha = 0.3, color = "orange") +
+  ggplot2::theme_minimal() +
+  ggplot2::annotate("text", x = min(resid_data$x_resid) + 0.2*(max(resid_data$x_resid)-min(resid_data$x_resid)), 
            y = max(resid_data$y_resid) - 0.1*(max(resid_data$y_resid)-min(resid_data$y_resid)), 
            label = paste("Slope =", round(coef(lm(y_resid ~ x_resid))[2], 3)),
            hjust = 0) +
-  xlab("X (residuals after controlling for Z)") +
-  ylab("Y (residuals after controlling for Z)") +
-  ggtitle("X → Y relationship after removing Z's effect")
+  ggplot2::xlab("X (residuals after controlling for Z)") +
+  ggplot2::ylab("Y (residuals after controlling for Z)") +
+  ggplot2::ggtitle("X → Y relationship after removing Z's effect")
 
 # Display all plots
 p1
@@ -761,8 +759,8 @@ dseparation_results <- data.frame(
     "X and Y are not d-separated given Z"
   ),
   Result = c(
-    !dseparated(dag, "X", "Y", c()),
-    !dseparated(dag, "X", "Y", c("Z"))
+    !dagitty::dseparated(dag, "X", "Y", c()),
+    !dagitty::dseparated(dag, "X", "Y", c("Z"))
   ),
   Explanation = c(
     "X and Y are associated through both the direct path and the backdoor path",
@@ -771,10 +769,10 @@ dseparation_results <- data.frame(
 )
 
 # Display as a table
-kable(dseparation_results, 
+knitr::kable(dseparation_results, 
       col.names = c("D-Separation Claim", "Confirmed?", "Explanation"),
-      caption = "Testing d-separation claims in our DAG") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+      caption = "Testing d-separation claims in our DAG") |>
+  kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
 ```
 
 These results confirm our understanding of the DAG structure:
@@ -830,17 +828,17 @@ for (z_effect in z_effects) {
 }
 
 # Plot the results
-ggplot(results, aes(x = ConfounderStrength, y = EstimatedEffect)) +
-  geom_line(color = "blue", size = 1) +
-  geom_point(color = "blue", size = 3) +
-  geom_hline(yintercept = 0.3, linetype = "dashed", color = "red") +
-  labs(
+ggplot2::ggplot(results, ggplot2::aes(x = ConfounderStrength, y = EstimatedEffect)) +
+  ggplot2::geom_line(color = "blue", size = 1) +
+  ggplot2::geom_point(color = "blue", size = 3) +
+  ggplot2::geom_hline(yintercept = 0.3, linetype = "dashed", color = "red") +
+  ggplot2::labs(
     title = "Impact of Unmeasured Confounding on Effect Estimates",
     subtitle = "Red dashed line shows true causal effect (0.3)",
     x = "Confounder Strength (correlation between Z and X/Y)",
     y = "Estimated Effect of X on Y"
   ) +
-  theme_minimal()
+  ggplot2::theme_minimal()
 ```
 
 This sensitivity analysis shows how unmeasured confounding can bias our estimates of the causal effect. As the strength of confounding increases (stronger correlation between Z and both X and Y), our estimate of the effect of X on Y becomes increasingly biased.
@@ -855,11 +853,11 @@ Let's explore a more advanced approach using the `rethinking` package, which is 
 #| warning: false
 
 # Standardize the variables for better fitting
-dag_data_std <- dag_data %>%
-  mutate(across(everything(), scale))
+dag_data_std <- dag_data |>
+  dplyr::mutate(dplyr::across(dplyr::everything(), scale))
 
 # Fit a Bayesian causal model for the adjusted effect
-m_adjusted <- quap(
+m_adjusted <- rethinking::quap(
   alist(
     Y ~ dnorm(mu, sigma),
     mu <- a + bX * X + bZ * Z,
@@ -872,7 +870,7 @@ m_adjusted <- quap(
 )
 
 # Extract the posterior distribution
-post <- extract.samples(m_adjusted)
+post <- rethinking::extract.samples(m_adjusted)
 
 # Summarize the posterior for the causal effect of X on Y
 causal_effect_summary <- data.frame(
@@ -885,22 +883,22 @@ causal_effect_summary <- data.frame(
 )
 
 # Display the causal effect estimate
-kable(causal_effect_summary, 
+knitr::kable(causal_effect_summary, 
       caption = "Bayesian estimate of the causal effect of X on Y (adjusted for Z)",
-      digits = 3) %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+      digits = 3) |>
+  kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
 
 # Plot the posterior distribution of the causal effect
-ggplot(data.frame(bX = post$bX), aes(x = bX)) +
-  geom_density(fill = "skyblue", alpha = 0.7) +
-  geom_vline(xintercept = mean(post$bX), color = "darkblue", linetype = "dashed") +
-  labs(
+ggplot2::ggplot(data.frame(bX = post$bX), ggplot2::aes(x = bX)) +
+  ggplot2::geom_density(fill = "skyblue", alpha = 0.7) +
+  ggplot2::geom_vline(xintercept = mean(post$bX), color = "darkblue", linetype = "dashed") +
+  ggplot2::labs(
     title = "Posterior Distribution of the Causal Effect of X on Y",
     subtitle = "After adjusting for confounder Z",
     x = "Effect Size (Standardized)",
     y = "Density"
   ) +
-  theme_minimal()
+  ggplot2::theme_minimal()
 ```
 
 ## 11. Counterfactual Analysis: "What If" Scenarios
@@ -936,19 +934,19 @@ y_pred <- predict_counterfactual(x_range, fixed_z = z_mean)
 counterfactual_df <- data.frame(X = x_range, Y = y_pred)
 
 # Plot the counterfactual prediction
-ggplot() +
+ggplot2::ggplot() +
   # Add actual data points
-  geom_point(data = dag_data, aes(x = X, y = Y), alpha = 0.2, color = "gray") +
+  ggplot2::geom_point(data = dag_data, ggplot2::aes(x = X, y = Y), alpha = 0.2, color = "gray") +
   # Add counterfactual prediction
-  geom_line(data = counterfactual_df, aes(x = X, y = Y), 
+  ggplot2::geom_line(data = counterfactual_df, ggplot2::aes(x = X, y = Y), 
             color = "red", size = 1.2) +
-  labs(
+  ggplot2::labs(
     title = "Counterfactual Prediction: What if we change X?",
     subtitle = paste("Holding Z constant at its mean:", round(z_mean, 2)),
     x = "X (Exposure)",
     y = "Y (Outcome)"
   ) +
-  theme_minimal()
+  ggplot2::theme_minimal()
 ```
 
 The red line represents the causal effect of X on Y, isolated from confounding by holding Z constant. This is the relationship we would observe if we could experimentally manipulate X while keeping Z fixed.
@@ -976,28 +974,28 @@ for (z_val in names(predictions_list)) {
 }
 
 # Reshape for plotting
-predictions_long <- predictions_df %>%
-  pivot_longer(cols = starts_with("Z_"), 
+predictions_long <- predictions_df |>
+  tidyr::pivot_longer(cols = dplyr::starts_with("Z_"), 
                names_to = "Z_value", 
-               values_to = "Y_pred") %>%
-  mutate(Z_value = gsub("Z_", "", Z_value))
+               values_to = "Y_pred") |>
+  dplyr::mutate(Z_value = gsub("Z_", "", Z_value))
 
 # Plot the counterfactual predictions for different Z values
-ggplot() +
+ggplot2::ggplot() +
   # Add actual data points
-  geom_point(data = dag_data, aes(x = X, y = Y), alpha = 0.1, color = "gray") +
+  ggplot2::geom_point(data = dag_data, ggplot2::aes(x = X, y = Y), alpha = 0.1, color = "gray") +
   # Add counterfactual predictions
-  geom_line(data = predictions_long, 
-            aes(x = X, y = Y_pred, color = Z_value, group = Z_value),
+  ggplot2::geom_line(data = predictions_long, 
+            ggplot2::aes(x = X, y = Y_pred, color = Z_value, group = Z_value),
             size = 1.0) +
-  scale_color_viridis_d(name = "Z Value\n(Age)") +
-  labs(
+  ggplot2::scale_color_viridis_d(name = "Z Value\n(Age)") +
+  ggplot2::labs(
     title = "Counterfactual Predictions for Different Z Values",
     subtitle = "Each line shows the causal effect of X on Y for a specific Z value",
     x = "X (Exposure, e.g., Coffee Consumption)",
     y = "Y (Outcome, e.g., Heart Disease Risk)"
   ) +
-  theme_minimal()
+  ggplot2::theme_minimal()
 ```
 
 This visualization demonstrates an important feature of causal inference: we can predict the effect of interventions under different scenarios or for different subgroups. Each line shows how Y would respond to changes in X for a specific value of Z. This type of analysis can be valuable for personalized predictions or targeted interventions.
@@ -1099,10 +1097,10 @@ dag_data$Z_quartile <- cut(dag_data$Z,
                           include.lowest = TRUE)
 
 # Calculate correlations and slopes within each Z quartile
-stratified_results <- dag_data %>%
-  group_by(Z_quartile) %>%
-  summarise(
-    n = n(),
+stratified_results <- dag_data |>
+  dplyr::group_by(Z_quartile) |>
+  dplyr::summarise(
+    n = dplyr::n(),
     cor_XY = cor(X, Y),
     slope_XY = coef(lm(Y ~ X))[2],
     mean_Z = mean(Z),
@@ -1123,18 +1121,18 @@ overall_results <- data.frame(
 )
 
 # Combine results
-simpson_analysis <- bind_rows(overall_results, stratified_results)
+simpson_analysis <- dplyr::bind_rows(overall_results, stratified_results)
 
 # Round for display
-simpson_analysis <- simpson_analysis %>%
-  mutate(across(where(is.numeric), ~ round(., 3)))
+simpson_analysis <- simpson_analysis |>
+  dplyr::mutate(dplyr::across(dplyr::where(is.numeric), ~ round(., 3)))
 
 # Display results
 DT::datatable(simpson_analysis,
               caption = "Simpson's Paradox Detection: Overall vs Stratified Analysis",
               options = list(pageLength = 10, scrollX = TRUE),
               colnames = c("Z Group", "N", "Correlation X-Y", "Slope X→Y", 
-                          "Mean Z", "Mean X", "Mean Y")) %>%
+                          "Mean Z", "Mean X", "Mean Y")) |>
   DT::formatRound(columns = c("cor_XY", "slope_XY", "mean_Z", "mean_X", "mean_Y"), digits = 3)
 ```
 
@@ -1204,10 +1202,10 @@ Let's examine the phenomenon more systematically by creating binary high/low gro
 dag_data$Z_binary <- ifelse(dag_data$Z > median(dag_data$Z), "High Z", "Low Z")
 
 # Calculate slopes and correlations for binary groups
-binary_analysis <- dag_data %>%
-  group_by(Z_binary) %>%
-  summarise(
-    n = n(),
+binary_analysis <- dag_data |>
+  dplyr::group_by(Z_binary) |>
+  dplyr::summarise(
+    n = dplyr::n(),
     cor_XY = cor(X, Y),
     slope_XY = coef(lm(Y ~ X))[2],
     intercept_XY = coef(lm(Y ~ X))[1],
@@ -1234,15 +1232,15 @@ for (group in unique(dag_data$Z_binary)) {
 }
 
 # Round for display
-binary_analysis <- binary_analysis %>%
-  mutate(across(where(is.numeric), ~ round(., 3)))
+binary_analysis <- binary_analysis |>
+  dplyr::mutate(dplyr::across(dplyr::where(is.numeric), ~ round(., 3)))
 
 # Display binary group analysis
 DT::datatable(binary_analysis,
               caption = "Binary Group Analysis for Simpson's Paradox Detection",
               options = list(pageLength = 10, scrollX = TRUE),
               colnames = c("Z Group", "N", "Correlation", "Slope", "Intercept", 
-                          "Mean Z", "Mean X", "Mean Y", "Slope SE", "CI Lower", "CI Upper")) %>%
+                          "Mean Z", "Mean X", "Mean Y", "Slope SE", "CI Lower", "CI Upper")) |>
   DT::formatRound(columns = c("cor_XY", "slope_XY", "intercept_XY", "mean_Z", 
                               "mean_X", "mean_Y", "slope_se", "slope_ci_lower", "slope_ci_upper"), 
                   digits = 3)
@@ -1262,46 +1260,46 @@ Let's create visualizations to clearly demonstrate whether Simpson's Paradox is 
 #| layout-ncol: 1
 
 # Plot 1: Overall vs Stratified (Quartiles)
-p1 <- ggplot(dag_data, aes(x = X, y = Y)) +
+p1 <- ggplot2::ggplot(dag_data, ggplot2::aes(x = X, y = Y)) +
   # Overall regression line
-  geom_smooth(method = "lm", formula = y ~ x, color = "red", size = 1.5, 
+  ggplot2::geom_smooth(method = "lm", formula = y ~ x, color = "red", size = 1.5, 
               linetype = "dashed", se = FALSE) +
   # Stratified regression lines
-  geom_smooth(aes(color = Z_quartile), method = "lm", formula = y ~ x, 
+  ggplot2::geom_smooth(ggplot2::aes(color = Z_quartile), method = "lm", formula = y ~ x, 
               size = 1, se = FALSE) +
   # Points colored by quartile
-  geom_point(aes(color = Z_quartile), alpha = 0.6) +
-  scale_color_viridis_d(name = "Z Quartile") +
-  labs(
+  ggplot2::geom_point(ggplot2::aes(color = Z_quartile), alpha = 0.6) +
+  ggplot2::scale_color_viridis_d(name = "Z Quartile") +
+  ggplot2::labs(
     title = "Simpson's Paradox Analysis: Overall vs Stratified Relationships",
     subtitle = paste("Overall slope (red dashed):", round(overall_slope, 3),
                     "| Simpson's Status:", simpson_status),
     x = "X (Exposure)",
     y = "Y (Outcome)"
   ) +
-  theme_minimal() +
-  theme(legend.position = "bottom")
+  ggplot2::theme_minimal() +
+  ggplot2::theme(legend.position = "bottom")
 
 # Plot 2: Binary Group Analysis
-p2 <- ggplot(dag_data, aes(x = X, y = Y)) +
+p2 <- ggplot2::ggplot(dag_data, ggplot2::aes(x = X, y = Y)) +
   # Overall regression line
-  geom_smooth(method = "lm", formula = y ~ x, color = "red", size = 1.5, 
+  ggplot2::geom_smooth(method = "lm", formula = y ~ x, color = "red", size = 1.5, 
               linetype = "dashed", se = FALSE) +
   # Stratified regression lines for binary groups
-  geom_smooth(aes(color = Z_binary), method = "lm", formula = y ~ x, 
+  ggplot2::geom_smooth(ggplot2::aes(color = Z_binary), method = "lm", formula = y ~ x, 
               size = 1.2, se = TRUE, alpha = 0.3) +
   # Points colored by binary group
-  geom_point(aes(color = Z_binary), alpha = 0.6) +
-  scale_color_manual(values = c("High Z" = "darkblue", "Low Z" = "darkgreen"),
+  ggplot2::geom_point(ggplot2::aes(color = Z_binary), alpha = 0.6) +
+  ggplot2::scale_color_manual(values = c("High Z" = "darkblue", "Low Z" = "darkgreen"),
                      name = "Z Group") +
-  labs(
+  ggplot2::labs(
     title = "Binary Group Analysis for Simpson's Paradox",
     subtitle = "Red dashed line: Overall relationship | Colored lines: Group-specific relationships",
     x = "X (Exposure)",
     y = "Y (Outcome)"
   ) +
-  theme_minimal() +
-  theme(legend.position = "bottom")
+  ggplot2::theme_minimal() +
+  ggplot2::theme(legend.position = "bottom")
 
 # Plot 3: Slope Comparison
 slope_comparison <- data.frame(
@@ -1310,19 +1308,19 @@ slope_comparison <- data.frame(
   Type = c("Overall", rep("Quartile", 4), rep("Binary", 2))
 )
 
-p3 <- ggplot(slope_comparison, aes(x = reorder(Group, Slope), y = Slope, fill = Type)) +
-  geom_col(alpha = 0.8) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
-  geom_hline(yintercept = 0.3, linetype = "dotted", color = "red", alpha = 0.7) +
-  scale_fill_manual(values = c("Overall" = "red", "Quartile" = "steelblue", "Binary" = "darkgreen")) +
-  labs(
+p3 <- ggplot2::ggplot(slope_comparison, ggplot2::aes(x = reorder(Group, Slope), y = Slope, fill = Type)) +
+  ggplot2::geom_col(alpha = 0.8) +
+  ggplot2::geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
+  ggplot2::geom_hline(yintercept = 0.3, linetype = "dotted", color = "red", alpha = 0.7) +
+  ggplot2::scale_fill_manual(values = c("Overall" = "red", "Quartile" = "steelblue", "Binary" = "darkgreen")) +
+  ggplot2::labs(
     title = "Slope Comparison Across Different Stratifications",
     subtitle = "Red dotted line shows true causal effect (0.3)",
     x = "Group",
     y = "Slope of X → Y"
   ) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  ggplot2::theme_minimal() +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
 
 # Display plots
 p1
@@ -1378,7 +1376,7 @@ test_results <- data.frame(
 # Display test results
 DT::datatable(test_results,
               caption = "Formal Statistical Tests for Slope Differences",
-              options = list(pageLength = 10, scrollX = TRUE)) %>%
+              options = list(pageLength = 10, scrollX = TRUE)) |>
   DT::formatRound(columns = c("Overall_Slope", "Stratified_Slope", "Difference", 
                               "Z_Statistic", "P_Value"), digits = 3)
 ```
@@ -1441,13 +1439,13 @@ unweighted_slope <- mean(stratified_results$slope_XY)
 unweighted_cor <- mean(stratified_results$cor_XY)
 
 # Group size analysis
-group_size_analysis <- stratified_results %>%
-  mutate(
+group_size_analysis <- stratified_results |>
+  dplyr::mutate(
     prop_of_total = round(n / sum(n), 3),
     slope_weight = round(slope_XY * prop_of_total, 3),
     cor_weight = round(cor_XY * prop_of_total, 3)
-  ) %>%
-  select(Z_quartile, n, prop_of_total, slope_XY, slope_weight, cor_XY, cor_weight)
+  ) |>
+  dplyr::select(Z_quartile, n, prop_of_total, slope_XY, slope_weight, cor_XY, cor_weight)
 
 # Add summary row
 summary_row <- data.frame(
@@ -1460,14 +1458,14 @@ summary_row <- data.frame(
   cor_weight = round(sum(group_size_analysis$cor_weight), 3)
 )
 
-group_analysis_complete <- bind_rows(group_size_analysis, summary_row)
+group_analysis_complete <- dplyr::bind_rows(group_size_analysis, summary_row)
 
 # Display weighted analysis
 DT::datatable(group_analysis_complete,
               caption = "Weighted vs Unweighted Analysis by Group Size",
               options = list(pageLength = 10, scrollX = TRUE),
               colnames = c("Z Group", "N", "Proportion", "Slope", "Weighted Slope", 
-                          "Correlation", "Weighted Correlation")) %>%
+                          "Correlation", "Weighted Correlation")) |>
   DT::formatRound(columns = c("prop_of_total", "slope_XY", "slope_weight", 
                               "cor_XY", "cor_weight"), digits = 3)
 
