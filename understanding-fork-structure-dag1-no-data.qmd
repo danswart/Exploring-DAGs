@@ -26,7 +26,15 @@ format:
     code-block-bg: "#FAEBD7"
     code-block-border-left: "#31BAE9"
     embed-resources: true
-    include-in-header: header.html
+    include-in-header:
+      - text: 
+          <link href="https://fonts.googleapis.com/css2?family=Lato&display=swap" rel="stylesheet">
+          <link href="https://fonts.googleapis.com/css2?family=Fira+Mono&display=swap" rel="stylesheet">
+          <link href="https://fonts.googleapis.com/css2?family=Montserrat&display=swap" rel="stylesheet">
+          <link href="https://fonts.googleapis.com/css2?family=Cabin&display=swap" rel="stylesheet">
+          <link href="https://fonts.googleapis.com/css2?family=Roboto+Slab&display=swap" rel="stylesheet">
+          <link href="https://fonts.googleapis.com/css2?family=Schoolbell&display=swap" rel="stylesheet">
+      - header.html
     css:
       - swart.css
       - tachyons.min.css
@@ -90,7 +98,7 @@ quarto:
 
 # for .qmd filesd
 execute:
-  echo: true
+  echo: false
   message: false
   warning: false
   eval: true
@@ -101,7 +109,7 @@ execute:
 # for .rmd files
 knitr:
   opts_chunk:
-    echo: true
+    echo: false
     error: false
     warning: false
     message: false
@@ -110,92 +118,150 @@ knitr:
 ---
 
 
-
 ```{r}
 #| label: setup
 #| include: false
+# R version 4.4.3 (2025-02-28)
+# Platform: x86_64-apple-darwin20
+# Running under: macOS Sequoia 15.6.1
+# Rstudio 2025.9.2.418 (Cucumberleaf Sunflower)
+# 
 
-# Prevent scientific notation globally
-options(scipen = 999)
+# install.packages(c("mapview", "survey", "srvyr", "arcgislayers"))
+
+# census_api_key("95496766c51541ee6f402c1e1a8658581285b759", install = TRUE, overwrite = TRUE)
+
 
 # load libraries
-library(readxl)
-library(writexl) 
-library(tidyr) 
-library(readr) 
-library(purrr) 
-library(stringr) 
-library(forcats) 
-library(lubridate) 
-library(janitor) 
-library(ggtext) 
-library(paletteer) 
-library(viridis) 
-library(RColorBrewer) 
-library(wesanderson) 
-library(dutchmasters) 
-library(gghighlight) 
-library(monochromeR) 
-library(ggforce) 
-library(ggthemes)
-library(gt)
-library(gtExtras)
-library(tidyverse)
-library(plotly)
-library(ggplot2)
-library(tibble)
-library(patchwork)
-library(ppcor)
-library(ggplot2)
-library(corrplot)
-library(ggcorrplot)
-library(car)
-library(WRS2)
-library(boot)
-library(BayesFactor)
-library(pwr)
-library(qgraph)
-library(scales)
-library(here)
-library(ggdag)      # For plotting DAGs
-library(dagitty)    # For working with DAG logic
-library(DiagrammeR) # For complete control of the layout
-library(knitr)      # For controlling rendering
-library(kableExtra) # For tables summarizing results
-library(DT)         # For rendering content that kableExtra cannot (symbols)
-library(lavaan)     # For latent variable analysis
-library(ggpubr)
-library(rethinking)
-library(broom)
+library(BayesFactor) # Computation of Bayes Factors for Common Designs
+library(boot) # Bootstrap Functions
+library(broom) # Convert Statistical Objects into Tidy Tibbles
+library(colorspace) # A Toolbox for Manipulating and Assessing Colors and lettes
+library(camcorder) # Record Your Plot History
+library(car) # Companion to Applied Regression
+library(causaldata) # Example Data Sets for Causal Inference Textbooks
+library(corrplot) # Visualization of a Correlation Matrix
+library(cowplot) # Streamlined Plot Theme and Plot Annotations for 'ggplot2'
+library(dagitty) # Graphical Analysis of Structural Causal Models  
+library(DiagrammeR) # Graph/Network Visualization 
+library(dlookr) # Tools for Data Diagnosis, Exploration, Transformation 
+library(dplyr) # A Grammar of Data Manipulation
+library(DT) # A Wrapper of the JavaScript Library 'DataTables'
+library(dutchmasters) # Color Palettes based on Famous Paintings 
+library(flexdashboard) # R Markdown Format for Flexible Dashboards
+library(flextable) # Functions for Tabular Reporting  
+library(forcats) # Tools for Working with Categorical Variables (Factors)
+library(gganimate) # A Grammar of Animated Graphics
+library(ggcorrplot) # Visualization of a Correlation Matrix using 'ggplot2'
+library(ggdag) # Analyze and Create Elegant Directed Acyclic Graphs      
+library(ggforce) # Accelerating 'ggplot2' 
+library(gghighlight) # Highlight Lines and Points in 'ggplot2' 
+library(ggplot2) # Create Elegant Data Visualizations Using the Grammar of Graphics
+library(ggokabeito) # 'Okabe-Ito' Scales for 'ggplot2' and 'ggraph'
+library(ggpubr) # 'ggplot2' Based Publication Ready Plots
+library(ggrepel) # Automatically Position Non-Overlapping Text Labels with 'ggplot2'
+library(ggtext) # Improved Text Rendering Support for 'ggplot2' 
+library(ggthemes) # Extra Themes, Scales and Geoms for 'ggplot2'
+library(glue) # Interpreted String Literals    
+library(grid) # The Grid Graphics Package
+library(gt) # Easily Create Presentation-Ready Display Tables
+library(gtExtras) # Extending 'gt' for Beautiful HTML Tables
+library(halfmoon) # Techniques to Build Better Balance
+library(haven) # Import and Export 'SPSS', 'Stata' and 'SAS' Files
+library(here) # A Simpler Way to Find Your Files
+library(htmltools) # Tools for HTML
+library(htmlwidgets) # HTML Widgets for R
+library(janitor) # Simple Tools for Examining and Cleaning Dirty Data 
+library(kableExtra) # Construct Complex Table with 'kable' and Pipe Syntax
+library(knitr) # A General-Purpose Package for Dynamic Report Generation in R   
+library(lavaan) # Latent Variable Analysis     
+library(lubridate) # Make Dealing with Dates a Little Easier
+library(monochromeR) # Easily Create, View and Use Monochrome Color Palettes 
+library(paletteer) # Comprehensive Collection of Color Palettes 
+library(patchwork) # The Composer of Plots
+library(plotly) # Create Interactive Web Graphics via 'plotly.js'
+library(ppcor) # Partial and Semi-Partial (Part) Correlation
+library(propensity) # A Toolkit for Calculating and Working with Propensity Scores
+library(prettycode) # Pretty Print R Code in the Terminal
+library(PSW) # Propensity Score Weighting Methods for Dichotomous Treatments
+library(purrr) # Functional Programming Tools
+library(pwr) # Basic Functions for Power Analysis
+library(qgraph) # Graph Plotting Methods, Psychometric Data Visualization and Graphical Model Estimation
+library(qicharts2) # Quality Improvement Charts
+library(RColorBrewer) # ColorBrewer Palettes 
+library(readr) # Read Rectangular Text Data
+library(readxl) # Read Excel Files
+library(rethinking) # Statistical Rethinking book package
+library(rlang) # Functions for Base Types and Core R and 'Tidyverse' Features
+library(rsample) # General Resampling Infrastructure
+library(scales) # Scale Functions for Visualization
+library(shiny) # Web Application Framework for R
+library(shinyobjects) # Access Reactive Data Interactively   
+library(skimr) # Compact and Flexible Summaries of Data
+library(stringr) # Simple, Consistent Wrappers for Common String Operations
+library(tibble) # Simple Data Frames
+library(tidycensus) # Load US Census Boundary and Attribute Data as 'tidyverse' and 'sf'-Ready Data Frames
+library(tidylog) # Logging for 'dplyr' and 'tidyr' Functions
+library(tidyr) # Tidy Messy Data
+library(tidytext) # Text Mining using 'dplyr', 'ggplot2', and Other Tidy Tools 
+library(tsibble) # Tidy Temporal Data Frames and Tools        
+library(viridis) # Colorblind-Friendly Color Maps for R 
+library(visdat) # Preliminary Visualization of Data
+library(vroom) # Read and Write Rectangular Text Data Quickly    
+library(wesanderson) # A Wes Anderson Palette Generator 
+library(writexl) # Export Data Frames to Excel 'xlsx' Format 
+library(WRS2) # A Collection of Robust Statistical Methods
+
 
 
 # Force dplyr's select to take precedence
 select <- dplyr::select
 filter <- dplyr::filter
 
+# Options
+options(scipen = 999)
+options(qic.clshade = T) # NO LONGER NEEDED; CHARTS ALL PREPARED WITH GGPLOT2 ONLY
+options(qic.linecol = 'black') # NO LONGER NEEDED; CHARTS ALL PREPARED WITH GGPLOT2 ONLY
+options(qic.signalcol = "red") # NO LONGER NEEDED; CHARTS ALL PREPARED WITH GGPLOT2 ONLY
+options(qic.targetcol = "purple") # NO LONGER NEEDED; CHARTS ALL PREPARED WITH GGPLOT2 ONLY
+options(DT.options = list(dom = 'pBlfrti')) # Add buttons, filtering, and top (t) pagination controls
+options(shiny.maxRequestSize = 50 * 1024^2) # Set upload maximum to 50 MB
+options(tigris_use_cache = TRUE)
+
+
 # Set global theme for consistent plots
-theme_set(theme_minimal(base_size = 20) + 
-          theme(
-    plot.title = element_text(face = "bold", size = 26),    # adjust title size
-    plot.subtitle = element_text(face = "bold", size = 24), # adjust subtitle size
-    axis.title.x = element_text(face = "bold", size = 22),
-    axis.title.y = element_text(face = "bold", size = 22),
-    axis.text.x = element_text(face = "bold", size = 22, angle = 45, hjust = 1),
-    legend.position = "bottom",
-    strip.text = element_text(face = "bold"),
-    panel.spacing.x = unit(1.5, "cm"),  # Horizontal spacing only
-    panel.spacing.y = unit(1.5, "cm"),   # Vertical spacing only
-    plot.margin = margin(20, 20, 20, 20, "pt")
-    )
-)
+ggplot2::theme_set(ggplot2::theme_minimal(base_size = 20) + 
+                   ggplot2::theme(plot.title = ggplot2::element_text(face = "bold",
+                                                                      size = 26),
+                                  plot.subtitle = ggplot2::element_text(face = "bold",
+                                                                         size = 24),
+                                  axis.title.x = ggplot2::element_text(face = "bold",
+                                                                        size = 22),
+                                  axis.title.y = ggplot2::element_text(face = "bold",
+                                                                        size = 22),
+                                  axis.text.x = ggplot2::element_text(face = "bold",
+                                                                       size = 22,
+                                                                       angle = 45,
+                                                                       hjust = 1),
+                                  legend.position = "bottom",
+                                  strip.text = ggplot2::element_text(face = "bold"),
+                                  panel.spacing.x = grid::unit(1.5,
+                                                                "cm"),
+                                  panel.spacing.y = grid::unit(1.5,
+                                                                "cm"),
+                                  plot.margin = ggplot2::margin(20,
+                                                                 20,
+                                                                 20,
+                                                                 20,
+                                                                 "pt")))
 
 
 # Set seed for reproducibility
 set.seed(123)
 
 ```
-<br>
 
+<br>
 
 ## DAG RENDERING USING DiagrammeR.
 
@@ -250,7 +316,6 @@ grViz("
 
 <br>
 
-
 ### DAG Visualization using ggdag and dagitty
 
 ```{r}
@@ -281,40 +346,37 @@ ggdag(dag) +
 ## Executive Summary: Understanding Fork Structure (Confounder)
 
 ::: {.callout-note collapse="true" title="<span style='font-size: 20px;'>What is a Fork Structure?</span> <span style='color: darkblue; font-size: 22px;'>(click to open and close)</span>"}
-
 A fork structure occurs when a common cause (Z) affects both the exposure (X) and the outcome (Y). In this DAG, Z represents a confounder that creates a non-causal association between X and Y through the backdoor path X ← Z → Y.
 
 ### Why is Adjusting for Z Necessary?
+
 Controlling for Z in this structure is essential because:
 
-1. It blocks the backdoor path: By conditioning on Z, we're blocking the non-causal association between X and Y that flows through Z.
+1.  It blocks the backdoor path: By conditioning on Z, we're blocking the non-causal association between X and Y that flows through Z.
 
-1. It prevents confounding bias: Without adjusting for Z, our estimate of the effect of X on Y would be biased.
+2.  It prevents confounding bias: Without adjusting for Z, our estimate of the effect of X on Y would be biased.
 
-3. It enables causal identification: Controlling for Z allows us to isolate the true causal effect of X on Y.
+3.  It enables causal identification: Controlling for Z allows us to isolate the true causal effect of X on Y.
 
 ### Real-World Example
 
 A researcher is studying the effect of coffee consumption (X) on heart disease risk (Y):
 
-Age (Z) affects both coffee consumption habits (X) and heart disease risk (Y).
-Coffee consumption (X) might have a direct effect on heart disease risk (Y).
+Age (Z) affects both coffee consumption habits (X) and heart disease risk (Y). Coffee consumption (X) might have a direct effect on heart disease risk (Y).
 
 If the researcher doesn't control for age (Z), they might incorrectly attribute the higher heart disease risk among coffee drinkers to coffee itself, when it's actually due to the fact that older people tend to drink more coffee and also have higher heart disease risk.
 
-
 ### How to Handle Fork Structures
 
-1. Identify potential confounders: Look for variables that could affect both the exposure and the outcome.
+1.  Identify potential confounders: Look for variables that could affect both the exposure and the outcome.
 
-1. Adjust appropriately: Include identified confounders in your statistical model.
+2.  Adjust appropriately: Include identified confounders in your statistical model.
 
-1. Consider unmeasured confounding: Assess whether there might be unmeasured variables creating backdoor paths.
+3.  Consider unmeasured confounding: Assess whether there might be unmeasured variables creating backdoor paths.
 
-1. Use sensitivity analysis: Test how robust your findings are to potential unmeasured confounding.
+4.  Use sensitivity analysis: Test how robust your findings are to potential unmeasured confounding.
 
 The fork structure demonstrates why adjusting for confounders is one of the most fundamental principles in causal inference, allowing us to distinguish genuine causal relationships from spurious associations.
-
 :::
 
 ```{r causal-salad-dag1}
@@ -777,7 +839,6 @@ DT::datatable(
 )
 ```
 
-
 ### 3. Visualizing Status, Adjustment Sets and Paths with ggdag
 
 ```{r}
@@ -824,8 +885,6 @@ ggdag_paths(dag_tidy) +
   label("All Paths between X and Y")
 ```
 
-
-
 ::: {.callout-note collapse="true"}
 # DAG Analysis Glossary - Click to Open and Close
 
@@ -851,14 +910,14 @@ ggdag_paths(dag_tidy) +
 
 This table provides a high-level overview of the DAG structure and key causal features:
 
-- **Acyclic DAG**: Confirms the graph has no cycles (a prerequisite for valid causal analysis)
-- **Causal effect identifiable**: Indicates whether the causal effect can be estimated from observational data
-- **Number of paths**: Total number of paths connecting exposure and outcome
-- **Number of backdoor paths**: Paths creating potential confounding that need to be blocked
-- **Direct effect exists**: Whether there is a direct causal link from exposure to outcome
-- **Potential mediators**: Variables that may mediate the causal effect
-- **Number of adjustment sets**: How many different sets of variables could be adjusted for
-- **Minimal adjustment sets**: The smallest sets of variables that block all backdoor paths
+-   **Acyclic DAG**: Confirms the graph has no cycles (a prerequisite for valid causal analysis)
+-   **Causal effect identifiable**: Indicates whether the causal effect can be estimated from observational data
+-   **Number of paths**: Total number of paths connecting exposure and outcome
+-   **Number of backdoor paths**: Paths creating potential confounding that need to be blocked
+-   **Direct effect exists**: Whether there is a direct causal link from exposure to outcome
+-   **Potential mediators**: Variables that may mediate the causal effect
+-   **Number of adjustment sets**: How many different sets of variables could be adjusted for
+-   **Minimal adjustment sets**: The smallest sets of variables that block all backdoor paths
 
 #### 2. Conditional Independencies Table
 
@@ -868,10 +927,10 @@ Shows the implied conditional independencies in the DAG - pairs of variables tha
 
 Enumerates all paths connecting the exposure to the outcome:
 
-- **Path**: The specific variables and connections in each path
-- **Length**: Number of edges in the path
-- **IsBackdoor**: Whether this is a backdoor path (potential source of confounding)
-- **IsDirected**: Whether this is a directed path from exposure to outcome
+-   **Path**: The specific variables and connections in each path
+-   **Length**: Number of edges in the path
+-   **IsBackdoor**: Whether this is a backdoor path (potential source of confounding)
+-   **IsDirected**: Whether this is a directed path from exposure to outcome
 
 Testing whether these paths are open or closed under different conditioning strategies is crucial for causal inference.
 
@@ -879,15 +938,15 @@ Testing whether these paths are open or closed under different conditioning stra
 
 Shows which variables can causally affect (ancestors) or be affected by (descendants) each variable in the DAG:
 
-- Understanding ancestry relationships helps identify potential confounders
-- Descendants should not be controlled for as this may introduce bias
+-   Understanding ancestry relationships helps identify potential confounders
+-   Descendants should not be controlled for as this may introduce bias
 
 #### 5. D-Separation Results Table
 
 Shows whether exposure and outcome are conditionally independent (d-separated) when conditioning on different variable sets:
 
-- **Is_D_Separated = Yes**: This set of conditioning variables blocks all non-causal paths
-- **Is_D_Separated = No**: Some non-causal association remains
+-   **Is_D_Separated = Yes**: This set of conditioning variables blocks all non-causal paths
+-   **Is_D_Separated = No**: Some non-causal association remains
 
 This helps identify sufficient adjustment sets for estimating causal effects.
 
@@ -895,17 +954,17 @@ This helps identify sufficient adjustment sets for estimating causal effects.
 
 Shows how different adjustment strategies affect the identification of causal effects:
 
-- **Total_Paths**: Total number of paths between exposure and outcome
-- **Open_Paths**: Number of paths that remain open after adjustment
-  
+-   **Total_Paths**: Total number of paths between exposure and outcome
+-   **Open_Paths**: Number of paths that remain open after adjustment
+
 Ideally, adjusting for the right variables leaves only the causal paths open.
 
 #### 7. Unmeasured Confounding Impact Table
 
 Simulates the effect of being unable to measure certain variables:
 
-- **Original_Adjustment_Sets**: Number of valid adjustment sets with all variables measured
-- **Adjusted_Sets_When_Unmeasured**: Number of valid adjustment sets when this variable is unmeasured
+-   **Original_Adjustment_Sets**: Number of valid adjustment sets with all variables measured
+-   **Adjusted_Sets_When_Unmeasured**: Number of valid adjustment sets when this variable is unmeasured
 
 This helps identify which variables are most critical to measure for valid causal inference.
 
@@ -915,18 +974,17 @@ Lists potential instrumental variables - variables that affect the exposure but 
 
 ### How to Use This Analysis for Causal Inference
 
-1. **Identify minimal sufficient adjustment sets**: These are the variables you should control for in your analysis to remove confounding.
+1.  **Identify minimal sufficient adjustment sets**: These are the variables you should control for in your analysis to remove confounding.
 
-2. **Avoid conditioning on colliders**: This can introduce bias. Check the paths and d-separation results to ensure your adjustment strategy doesn't open non-causal paths.
+2.  **Avoid conditioning on colliders**: This can introduce bias. Check the paths and d-separation results to ensure your adjustment strategy doesn't open non-causal paths.
 
-3. **Validate your DAG**: Use the implied conditional independencies to test your causal assumptions against observed data.
+3.  **Validate your DAG**: Use the implied conditional independencies to test your causal assumptions against observed data.
 
-4. **Assess sensitivity to unmeasured confounding**: The unmeasured confounding analysis helps understand how robust your conclusions might be.
+4.  **Assess sensitivity to unmeasured confounding**: The unmeasured confounding analysis helps understand how robust your conclusions might be.
 
-5. **Consider mediation analysis**: If mediators are present, you might want to decompose total effects into direct and indirect components.
+5.  **Consider mediation analysis**: If mediators are present, you might want to decompose total effects into direct and indirect components.
 
-6. **Look for instrumental variables**: These can help establish causality even in the presence of unmeasured confounding.
+6.  **Look for instrumental variables**: These can help establish causality even in the presence of unmeasured confounding.
 
 Remember that the validity of any causal inference depends on the correctness of your DAG - it represents your causal assumptions about the data-generating process, which should be based on substantive domain knowledge.
-
 :::
