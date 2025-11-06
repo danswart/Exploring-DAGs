@@ -123,136 +123,41 @@ knitr:
 # Platform: x86_64-apple-darwin20
 # Running under: macOS Sequoia 15.6.1
 # Rstudio 2025.9.2.418 (Cucumberleaf Sunflower)
-# 
 
-# install.packages(c("mapview", "survey", "srvyr", "arcgislayers"))
+# All packages now called with namespace syntax (package::function)
+# No library() calls needed - reduces overhead and prevents namespace conflicts
 
-# census_api_key("95496766c51541ee6f402c1e1a8658581285b759", install = TRUE, overwrite = TRUE)
-
-
-# @ load libraries
-
-# library(BayesFactor) # Computation of Bayes Factors for Common Designs
-# library(boot) # Bootstrap Functions
-# library(broom) # Convert Statistical Objects into Tidy Tibbles
-# library(colorspace) # A Toolbox for Manipulating and Assessing Colors and Palettes
-# library(camcorder) # Record Your Plot History
-# library(car) # Companion to Applied Regression
-# library(causaldata) # Example Data Sets for Causal Inference Textbooks
-# library(corrplot) # Visualization of a Correlation Matrix
-# library(cowplot) # Streamlined Plot Theme and Plot Annotations for 'ggplot2'
-# library(dagitty) # Graphical Analysis of Structural Causal Models  
-# library(DiagrammeR) # Graph/Network Visualization 
-# library(dlookr) # Tools for Data Diagnosis, Exploration, Transformation 
-library(dplyr) # A Grammar of Data Manipulation
-# library(DT) # A Wrapper of the JavaScript Library 'DataTables'
-# library(dutchmasters) # Color Palettes based on Famous Paintings 
-# library(flexdashboard) # R Markdown Format for Flexible Dashboards
-# library(flextable) # Functions for Tabular Reporting  
-# library(forcats) # Tools for Working with Categorical Variables (Factors)
-# library(gganimate) # A Grammar of Animated Graphics
-# library(ggcorrplot) # Visualization of a Correlation Matrix using 'ggplot2'
-# library(ggdag) # Analyze and Create Elegant Directed Acyclic Graphs      
-# library(ggforce) # Accelerating 'ggplot2' 
-# library(gghighlight) # Highlight Lines and Points in 'ggplot2' 
-# library(ggplot2) # Create Elegant Data Visualizations Using the Grammar of Graphics
-# library(ggokabeito) # 'Okabe-Ito' Scales for 'ggplot2' and 'ggraph'
-# library(ggpubr) # 'ggplot2' Based Publication Ready Plots
-# library(ggrepel) # Automatically Position Non-Overlapping Text Labels with 'ggplot2'
-# library(ggtext) # Improved Text Rendering Support for 'ggplot2' 
-# library(ggthemes) # Extra Themes, Scales and Geoms for 'ggplot2'
-# library(glue) # Interpreted String Literals    
-# library(grid) # The Grid Graphics Package
-# library(gt) # Easily Create Presentation-Ready Display Tables
-# library(gtExtras) # Extending 'gt' for Beautiful HTML Tables
-# library(halfmoon) # Techniques to Build Better Balance
-# library(haven) # Import and Export 'SPSS', 'Stata' and 'SAS' Files
-# library(here) # A Simpler Way to Find Your Files
-# library(htmltools) # Tools for HTML
-# library(htmlwidgets) # HTML Widgets for R
-# library(janitor) # Simple Tools for Examining and Cleaning Dirty Data 
-# library(kableExtra) # Construct Complex Table with 'kable' and Pipe Syntax
-# library(knitr) # A General-Purpose Package for Dynamic Report Generation in R   
-# library(lavaan) # Latent Variable Analysis     
-# library(lubridate) # Make Dealing with Dates a Little Easier
-# library(monochromeR) # Easily Create, View and Use Monochrome Color Palettes 
-# library(paletteer) # Comprehensive Collection of Color Palettes 
-# library(patchwork) # The Composer of Plots
-# library(plotly) # Create Interactive Web Graphics via 'plotly.js'
-# library(ppcor) # Partial and Semi-Partial (Part) Correlation
-# library(propensity) # A Toolkit for Calculating and Working with Propensity Scores
-# library(prettycode) # Pretty Print R Code in the Terminal
-# library(PSW) # Propensity Score Weighting Methods for Dichotomous Treatments
-# library(purrr) # Functional Programming Tools
-# library(pwr) # Basic Functions for Power Analysis
-# library(qgraph) # Graph Plotting Methods, Psychometric Data Visualization and Graphical Model Estimation
-# library(qicharts2) # Quality Improvement Charts
-# library(RColorBrewer) # ColorBrewer Palettes 
-# library(readr) # Read Rectangular Text Data
-# library(readxl) # Read Excel Files
-# library(rethinking) # Statistical Rethinking book package
-# library(rlang) # Functions for Base Types and Core R and 'Tidyverse' Features
-# library(rsample) # General Resampling Infrastructure
-# library(scales) # Scale Functions for Visualization
-# library(shiny) # Web Application Framework for R
-# library(shinyobjects) # Access Reactive Data Interactively   
-# library(skimr) # Compact and Flexible Summaries of Data
-# library(stringr) # Simple, Consistent Wrappers for Common String Operations
-# library(tibble) # Simple Data Frames
-# library(tidycensus) # Load US Census Boundary and Attribute Data as 'tidyverse' and 'sf'-Ready Data Frames
-# library(tidylog) # Logging for 'dplyr' and 'tidyr' Functions
-# library(tidyr) # Tidy Messy Data
-# library(tidytext) # Text Mining using 'dplyr', 'ggplot2', and Other Tidy Tools 
-# library(tsibble) # Tidy Temporal Data Frames and Tools        
-# library(viridis) # Colorblind-Friendly Color Maps for R 
-# library(visdat) # Preliminary Visualization of Data
-# library(vroom) # Read and Write Rectangular Text Data Quickly    
-# library(wesanderson) # A Wes Anderson Palette Generator 
-# library(writexl) # Export Data Frames to Excel 'xlsx' Format 
-# library(WRS2) # A Collection of Robust Statistical Methods
-
-
-
-# Force dplyr's select to take precedence
+# Force dplyr's select to take precedence (optional since using namespace syntax)
 select <- dplyr::select
 filter <- dplyr::filter
 
 # Options
 options(scipen = 999)
-options(qic.clshade = T) # NO LONGER NEEDED; CHARTS ALL PREPARED WITH GGPLOT2 ONLY
-options(qic.linecol = 'black') # NO LONGER NEEDED; CHARTS ALL PREPARED WITH GGPLOT2 ONLY
-options(qic.signalcol = "red") # NO LONGER NEEDED; CHARTS ALL PREPARED WITH GGPLOT2 ONLY
-options(qic.targetcol = "purple") # NO LONGER NEEDED; CHARTS ALL PREPARED WITH GGPLOT2 ONLY
-options(DT.options = list(dom = 'pBlfrti')) # Add buttons, filtering, and top (t) pagination controls
-options(shiny.maxRequestSize = 50 * 1024^2) # Set upload maximum to 50 MB
+options(qic.clshade = T)
+options(qic.linecol = 'black')
+options(qic.signalcol = "red")
+options(qic.targetcol = "purple")
+options(DT.options = list(dom = 'pBlfrti'))
+options(shiny.maxRequestSize = 50 * 1024^2)
 options(tigris_use_cache = TRUE)
 
 
 # Set global theme for consistent plots
-ggplot2::theme_set(ggplot2::theme_minimal(base_size = 20) + 
-                   ggplot2::theme(plot.title = ggplot2::element_text(face = "bold",
-                                                                      size = 26),
-                                  plot.subtitle = ggplot2::element_text(face = "bold",
-                                                                         size = 24),
-                                  axis.title.x = ggplot2::element_text(face = "bold",
-                                                                        size = 22),
-                                  axis.title.y = ggplot2::element_text(face = "bold",
-                                                                        size = 22),
-                                  axis.text.x = ggplot2::element_text(face = "bold",
-                                                                       size = 22,
-                                                                       angle = 45,
-                                                                       hjust = 1),
-                                  legend.position = "bottom",
-                                  strip.text = ggplot2::element_text(face = "bold"),
-                                  panel.spacing.x = grid::unit(1.5,
-                                                                "cm"),
-                                  panel.spacing.y = grid::unit(1.5,
-                                                                "cm"),
-                                  plot.margin = ggplot2::margin(20,
-                                                                 20,
-                                                                 20,
-                                                                 20,
-                                                                 "pt")))
+ggplot2::theme_set(
+  ggplot2::theme_minimal(base_size = 20) + 
+  ggplot2::theme(
+    plot.title = ggplot2::element_text(face = "bold", size = 26),
+    plot.subtitle = ggplot2::element_text(face = "bold", size = 24),
+    axis.title.x = ggplot2::element_text(face = "bold", size = 22),
+    axis.title.y = ggplot2::element_text(face = "bold", size = 22),
+    axis.text.x = ggplot2::element_text(face = "bold", size = 22, angle = 45, hjust = 1),
+    legend.position = "bottom",
+    strip.text = ggplot2::element_text(face = "bold"),
+    panel.spacing.x = grid::unit(1.5, "cm"),
+    panel.spacing.y = grid::unit(1.5, "cm"),
+    plot.margin = ggplot2::margin(20, 20, 20, 20, "pt")
+  )
+)
 
 
 # Set seed for reproducibility
@@ -306,9 +211,6 @@ The beauty of this experimental structure is that no adjustment is necessary to 
 ```{r}
 #| label: diagrammer-visualization
 #| fig-cap: "Directed Acyclic Graph of Experimental Causal Structure"
-
-
-library(DiagrammeR)
 
 # Create the DAG using DiagrammeR for detailed control
 experimental_dag_viz <- DiagrammeR::grViz("
@@ -372,7 +274,7 @@ experimental_dag <- ggdag::dagify(
              "B" = "B")
 )
 
-# Set coordinates for nice visualization
+# Set coordinates for nice visualization - NOTE: coordinates is a dagitty function!
 dagitty::coordinates(experimental_dag) <- list(
   x = c(X = 1, Y = 3, Z = 2, C = 2, A = 1, B = 3),
   y = c(X = 2, Y = 2, Z = 3, C = 1, A = 3, B = 3)
@@ -445,10 +347,12 @@ true_effects <- data.frame(
 )
 
 # Display the table
-DT::datatable(true_effects,
-          options = list(pageLength = 10, dom = 't'),
-          rownames = FALSE,
-          class = 'cell-border stripe compact responsive')
+DT::datatable(
+  true_effects,
+  options = list(pageLength = 10, dom = 't'),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
 ```
 
 ## 5. Examine structure of synthetic data
@@ -466,24 +370,28 @@ corr_matrix <- stats::cor(dag_data)
 corr_table <- as.data.frame(round(corr_matrix, 3))
 
 # Display correlation table
-DT::datatable(corr_table,
-          options = list(pageLength = 10, dom = 't'),
-          rownames = TRUE,
-          class = 'cell-border stripe compact responsive')
+DT::datatable(
+  corr_table,
+  options = list(pageLength = 10, dom = 't'),
+  rownames = TRUE,
+  class = 'cell-border stripe compact responsive'
+)
 
 # Correlation plot
-corrplot::corrplot(corr_matrix, 
-         method = "color", 
-         type = "upper", 
-         order = "hclust",
-         addCoef.col = "black",
-         number.cex = 1.5,  # This controls the size of the numbers
-         tl.col = "black",
-         tl.srt = 45,
-         diag = FALSE,
-         col = colorRampPalette(c("#6BAED6", "white", "#E6550D"))(200),
-         title = "Correlation Matrix of Variables",
-         mar = c(0,0,1,0))
+corrplot::corrplot(
+  corr_matrix, 
+  method = "color", 
+  type = "upper", 
+  order = "hclust",
+  addCoef.col = "black",
+  number.cex = 1.5,
+  tl.col = "black",
+  tl.srt = 45,
+  diag = FALSE,
+  col = grDevices::colorRampPalette(c("#6BAED6", "white", "#E6550D"))(200),
+  title = "Correlation Matrix of Variables",
+  mar = c(0,0,1,0)
+)
 
 # Add a description of the correlation levels
 corr_description <- data.frame(
@@ -506,11 +414,13 @@ corr_description <- data.frame(
 )
 
 # Display the correlation description
-DT::datatable(corr_description,
-          caption = "Interpretation of key correlations in the experimental DAG structure",
-          options = list(pageLength = 10, scrollX = TRUE),
-          rownames = FALSE,
-          class = 'cell-border stripe compact responsive')
+DT::datatable(
+  corr_description,
+  caption = "Interpretation of key correlations in the experimental DAG structure",
+  options = list(pageLength = 10, scrollX = TRUE),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
 ```
 
 ## 6. Visualize distributions and relationships in synthetic data
@@ -520,9 +430,9 @@ DT::datatable(corr_description,
 #| fig-cap: "Distributions of all variables in the synthetic experimental data"
 
 # Visualize distributions of all variables
-dag_data %>%
-  tidyr::pivot_longer(cols = everything(), names_to = "Variable", values_to = "Value") %>%
-  ggplot2::ggplot(gghighlight::aes(x = Value)) +
+dag_data |>
+  tidyr::pivot_longer(cols = dplyr::everything(), names_to = "Variable", values_to = "Value") |>
+  ggplot2::ggplot(ggplot2::aes(x = Value)) +
   ggplot2::geom_histogram(fill = "steelblue", alpha = 0.7, bins = 30) +
   ggplot2::facet_wrap(~ Variable, scales = "free") +
   ggplot2::theme_minimal() +
@@ -548,7 +458,7 @@ ggplot2::ggplot(dag_data, ggplot2::aes(x = X, y = Y)) +
   ggplot2::theme(plot.title = ggplot2::element_text(size = 28))
 
 # Z vs Y scatterplot
-ggplot2::ggplot(dag_data, gghighlight::aes(x = Z, y = Y)) +
+ggplot2::ggplot(dag_data, ggplot2::aes(x = Z, y = Y)) +
   ggplot2::geom_point(alpha = 0.3, color = "darkgreen") +
   ggplot2::geom_smooth(method = "lm", formula = y ~ x, color = "darkred") +
   ggplot2::theme_minimal() +
@@ -637,11 +547,13 @@ unadj_results <- data.frame(
 )
 
 # Display the results
-DT::datatable(unadj_results,
-          caption = "Unadjusted Model Results (Correct for Experimental Design)",
-          options = list(pageLength = 10, dom = 't'),
-          rownames = FALSE) %>%
-  DT::formatRound(columns=c('Estimate', 'StdError', 'tValue'), digits=3) %>%
+DT::datatable(
+  unadj_results,
+  caption = "Unadjusted Model Results (Correct for Experimental Design)",
+  options = list(pageLength = 10, dom = 't'),
+  rownames = FALSE
+) |>
+  DT::formatRound(columns=c('Estimate', 'StdError', 'tValue'), digits=3) |>
   DT::formatSignif(columns='pValue', digits=3)
 ```
 
@@ -655,7 +567,7 @@ DT::datatable(unadj_results,
 model_adjusted_precision <- stats::lm(Y ~ X + Z + C + B, data = dag_data)
 
 # Display model summary
-summary_adj_precision <- lavaan::summary(model_adjusted_precision)
+summary_adj_precision <- summary(model_adjusted_precision)
 
 # Extract the coefficient for X
 coef_adjusted_precision <- stats::coef(model_adjusted_precision)["X"]
@@ -670,11 +582,13 @@ adj_precision_results <- data.frame(
 )
 
 # Display the results
-DT::datatable(adj_precision_results,
-          caption = "Adjusted Model Results (For Increased Precision)",
-          options = list(pageLength = 10, dom = 't'),
-          rownames = FALSE) %>%
-  DT::formatRound(columns=c('Estimate', 'StdError', 'tValue'), digits=3) %>%
+DT::datatable(
+  adj_precision_results,
+  caption = "Adjusted Model Results (For Increased Precision)",
+  options = list(pageLength = 10, dom = 't'),
+  rownames = FALSE
+) |>
+  DT::formatRound(columns=c('Estimate', 'StdError', 'tValue'), digits=3) |>
   DT::formatSignif(columns='pValue', digits=3)
 
 # Show R-squared
@@ -683,9 +597,11 @@ r2_adj_precision <- data.frame(
   Value = c(summary_adj_precision$r.squared, summary_adj_precision$adj.r.squared)
 )
 
-DT::datatable(r2_adj_precision,
-          options = list(pageLength = 10, dom = 't'),
-          rownames = FALSE) %>%
+DT::datatable(
+  r2_adj_precision,
+  options = list(pageLength = 10, dom = 't'),
+  rownames = FALSE
+) |>
   DT::formatRound(columns='Value', digits=3)
 ```
 
@@ -718,12 +634,12 @@ comparison_df <- data.frame(
   ),
   StandardError = c(
     NA,
-    lavaan::summary(models[["Unadjusted (Correct for Experimental Design)"]])$coefficients["X", "Std. Error"],
-    lavaan::summary(models[["Adjusted for Z"]])$coefficients["X", "Std. Error"],
-    lavaan::summary(models[["Adjusted for C"]])$coefficients["X", "Std. Error"],
-    lavaan::summary(models[["Adjusted for B"]])$coefficients["X", "Std. Error"],
-    lavaan::summary(models[["Adjusted for Z, C"]])$coefficients["X", "Std. Error"],
-    lavaan::summary(models[["All variables"]])$coefficients["X", "Std. Error"]
+    summary(models[["Unadjusted (Correct for Experimental Design)"]])$coefficients["X", "Std. Error"],
+    summary(models[["Adjusted for Z"]])$coefficients["X", "Std. Error"],
+    summary(models[["Adjusted for C"]])$coefficients["X", "Std. Error"],
+    summary(models[["Adjusted for B"]])$coefficients["X", "Std. Error"],
+    summary(models[["Adjusted for Z, C"]])$coefficients["X", "Std. Error"],
+    summary(models[["All variables"]])$coefficients["X", "Std. Error"]
   )
 )
 
@@ -734,12 +650,12 @@ comparison_df$BiasPercent <- 100 * (comparison_df$Coefficient - true_effect) / t
 # Add R-squared values
 comparison_df$R2 <- c(
   NA,
-  lavaan::summary(models[["Unadjusted (Correct for Experimental Design)"]])$r.squared,
-  lavaan::summary(models[["Adjusted for Z"]])$r.squared,
-  lavaan::summary(models[["Adjusted for C"]])$r.squared,
-  lavaan::summary(models[["Adjusted for B"]])$r.squared,
-  lavaan::summary(models[["Adjusted for Z, C"]])$r.squared,
-  lavaan::summary(models[["All variables"]])$r.squared
+  summary(models[["Unadjusted (Correct for Experimental Design)"]])$r.squared,
+  summary(models[["Adjusted for Z"]])$r.squared,
+  summary(models[["Adjusted for C"]])$r.squared,
+  summary(models[["Adjusted for B"]])$r.squared,
+  summary(models[["Adjusted for Z, C"]])$r.squared,
+  summary(models[["All variables"]])$r.squared
 )
 
 # Format for display (changed to 3 decimal places)
@@ -750,11 +666,13 @@ comparison_df$BiasPercent <- round(comparison_df$BiasPercent, 3)
 comparison_df$R2 <- round(comparison_df$R2, 3)
 
 # Display as a table
-DT::datatable(comparison_df,
-          caption = "Comparison of Different Modeling Strategies for Experimental Data",
-          options = list(pageLength = 10, scrollX = TRUE),
-          rownames = FALSE,
-          class = 'cell-border stripe compact responsive')
+DT::datatable(
+  comparison_df,
+  caption = "Comparison of Different Modeling Strategies for Experimental Data",
+  options = list(pageLength = 10, scrollX = TRUE),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
 
 ```
 
@@ -771,17 +689,17 @@ model_comparison_unadj_all <- stats::anova(models[["Unadjusted (Correct for Expe
 
 # Test if unadjusted coefficient differs from true effect
 unadj_z_stat <- (stats::coef(models[["Unadjusted (Correct for Experimental Design)"]])["X"] - true_effect) / 
-  lavaan::summary(models[["Unadjusted (Correct for Experimental Design)"]])$coefficients["X", "Std. Error"]
+  summary(models[["Unadjusted (Correct for Experimental Design)"]])$coefficients["X", "Std. Error"]
 unadj_p_value <- 2 * (1 - stats::pnorm(abs(unadj_z_stat)))
 
 # Test if adjusted coefficient (Z) differs from true effect
 adj_z_z_stat <- (stats::coef(models[["Adjusted for Z"]])["X"] - true_effect) / 
-  lavaan::summary(models[["Adjusted for Z"]])$coefficients["X", "Std. Error"]
+  summary(models[["Adjusted for Z"]])$coefficients["X", "Std. Error"]
 adj_z_p_value <- 2 * (1 - stats::pnorm(abs(adj_z_z_stat)))
 
 # Test if adjusted coefficient (Z, C) differs from true effect
 adj_zc_z_stat <- (stats::coef(models[["Adjusted for Z, C"]])["X"] - true_effect) / 
-  lavaan::summary(models[["Adjusted for Z, C"]])$coefficients["X", "Std. Error"]
+  summary(models[["Adjusted for Z, C"]])$coefficients["X", "Std. Error"]
 adj_zc_p_value <- 2 * (1 - stats::pnorm(abs(adj_zc_z_stat)))
 
 # Create a data frame for the results
@@ -850,11 +768,13 @@ significance_df <- data.frame(
 )
 
 # Display as a table
-DT::datatable(significance_df,
-          caption = "Statistical Tests for Model Performance in Experimental Design",
-          options = list(pageLength = 10, scrollX = TRUE),
-          rownames = FALSE,
-          class = 'cell-border stripe compact responsive')
+DT::datatable(
+  significance_df,
+  caption = "Statistical Tests for Model Performance in Experimental Design",
+  options = list(pageLength = 10, scrollX = TRUE),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
 
 ```
 
@@ -904,11 +824,13 @@ randomization_tests$Correlation <- round(randomization_tests$Correlation, 3)
 randomization_tests$P_Value <- round(randomization_tests$P_Value, 3)
 
 # Display as a table
-DT::datatable(randomization_tests,
-          caption = "Testing Independence of Randomized Exposure X",
-          options = list(pageLength = 10, scrollX = TRUE),
-          rownames = FALSE,
-          class = 'cell-border stripe compact responsive')
+DT::datatable(
+  randomization_tests,
+  caption = "Testing Independence of Randomized Exposure X",
+  options = list(pageLength = 10, scrollX = TRUE),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
 ```
 
 ## Conclusions from Randomization Tests:
@@ -934,7 +856,7 @@ The randomization tests confirm the fundamental principle of experimental design
 #| layout-ncol: 2
 
 # Create Z strata
-dag_data <- dag_data %>%
+dag_data <- dag_data |>
   dplyr::mutate(Z_strata = cut(Z, breaks = 3, labels = c("Low Z", "Medium Z", "High Z")))
 
 # Stratified analysis by Z
@@ -942,33 +864,41 @@ p1 <- ggplot2::ggplot(dag_data, ggplot2::aes(x = X, y = Y, color = Z_strata)) +
   ggplot2::geom_point(alpha = 0.5) +
   ggplot2::geom_smooth(method = "lm", se = TRUE) +
   ggplot2::facet_wrap(~ Z_strata) +
-  ggplot2::labs(title = "X-Y Relationship Stratified by Z",
-       subtitle = "Exposure effect should be consistent across strata") +
+  ggplot2::labs(
+    title = "X-Y Relationship Stratified by Z",
+    subtitle = "Exposure effect should be consistent across strata"
+  ) +
   ggplot2::theme_minimal() +
-  ggplot2::theme(legend.position = "bottom",
-        plot.title = ggplot2::element_text(size = 28),
-        plot.subtitle = ggplot2::element_text(size = 28))
+  ggplot2::theme(
+    legend.position = "bottom",
+    plot.title = ggplot2::element_text(size = 28),
+    plot.subtitle = ggplot2::element_text(size = 28)
+  )
 print(p1)
 
 # Create C strata
-dag_data <- dag_data %>%
+dag_data <- dag_data |>
   dplyr::mutate(C_strata = cut(C, breaks = 3, labels = c("Low C", "Medium C", "High C")))
 
 # Stratified analysis by C
-p2 <- ggplot2::ggplot(dag_data, gghighlight::aes(x = X, y = Y, color = C_strata)) +
+p2 <- ggplot2::ggplot(dag_data, ggplot2::aes(x = X, y = Y, color = C_strata)) +
   ggplot2::geom_point(alpha = 0.5) +
   ggplot2::geom_smooth(method = "lm", se = TRUE) +
   ggplot2::facet_wrap(~ C_strata) +
-  ggplot2::labs(title = "X-Y Relationship Stratified by C",
-       subtitle = "Exposure effect should be consistent across strata") +
+  ggplot2::labs(
+    title = "X-Y Relationship Stratified by C",
+    subtitle = "Exposure effect should be consistent across strata"
+  ) +
   ggplot2::theme_minimal() +
-  ggplot2::theme(legend.position = "bottom",
-plot.title = ggplot2::element_text(size = 28),
-        plot.subtitle = ggplot2::element_text(size = 28))
+  ggplot2::theme(
+    legend.position = "bottom",
+    plot.title = ggplot2::element_text(size = 28),
+    plot.subtitle = ggplot2::element_text(size = 28)
+  )
 print(p2)
 
 # Create B strata
-dag_data <- dag_data %>%
+dag_data <- dag_data |>
   dplyr::mutate(B_strata = cut(B, breaks = 3, labels = c("Low B", "Medium B", "High B")))
 
 # Stratified analysis by B
@@ -976,16 +906,20 @@ p3 <- ggplot2::ggplot(dag_data, ggplot2::aes(x = X, y = Y, color = B_strata)) +
   ggplot2::geom_point(alpha = 0.5) +
   ggplot2::geom_smooth(method = "lm", se = TRUE) +
   ggplot2::facet_wrap(~ B_strata) +
-  ggplot2::labs(title = "X-Y Relationship Stratified by B",
-       subtitle = "Exposure effect should be consistent across strata") +
+  ggplot2::labs(
+    title = "X-Y Relationship Stratified by B",
+    subtitle = "Exposure effect should be consistent across strata"
+  ) +
   ggplot2::theme_minimal() +
-  ggplot2::theme(legend.position = "bottom",
-plot.title = ggplot2::element_text(size = 28),
-        plot.subtitle = ggplot2::element_text(size = 28))
+  ggplot2::theme(
+    legend.position = "bottom",
+    plot.title = ggplot2::element_text(size = 28),
+    plot.subtitle = ggplot2::element_text(size = 28)
+  )
 print(p3)
 
 # Create A strata
-dag_data <- dag_data %>%
+dag_data <- dag_data |>
   dplyr::mutate(A_strata = cut(A, breaks = 3, labels = c("Low A", "Medium A", "High A")))
 
 # Stratified analysis by A
@@ -993,12 +927,16 @@ p4 <- ggplot2::ggplot(dag_data, ggplot2::aes(x = X, y = Y, color = A_strata)) +
   ggplot2::geom_point(alpha = 0.5) +
   ggplot2::geom_smooth(method = "lm", se = TRUE) +
   ggplot2::facet_wrap(~ A_strata) +
-  ggplot2::labs(title = "X-Y Relationship Stratified by A",
-       subtitle = "Exposure effect should be consistent across strata") +
+  ggplot2::labs(
+    title = "X-Y Relationship Stratified by A",
+    subtitle = "Exposure effect should be consistent across strata"
+  ) +
   ggplot2::theme_minimal() +
-  ggplot2::theme(legend.position = "bottom",
-        plot.title = ggplot2::element_text(size = 28),
-        plot.subtitle = ggplot2::element_text(size = 28))
+  ggplot2::theme(
+    legend.position = "bottom",
+    plot.title = ggplot2::element_text(size = 28),
+    plot.subtitle = ggplot2::element_text(size = 28)
+  )
 print(p4)
 ```
 
@@ -1041,12 +979,12 @@ sem_fit <- lavaan::sem(sem_model, data = dag_data)
 sem_summary <- lavaan::summary(sem_fit, standardized = TRUE, fit.measures = TRUE)
 
 # Extract and display path coefficients
-sem_coefs <- lavaan::parameterEstimates(sem_fit) %>%
-  dplyr::filter(op %in% c("~", ":=")) %>%
+sem_coefs <- lavaan::parameterEstimates(sem_fit) |>
+  dplyr::filter(op %in% c("~", ":=")) |>
   dplyr::select(lhs, op, rhs, est, se, z, pvalue, ci.lower, ci.upper)
 
 # Create a formatted results table
-sem_results <- sem_coefs %>%
+sem_results <- sem_coefs |>
   dplyr::mutate(
     Path = dplyr::case_when(
       op == "~" & lhs == "Z" ~ paste(lhs, "<-", rhs),
@@ -1060,15 +998,17 @@ sem_results <- sem_coefs %>%
     `Z-value` = round(z, 3),
     `P-value` = round(pvalue, 3),
     `95% CI` = paste0("[", round(ci.lower, 3), ", ", round(ci.upper, 3), "]")
-  ) %>%
+  ) |>
   dplyr::select(Path, Estimate, SE, `Z-value`, `P-value`, `95% CI`)
 
 # Display the results table  
-DT::datatable(sem_results,
-          caption = "Structural Equation Model Path Coefficients for Experimental Design",
-          options = list(pageLength = 15, scrollX = TRUE),
-          rownames = FALSE,
-          class = 'cell-border stripe compact responsive')
+DT::datatable(
+  sem_results,
+  caption = "Structural Equation Model Path Coefficients for Experimental Design",
+  options = list(pageLength = 15, scrollX = TRUE),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
 ```
 
 ```{r}
@@ -1105,11 +1045,13 @@ fit_table <- data.frame(
   )
 )
 
-DT::datatable(fit_table,
-          caption = "Structural Equation Model Fit Indices for Experimental Design",
-          options = list(pageLength = 10, scrollX = TRUE),
-          rownames = FALSE,
-          class = 'cell-border stripe compact responsive')
+DT::datatable(
+  fit_table,
+  caption = "Structural Equation Model Fit Indices for Experimental Design",
+  options = list(pageLength = 10, scrollX = TRUE),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
 ```
 
 ## Conclusions from SEM Analysis:
@@ -1131,7 +1073,7 @@ The structural equation model confirms the experimental design principles:
 #| fig-cap: "Examining balance of treatment assignment across other variables"
 
 # Create treatment groups based on X (splitting at median for visualization)
-dag_data <- dag_data %>%
+dag_data <- dag_data |>
   dplyr::mutate(X_group = ifelse(X > stats::median(X), "High X", "Low X"))
 
 # Test balance across variables
@@ -1172,11 +1114,13 @@ balance_tests$T_Test_P_Value <- round(balance_tests$T_Test_P_Value, 3)
 # Add interpretation
 balance_tests$Balanced <- ifelse(balance_tests$T_Test_P_Value > 0.05, "Yes", "No")
 
-DT::datatable(balance_tests,
-          caption = "Balance Tests: Distribution of Variables Across Exposure Groups",
-          options = list(pageLength = 10, scrollX = TRUE),
-          rownames = FALSE,
-          class = 'cell-border stripe compact responsive')
+DT::datatable(
+  balance_tests,
+  caption = "Balance Tests: Distribution of Variables Across Exposure Groups",
+  options = list(pageLength = 10, scrollX = TRUE),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
 ```
 
 ```{r}
@@ -1194,16 +1138,21 @@ for(var in variables_to_plot) {
     ggplot2::geom_jitter(width = 0.2, alpha = 0.3) +
     ggplot2::scale_fill_manual(values = c("lightblue", "lightcoral")) +
     ggplot2::theme_minimal() +
-    ggplot2::labs(title = paste("Distribution of", var, "by Exposure Group"),
-         x = "Exposure Group", y = var) +
+    ggplot2::labs(
+      title = paste("Distribution of", var, "by Exposure Group"),
+      x = "Exposure Group", 
+      y = var
+    ) +
     ggplot2::theme(legend.position = "none")
   
   balance_plots[[var]] <- p
 }
 
 # Arrange plots
-ggpubr::ggarrange(balance_plots$A, balance_plots$B, balance_plots$Z, balance_plots$C,
-          ncol = 2, nrow = 2)
+ggpubr::ggarrange(
+  balance_plots$A, balance_plots$B, balance_plots$Z, balance_plots$C,
+  ncol = 2, nrow = 2
+)
 ```
 
 ## Conclusions from Exposure Balance Analysis:
@@ -1231,7 +1180,7 @@ sample_sizes <- c(100, 250, 500, 750, 1000)
 # Function to calculate power for a given effect size and sample size
 calculate_power <- function(effect_size, n, alpha = 0.05) {
   # Assume residual standard error from our model
-  residual_se <- lavaan::summary(model_unadjusted)$sigma
+  residual_se <- summary(model_unadjusted)$sigma
   
   # Standard error of treatment coefficient
   se_treatment <- residual_se / sqrt(sum((dag_data$X - mean(dag_data$X))^2))
@@ -1253,22 +1202,26 @@ power_analysis <- expand.grid(
   Sample_Size = sample_sizes
 )
 
-power_analysis$Power <- mapply(calculate_power, 
-                               power_analysis$Effect_Size, 
-                               power_analysis$Sample_Size)
+power_analysis$Power <- mapply(
+  calculate_power, 
+  power_analysis$Effect_Size, 
+  power_analysis$Sample_Size
+)
 
 # Format and display
 power_analysis$Power <- round(power_analysis$Power, 3)
 
 # Reshape for better display
-power_wide <- power_analysis %>%
+power_wide <- power_analysis |>
   tidyr::pivot_wider(names_from = Sample_Size, values_from = Power, names_prefix = "N_")
 
-DT::datatable(power_wide,
-          caption = "Statistical Power for Different Effect Sizes and Sample Sizes",
-          options = list(pageLength = 10, scrollX = TRUE),
-          rownames = FALSE,
-          class = 'cell-border stripe compact responsive')
+DT::datatable(
+  power_wide,
+  caption = "Statistical Power for Different Effect Sizes and Sample Sizes",
+  options = list(pageLength = 10, scrollX = TRUE),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
 ```
 
 ```{r}
@@ -1277,13 +1230,16 @@ DT::datatable(power_wide,
 
 # Create power curves
 ggplot2::ggplot(power_analysis, ggplot2::aes(x = Sample_Size, y = Power, color = factor(Effect_Size))) +
-  ggplot2::geom_line(size = 1.2) +
+  ggplot2::geom_line(linewidth = 1.2) +
   ggplot2::geom_point(size = 2) +
   ggplot2::geom_hline(yintercept = 0.8, linetype = "dashed", color = "red") +
   ggplot2::scale_color_viridis_d(name = "Effect Size") +
-  ggplot2::labs(title = "Statistical Power vs Sample Size for Different Effect Sizes",
-       subtitle = "Red dashed line shows 80% power threshold",
-       x = "Sample Size", y = "Statistical Power") +
+  ggplot2::labs(
+    title = "Statistical Power vs Sample Size for Different Effect Sizes",
+    subtitle = "Red dashed line shows 80% power threshold",
+    x = "Sample Size", 
+    y = "Statistical Power"
+  ) +
   ggplot2::theme_minimal() +
   ggplot2::theme(legend.position = "bottom")
 ```
@@ -1307,8 +1263,8 @@ The power analysis reveals important considerations for experimental design:
 #| results: 'hide'
 
 # Standardize variables for better model fitting
-dag_data_std <- dag_data %>%
-  dplyr::mutate(dplyr::across(dplyr::where(is.numeric), scale)) %>%
+dag_data_std <- dag_data |>
+  dplyr::mutate(dplyr::across(dplyr::where(is.numeric), scale)) |>
   as.data.frame()
 
 # Define and fit Bayesian models
@@ -1387,11 +1343,13 @@ bayesian_results <- rbind(
 )
 
 # Display the results
-DT::datatable(bayesian_results,
-          caption = "Bayesian estimates of the treatment effect under different models",
-          options = list(pageLength = 5, dom = 't'),
-          rownames = FALSE,
-          class = 'cell-border stripe compact responsive') %>%
+DT::datatable(
+  bayesian_results,
+  caption = "Bayesian estimates of the treatment effect under different models",
+  options = list(pageLength = 5, dom = 't'),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+) |>
   DT::formatRound(columns = c("Mean", "Median", "SD", "CI_Lower", "CI_Upper", "Width"), digits = 3)
 ```
 
@@ -1410,21 +1368,28 @@ all_posteriors <- data.frame(
 )
 
 # Convert to long format for plotting
-long_posteriors <- all_posteriors %>%
-  tidyr::pivot_longer(cols = everything(),
-               names_to = "Model",
-               values_to = "Effect_Estimate")
+long_posteriors <- all_posteriors |>
+  tidyr::pivot_longer(
+    cols = dplyr::everything(),
+    names_to = "Model",
+    values_to = "Effect_Estimate"
+  )
 
 # Set factor levels for consistent ordering
-long_posteriors$Model <- factor(long_posteriors$Model,
-                                levels = c("Unadjusted (Correct)", "Prognostic Adjustment", "Full Model"))
+long_posteriors$Model <- factor(
+  long_posteriors$Model,
+  levels = c("Unadjusted (Correct)", "Prognostic Adjustment", "Full Model")
+)
 
 # Plot density curves for all models
 ggplot2::ggplot(long_posteriors, ggplot2::aes(x = Effect_Estimate, fill = Model)) +
   ggplot2::geom_density(alpha = 0.6) +
-  ggplot2::geom_vline(data = bayesian_results,
-             ggplot2::aes(xintercept = Mean, color = Model),
-             linetype = "dashed", size = 1) +
+  ggplot2::geom_vline(
+    data = bayesian_results,
+    ggplot2::aes(xintercept = Mean, color = Model),
+    linetype = "dashed", 
+    linewidth = 1
+  ) +
   ggplot2::scale_fill_brewer(palette = "Set1") +
   ggplot2::scale_color_brewer(palette = "Set1") +
   ggplot2::labs(
@@ -1479,8 +1444,12 @@ ggplot2::ggplot() +
   # Add actual data points
   ggplot2::geom_point(data = dag_data, ggplot2::aes(x = X, y = Y), alpha = 0.2, color = "gray") +
   # Add counterfactual prediction
-  ggplot2::geom_line(data = counterfactual_df, ggplot2::aes(x = X, y = Y),
-            color = "red", size = 1.5) +
+  ggplot2::geom_line(
+    data = counterfactual_df, 
+    ggplot2::aes(x = X, y = Y),
+    color = "red", 
+    linewidth = 1.5
+  ) +
   ggplot2::labs(
     title = "Counterfactual Prediction: Exposure Effect",
     subtitle = "Red line shows the causal effect of treatment on outcome",
@@ -1520,11 +1489,13 @@ intervention_effects <- data.frame(
 intervention_effects$X_Change <- round(intervention_effects$X_Change, 3)
 intervention_effects$Expected_Y_Change <- round(intervention_effects$Expected_Y_Change, 3)
 
-DT::datatable(intervention_effects,
-          caption = "Expected outcomes under different treatment interventions",
-          options = list(pageLength = 10, dom = 't'),
-          rownames = FALSE,
-          class = 'cell-border stripe compact responsive')
+DT::datatable(
+  intervention_effects,
+  caption = "Expected outcomes under different treatment interventions",
+  options = list(pageLength = 10, dom = 't'),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
 ```
 
 ## Conclusions from Counterfactual Analysis:
@@ -1578,11 +1549,13 @@ sensitivity_results$Apparent_Effect <- round(sensitivity_results$Apparent_Effect
 sensitivity_results$Bias <- round(sensitivity_results$Bias, 3)
 sensitivity_results$Bias_Percent <- round(100 * sensitivity_results$Bias / 0.4, 1)
 
-DT::datatable(sensitivity_results,
-          caption = "Sensitivity Analysis: Impact of Failed Randomization",
-          options = list(pageLength = 10, dom = 't'),
-          rownames = FALSE,
-          class = 'cell-border stripe compact responsive')
+DT::datatable(
+  sensitivity_results,
+  caption = "Sensitivity Analysis: Impact of Failed Randomization",
+  options = list(pageLength = 10, dom = 't'),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
 ```
 
 ```{r}
@@ -1591,9 +1564,9 @@ DT::datatable(sensitivity_results,
 
 # Plot the sensitivity analysis
 ggplot2::ggplot(sensitivity_results, ggplot2::aes(x = Confounding_Strength, y = Apparent_Effect)) +
-  ggplot2::geom_line(size = 1.2, color = "blue") +
+  ggplot2::geom_line(linewidth = 1.2, color = "blue") +
   ggplot2::geom_point(size = 3, color = "blue") +
-  ggplot2::geom_hline(yintercept = 0.4, linetype = "dashed", color = "red", size = 1) +
+  ggplot2::geom_hline(yintercept = 0.4, linetype = "dashed", color = "red", linewidth = 1) +
   ggplot2::labs(
     title = "Sensitivity Analysis: Bias from Failed Randomization",
     subtitle = "Red dashed line shows true causal effect (0.4)",
@@ -1622,8 +1595,8 @@ The sensitivity analysis highlights the value of randomization:
 #| fig-cap: "Forest plot of treatment effect estimates under different modeling approaches"
 
 # Create forest plot data from our comparison table
-forest_data <- comparison_df %>%
-  dplyr::filter(Model != "True Causal Effect") %>%
+forest_data <- comparison_df |>
+  dplyr::filter(Model != "True Causal Effect") |>
   dplyr::mutate(
     Model = factor(Model, levels = rev(c(
       "Unadjusted (Correct for RCT)",
@@ -1638,10 +1611,12 @@ forest_data <- comparison_df %>%
   )
 
 # Plot forest plot
-ggplot2::ggplot(forest_data, ggplot2::aes(x = Coefficient, y = Model,
-                       xmin = CI_Lower, xmax = CI_Upper)) +
+ggplot2::ggplot(
+  forest_data, 
+  ggplot2::aes(x = Coefficient, y = Model, xmin = CI_Lower, xmax = CI_Upper)
+) +
   ggplot2::geom_pointrange(size = 0.8, color = "darkgreen") +
-  ggplot2::geom_vline(xintercept = true_effect, linetype = "dashed", color = "red", size = 1) +
+  ggplot2::geom_vline(xintercept = true_effect, linetype = "dashed", color = "red", linewidth = 1) +
   ggplot2::labs(
     title = "Exposure Effect Estimates Under Different Modeling Approaches",
     subtitle = "Dashed line represents the true causal effect (0.4)",
@@ -1674,15 +1649,15 @@ The forest plot illustrates the robustness of experimental design:
 # Test for mediation using the traditional Baron & Kenny approach
 # Step 1: X should predict Y (already established)
 step1_model <- stats::lm(Y ~ X, data = dag_data)
-step1_significant <- lavaan::summary(step1_model)$coefficients["X", "Pr(>|t|)"] < 0.05
+step1_significant <- summary(step1_model)$coefficients["X", "Pr(>|t|)"] < 0.05
 
 # Step 2: X should predict the mediator Z
 step2_model <- stats::lm(Z ~ X, data = dag_data)  
-step2_significant <- lavaan::summary(step2_model)$coefficients["X", "Pr(>|t|)"] < 0.05
+step2_significant <- summary(step2_model)$coefficients["X", "Pr(>|t|)"] < 0.05
 
 # Step 3: Z should predict Y when controlling for X
 step3_model <- stats::lm(Y ~ X + Z, data = dag_data)
-step3_significant <- lavaan::summary(step3_model)$coefficients["Z", "Pr(>|t|)"] < 0.05
+step3_significant <- summary(step3_model)$coefficients["Z", "Pr(>|t|)"] < 0.05
 
 # Step 4: The effect of X on Y should be reduced when Z is included
 direct_effect <- stats::coef(step1_model)["X"]
@@ -1702,10 +1677,10 @@ mediation_results <- data.frame(
     stats::coef(step3_model)["X"]
   ),
   P_Value = c(
-    lavaan::summary(step1_model)$coefficients["X", "Pr(>|t|)"],
-    lavaan::summary(step2_model)$coefficients["X", "Pr(>|t|)"],
-    lavaan::summary(step3_model)$coefficients["Z", "Pr(>|t|)"],
-    lavaan::summary(step3_model)$coefficients["X", "Pr(>|t|)"]
+    summary(step1_model)$coefficients["X", "Pr(>|t|)"],
+    summary(step2_model)$coefficients["X", "Pr(>|t|)"],
+    summary(step3_model)$coefficients["Z", "Pr(>|t|)"],
+    summary(step3_model)$coefficients["X", "Pr(>|t|)"]
   ),
   Significant = c(step1_significant, step2_significant, step3_significant, TRUE),
   Interpretation = c(
@@ -1720,11 +1695,13 @@ mediation_results <- data.frame(
 mediation_results$Coefficient <- round(mediation_results$Coefficient, 3)
 mediation_results$P_Value <- round(mediation_results$P_Value, 3)
 
-DT::datatable(mediation_results,
-          caption = "Mediation Analysis: Testing for Indirect Effects",
-          options = list(pageLength = 10, scrollX = TRUE),
-          rownames = FALSE,
-          class = 'cell-border stripe compact responsive')
+DT::datatable(
+  mediation_results,
+  caption = "Mediation Analysis: Testing for Indirect Effects",
+  options = list(pageLength = 10, scrollX = TRUE),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
 
 # Summary of mediation
 mediation_summary <- data.frame(
@@ -1740,11 +1717,13 @@ mediation_summary <- data.frame(
 
 mediation_summary$Value <- round(mediation_summary$Value, 3)
 
-DT::datatable(mediation_summary,
-          caption = "Mediation Analysis Summary",
-          options = list(pageLength = 10, dom = 't'),
-          rownames = FALSE,
-          class = 'cell-border stripe compact responsive')
+DT::datatable(
+  mediation_summary,
+  caption = "Mediation Analysis Summary",
+  options = list(pageLength = 10, dom = 't'),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
 ```
 
 ## Conclusions from Mediation Analysis:
@@ -1849,5 +1828,3 @@ utils::sessionInfo()
 This analysis demonstrates that experimental causal structures, while simpler than observational studies in terms of confounding, benefit greatly from careful causal thinking. The DAG framework helps researchers understand why randomization works, what it achieves, and how to analyze experimental data optimally. The key insight is that randomization's power lies in creating a causal structure where the treatment variable has no parents, eliminating all backdoor paths and allowing direct estimation of causal effects.
 
 Think of randomization as being like a perfectly clean laboratory - it isolates the causal relationship of interest by controlling the experimental environment so thoroughly that confounding cannot occur. Just as a chemist can determine the effect of temperature on a reaction by controlling all other variables, a researcher can determine the causal effect of a treatment by randomly assigning it, thereby controlling for all potential confounders simultaneously.
-
-

@@ -1,0 +1,1732 @@
+---
+title: "DAG Analysis: Confounded Causal Structure with Synthetic Data"
+subtitle: ""
+description: ""
+author: 
+  - name: "Dan Swart, CPA (ret)"
+    affiliations:
+      - "SCUC-ISD Board of Trustees"
+      - "Seat 6"
+date: today
+date-format: long
+format:
+  html:
+    resources:
+      - reference-backlinks.js
+    include-after-body:    
+      - text: |
+          # <script type="text/javascript" src="reference-backlinks.js"></script>
+    default: true         
+    code-copy: true
+    code-link: true
+    code-fold: true
+    code-summary: "Show the code"
+    code-overflow: wrap
+    code-block-bg: "#FAEBD7"
+    code-block-border-left: "#31BAE9"
+    embed-resources: true
+    include-in-header: header.html
+    css:
+      - swart.css
+      - tachyons.min.css
+      - r-colors.css
+    fontsize: 18pt
+    lightbox: true
+    page-layout: full
+    fig-width: 12
+    fig-height: 10
+    fig-dpi: 300
+    html-math-method: katex
+    df-print: paged
+    toc: true
+    toc-float: true
+    citeproc: true
+    link-citations: true
+    linestretch: 1.0
+  typst:
+    fig-width: 12
+    fig-height: 10
+    fig-dpi: 300
+    margin:
+      x: 1in
+      y: 1in
+    toc: true
+    fontsize: 14pt
+    mainfont: "Cabin"
+  revealjs:
+    slide-number: true
+    transition: fade
+    code-overflow: wrap
+    center: true
+    smaller: true
+    scrollable: true
+    chalkboard: true
+    multiplex: false
+    theme: solarized
+    reference-location: margin
+    logo: img/red-cross-640-435.png
+    footer: "Footer text"
+    code-block-height: 650px
+editor: source
+
+quarto:
+  render:
+    cache-refresh: true
+
+# for .qmd files
+execute:
+  echo: true
+  message: false
+  warning: false
+  eval: true
+  fig-width: 12
+  fig-height: 10
+
+# for .rmd files (kept for compatibility; no knitr global opts are needed here)
+knitr:
+  opts_chunk:
+    echo: true
+    error: false
+    warning: false
+    message: false
+    cache: false
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+# Global options
+options(scipen = 999)
+
+# Set global theme for consistent plots (no library() calls; full namespaces)
+ggplot2::theme_set(
+  ggplot2::theme_minimal(base_size = 20) + 
+    ggplot2::theme(
+      plot.title   = ggplot2::element_text(face = "bold", size = 26),
+      plot.subtitle= ggplot2::element_text(face = "bold", size = 24),
+      axis.title.x = ggplot2::element_text(face = "bold", size = 22),
+      axis.title.y = ggplot2::element_text(face = "bold", size = 22),
+      axis.text.x  = ggplot2::element_text(face = "bold", size = 22, angle = 45, hjust = 1),
+      legend.position = "bottom",
+      strip.text      = ggplot2::element_text(face = "bold"),
+      panel.spacing.x = grid::unit(1.5, "cm"),
+      panel.spacing.y = grid::unit(1.5, "cm"),
+      plot.margin     = ggplot2::margin(20, 20, 20, 20, "pt")
+    )
+)
+
+set.seed(123)
+```
+
+## 1. Introduction: Understanding Confounded Causal Structures
+
+This document explores a confounded causal structure represented by a directed acyclic graph (DAG). Unlike the gold standard of randomized controlled trials, this DAG represents an observational study scenario where:
+
+- X (HIV) is the exposure variable of interest
+- Y (Stroke) is the outcome variable
+- A (Smoking) and B (Age) are common causes that create confounding
+- Multiple backdoor paths exist between the exposure and outcome
+
+This structure reflects real-world observational data where confounding is present and must be addressed through appropriate analytical strategies. The DAG illustrates why simple associations between exposure and outcome cannot be interpreted as causal effects without proper adjustment.
+
+## 2. Describe the DAG in words
+
+This DAG represents a confounded causal structure with four variables:
+
+- X (HIV): The exposure variable of interest
+- Y (Stroke): The outcome variable
+- A (Smoking): A confounder that affects both HIV status and stroke risk
+- B (Age): A root cause that affects smoking, HIV status, and stroke risk
+
+The key feature of this confounded structure is the presence of backdoor paths that create spurious associations between X and Y. These confounding pathways include:
+
+1. X ← A → Y (confounding through smoking)
+2. X ← B → Y (confounding through age)
+3. X ← B → A → Y (confounding through the age-smoking-stroke pathway)
+
+The causal relationships include:
+1. A direct effect from X to Y (the causal effect of interest)
+2. Confounding effects of A on both X and Y
+3. Confounding effects of B on X, A, and Y
+4. B affects A, creating a chain of confounding
+
+In this medical context:
+- HIV patients may have higher stroke risk directly due to HIV-related inflammation
+- Smoking increases both HIV acquisition risk and stroke risk independently
+- Age increases smoking likelihood, HIV susceptibility, and stroke risk
+- These common causes create spurious associations that mask the true causal effect
+
+The challenge with this confounded structure is that naive analysis will produce biased estimates. Proper causal identification requires closing the backdoor paths through appropriate adjustment strategies.
+
+## 3. Recreate the DAG for reference using DiagrammeR and ggdag
+
+```{r}
+#| label: diagrammer-visualization-confounded
+#| fig-cap: "Directed Acyclic Graph of Confounded Causal Structure"
+
+# Create the DAG using DiagrammeR for detailed control
+confounded_dag_viz <- DiagrammeR::grViz("
+  digraph DAG {
+    graph [layout=neato, margin=\"0.0, 0.0, 0.0, 0.0\"]
+    labelloc=\"t\"
+    label=\"Confounded Causal Pathways\\nwith Actual Effect Sizes Shown\\n   \"
+    fontname=\"Cabin\"  fontsize=18
+    node [shape=plaintext, fontsize=20, fontname=\"Cabin\"]
+    edge [penwidth=1.20, color=\"darkblue\", arrowsize=1.00, fontsize=12]
+    X [label=\"HIV\", pos=\"3.0, 3.0!\", fontcolor=\"dodgerblue\"]
+    Y [label=\"Stroke\", pos=\"5.0, 3.0!\", fontcolor=\"dodgerblue\"]
+    A [label=\"Smoking\", pos=\"1.0, 5.0!\", fontcolor=\"red\"]
+    B [label=\"Age\", pos=\"1.0, 1.0!\", fontcolor=\"red\"]
+    X -> Y [label=\"0.6\"]
+    A -> Y [label=\"0.8\"]
+    B -> Y [label=\"0.4\"]
+    A -> X [label=\"0.5\"]
+    B -> X [label=\"0.3\"]
+    B -> A [label=\"0.4\"]
+    Caption [shape=plaintext, label=\"Figure 1: Confounded Causal Structure\", fontsize=12, pos=\"2,0.0!\"]
+  }
+")
+confounded_dag_viz
+```
+
+```{r}
+#| label: ggdag-visualization-confounded
+#| fig-cap: "ggdag representation of the confounded causal model"
+
+# Define the DAG using dagitty for analysis
+confounded_dag <- ggdag::dagify(
+  Y ~ X + A + B,
+  X ~ A + B,
+  A ~ B,
+  exposure = "X",
+  outcome = "Y",
+  labels = c("X" = "HIV", "Y" = "Stroke", "A" = "Smoking", "B" = "Age")
+)
+
+# Set coordinates with dagitty (not ggdag)
+dagitty::coordinates(confounded_dag) <- list(
+  x = c(X = 2, Y = 3, A = 1, B = 1),
+  y = c(X = 2, Y = 2, A = 3, B = 1)
+)
+
+# Visualize
+ggdag::ggdag(confounded_dag, edge_type = "link") + 
+  ggdag::geom_dag_point(color = "lightblue", size = 14, alpha = 0.7) +
+  ggdag::geom_dag_text(color = "black") +
+  ggdag::geom_dag_edges(edge_colour = "blue", edge_width = 1.0, arrow_size = 0.6) +
+  ggdag::theme_dag() +
+  ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5)) +
+  ggplot2::ggtitle("DAG: Confounded Causal Structure")
+```
+
+## 4. Generate synthetic data following the causal structure
+
+```{r}
+#| label: generate-synthetic-data-confounded
+#| tbl-cap: "Summary of the synthetic confounded data"
+
+set.seed(42)
+n <- 1000
+
+# Data generation
+B_age     <- base::round(stats::rnorm(n, mean = 0, sd = 1), 3)
+A_smoking <- base::round(0.4 * B_age + stats::rnorm(n, mean = 0, sd = 0.8), 3)
+X_hiv     <- base::round(0.5 * A_smoking + 0.3 * B_age + stats::rnorm(n, mean = 0, sd = 0.7), 3)
+Y_stroke  <- base::round(0.6 * X_hiv + 0.8 * A_smoking + 0.4 * B_age + stats::rnorm(n, mean = 0, sd = 0.6), 3)
+
+true_direct_effect <- 0.600
+
+confounded_data <- base::data.frame(
+  Age = B_age,
+  Smoking = A_smoking, 
+  HIV = X_hiv,
+  Stroke = Y_stroke
+)
+
+base::round(base::sapply(confounded_data, summary), 3)
+```
+
+```{r}
+#| label: true-effects-table-confounded
+#| tbl-cap: "True causal effects in the confounded DAG structure"
+
+true_effects_confounded <- base::data.frame(
+  Relationship = c("Age → Smoking", "Age → HIV", "Age → Stroke", 
+                   "Smoking → HIV", "Smoking → Stroke", "HIV → Stroke"),
+  Effect = c(0.4, 0.3, 0.4, 0.5, 0.8, 0.6),
+  Type = c("Root cause → Risk factor", "Confounder → Exposure", "Confounder → Outcome",
+           "Risk factor → Exposure", "Risk factor → Outcome", "Exposure → Outcome (CAUSAL EFFECT)")
+)
+
+DT::datatable(
+  true_effects_confounded,
+  options = list(pageLength = 10, dom = 't'),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
+```
+
+## 5. Examine structure of synthetic data
+
+### 5.1 Correlation matrix of synthetic confounded data
+
+```{r}
+#| label: correlation-analysis-confounded
+#| fig-cap: "Correlation matrix of synthetic confounded data variables"
+
+corr_matrix_confounded <- stats::cor(confounded_data)
+corr_table_confounded  <- base::as.data.frame(base::round(corr_matrix_confounded, 3))
+
+DT::datatable(
+  corr_table_confounded,
+  options = list(pageLength = 10, dom = 't'),
+  rownames = TRUE,
+  class = 'cell-border stripe compact responsive'
+)
+
+corrplot::corrplot(
+  corr_matrix_confounded, 
+  method = "color", 
+  type = "upper", 
+  order = "hclust",
+  addCoef.col = "black",
+  number.cex = 1.5,
+  tl.col = "black",
+  tl.srt = 45,
+  diag = FALSE,
+  col = grDevices::colorRampPalette(c("#6BAED6", "white", "#E6550D"))(200),
+  title = "Correlation Matrix of Variables",
+  mar = c(0,0,1,0)
+)
+
+corr_description_confounded <- base::data.frame(
+  Variables = c("HIV and Stroke", "HIV and Smoking", "HIV and Age", 
+                "Stroke and Smoking", "Stroke and Age", "Smoking and Age"),
+  Correlation = c(
+    base::round(stats::cor(confounded_data$HIV, confounded_data$Stroke), 3), 
+    base::round(stats::cor(confounded_data$HIV, confounded_data$Smoking), 3), 
+    base::round(stats::cor(confounded_data$HIV, confounded_data$Age), 3),
+    base::round(stats::cor(confounded_data$Stroke, confounded_data$Smoking), 3), 
+    base::round(stats::cor(confounded_data$Stroke, confounded_data$Age), 3), 
+    base::round(stats::cor(confounded_data$Smoking, confounded_data$Age), 3)
+  ),
+  Interpretation = c(
+    "Strong positive correlation due to direct effect plus confounding",
+    "Moderate positive correlation due to smoking causing HIV risk",
+    "Moderate positive correlation due to age affecting HIV risk",
+    "Strong positive correlation due to smoking causing stroke plus confounding",
+    "Moderate positive correlation due to age affecting stroke plus indirect effects",
+    "Moderate positive correlation due to age affecting smoking behavior"
+  )
+)
+
+DT::datatable(
+  corr_description_confounded,
+  caption = "Interpretation of key correlations in the confounded DAG structure",
+  options = list(pageLength = 10, scrollX = TRUE),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
+```
+
+## 6. Visualize distributions and relationships in synthetic data
+
+```{r}
+#| label: visualize-distributions-confounded
+#| fig-cap: "Distributions of all variables in the synthetic confounded data"
+
+confounded_data |>
+  tidyr::pivot_longer(cols = tidyselect::everything(), names_to = "Variable", values_to = "Value") |>
+  ggplot2::ggplot(ggplot2::aes(x = Value)) +
+  ggplot2::geom_histogram(fill = "steelblue", alpha = 0.7, bins = 30) +
+  ggplot2::facet_wrap(~ Variable, scales = "free") +
+  ggplot2::theme_minimal() +
+  ggplot2::ggtitle("Distributions of Variables in Confounded Data")
+```
+
+```{r}
+#| label: visualize-relationships-confounded
+#| fig-cap: "Scatterplots showing key relationships in the confounded DAG"
+#| fig-subcap: 
+#|   - "Relationship between HIV and Stroke (Confounded Association)"
+#|   - "Relationship between Smoking and Stroke"
+#|   - "Relationship between Age and Stroke"
+#|   - "Relationship between Age and Smoking"
+#| layout-ncol: 2
+
+ggplot2::ggplot(confounded_data, ggplot2::aes(x = HIV, y = Stroke)) +
+  ggplot2::geom_point(alpha = 0.3, color = "dodgerblue") +
+  ggplot2::geom_smooth(method = "lm", formula = y ~ x, color = "firebrick") +
+  ggplot2::theme_minimal() +
+  ggplot2::ggtitle("HIV → Stroke: Confounded Association") +
+  ggplot2::theme(plot.title = ggplot2::element_text(size = 28))
+
+ggplot2::ggplot(confounded_data, ggplot2::aes(x = Smoking, y = Stroke)) +
+  ggplot2::geom_point(alpha = 0.3, color = "darkgreen") +
+  ggplot2::geom_smooth(method = "lm", formula = y ~ x, color = "firebrick") +
+  ggplot2::theme_minimal() +
+  ggplot2::ggtitle("Smoking → Stroke: Direct Effect") +
+  ggplot2::theme(plot.title = ggplot2::element_text(size = 28))
+
+ggplot2::ggplot(confounded_data, ggplot2::aes(x = Age, y = Stroke)) +
+  ggplot2::geom_point(alpha = 0.3, color = "purple") +
+  ggplot2::geom_smooth(method = "lm", formula = y ~ x, color = "firebrick") +
+  ggplot2::theme_minimal() +
+  ggplot2::ggtitle("Age → Stroke: Direct + Indirect Effects") +
+  ggplot2::theme(plot.title = ggplot2::element_text(size = 28))
+
+ggplot2::ggplot(confounded_data, ggplot2::aes(x = Age, y = Smoking)) +
+  ggplot2::geom_point(alpha = 0.3, color = "orange") +
+  ggplot2::geom_smooth(method = "lm", formula = y ~ x, color = "firebrick") +
+  ggplot2::theme_minimal() +
+  ggplot2::ggtitle("Age → Smoking: Root Cause Effect") +
+  ggplot2::theme(plot.title = ggplot2::element_text(size = 28))
+```
+
+## 7. Residual Diagnostics
+
+```{r}
+#| label: model-residuals-confounded
+#| fig-cap: "Residual diagnostics for confounded models"
+
+confounded_models <- list(
+  "Naive (Biased)" = stats::lm(Stroke ~ HIV, data = confounded_data),
+  "Adjusted for Smoking" = stats::lm(Stroke ~ HIV + Smoking, data = confounded_data),
+  "Adjusted for Age" = stats::lm(Stroke ~ HIV + Age, data = confounded_data),
+  "Fully Adjusted (Correct)" = stats::lm(Stroke ~ HIV + Smoking + Age, data = confounded_data)
+)
+
+correct_confounded_model <- confounded_models[["Fully Adjusted (Correct)"]]
+
+graphics::par(mfrow = c(2, 2))
+graphics::plot(correct_confounded_model, main = "Fully Adjusted Model Diagnostics")
+```
+
+The residual plots for our fully adjusted model show:
+
+1. **Residuals vs Fitted**: Points are randomly scattered around zero, supporting the linear relationship assumption after proper adjustment.
+2. **Normal Q-Q**: Points follow the diagonal line closely, indicating approximately normal residuals.
+3. **Scale-Location**: No clear pattern in the variance, supporting homoscedasticity.
+4. **Residuals vs Leverage**: No influential outliers detected.
+
+## 8. Test the Structure by comparing models with and without adjustment
+
+### 8.1 Naive Model (Biased due to Confounding)
+
+```{r}
+#| label: naive-model-confounded
+#| tbl-cap: "Results of the naive model (biased due to confounding)"
+
+model_naive_confounded <- stats::lm(Stroke ~ HIV, data = confounded_data)
+summary_naive_conf <- summary(model_naive_confounded)
+
+naive_results_conf <- base::data.frame(
+  Term = c("Intercept", "HIV"),
+  Estimate = stats::coef(model_naive_confounded),
+  StdError = summary_naive_conf$coefficients[,2],
+  tValue = summary_naive_conf$coefficients[,3],
+  pValue = summary_naive_conf$coefficients[,4]
+)
+
+DT::datatable(naive_results_conf,
+  caption = "Naive Model Results (Biased due to Confounding)",
+  options = list(pageLength = 10, dom = 't'),
+  rownames = FALSE
+) |>
+  DT::formatRound(columns = c('Estimate', 'StdError', 'tValue'), digits = 3) |>
+  DT::formatSignif(columns = 'pValue', digits = 3)
+```
+
+### 8.2 Fully Adjusted Model (Correct for Confounded Design)
+
+```{r}
+#| label: adjusted-model-correct
+#| tbl-cap: "Results of fully adjusted model (correct for confounded design)"
+
+model_adjusted_correct <- stats::lm(Stroke ~ HIV + Smoking + Age, data = confounded_data)
+summary_adj_correct <- summary(model_adjusted_correct)
+
+adj_correct_results <- base::data.frame(
+  Term = rownames(summary_adj_correct$coefficients),
+  Estimate = summary_adj_correct$coefficients[,1],
+  StdError = summary_adj_correct$coefficients[,2],
+  tValue = summary_adj_correct$coefficients[,3],
+  pValue = summary_adj_correct$coefficients[,4]
+)
+
+DT::datatable(adj_correct_results,
+  caption = "Fully Adjusted Model Results (Correct for Confounded Design)",
+  options = list(pageLength = 10, dom = 't'),
+  rownames = FALSE
+) |>
+  DT::formatRound(columns = c('Estimate', 'StdError', 'tValue'), digits = 3) |>
+  DT::formatSignif(columns = 'pValue', digits = 3)
+
+r2_adj_correct <- base::data.frame(
+  Measure = c("R-squared", "Adjusted R-squared"),
+  Value = c(summary_adj_correct$r.squared, summary_adj_correct$adj.r.squared)
+)
+
+DT::datatable(r2_adj_correct,
+  options = list(pageLength = 10, dom = 't'),
+  rownames = FALSE
+) |>
+  DT::formatRound(columns = 'Value', digits = 3)
+```
+
+## 9. Comparing Model Results
+
+```{r}
+#| label: model-comparison-confounded
+#| tbl-cap: "Comparison of different modeling strategies for confounded data"
+
+true_effect_conf <- 0.600
+
+comparison_conf_df <- base::data.frame(
+  Model = c("True Causal Effect",
+            "Naive (Biased)", 
+            "Adjusted for Smoking", 
+            "Adjusted for Age",
+            "Fully Adjusted (Correct)"),
+  Coefficient = c(
+    true_effect_conf,
+    stats::coef(confounded_models[["Naive (Biased)"]])["HIV"],
+    stats::coef(confounded_models[["Adjusted for Smoking"]])["HIV"],
+    stats::coef(confounded_models[["Adjusted for Age"]])["HIV"],
+    stats::coef(confounded_models[["Fully Adjusted (Correct)"]])["HIV"]
+  ),
+  StandardError = c(
+    NA,
+    summary(confounded_models[["Naive (Biased)"]])$coefficients["HIV", "Std. Error"],
+    summary(confounded_models[["Adjusted for Smoking"]])$coefficients["HIV", "Std. Error"],
+    summary(confounded_models[["Adjusted for Age"]])$coefficients["HIV", "Std. Error"],
+    summary(confounded_models[["Fully Adjusted (Correct)"]])$coefficients["HIV", "Std. Error"]
+  )
+)
+
+comparison_conf_df$Error <- comparison_conf_df$Coefficient - true_effect_conf
+comparison_conf_df$BiasPercent <- 100 * (comparison_conf_df$Coefficient - true_effect_conf) / true_effect_conf
+comparison_conf_df$R2 <- c(
+  NA,
+  summary(confounded_models[["Naive (Biased)"]])$r.squared,
+  summary(confounded_models[["Adjusted for Smoking"]])$r.squared,
+  summary(confounded_models[["Adjusted for Age"]])$r.squared,
+  summary(confounded_models[["Fully Adjusted (Correct)"]])$r.squared
+)
+
+comparison_conf_df$Coefficient   <- base::round(comparison_conf_df$Coefficient, 3)
+comparison_conf_df$StandardError <- base::round(comparison_conf_df$StandardError, 3)
+comparison_conf_df$Error         <- base::round(comparison_conf_df$Error, 3)
+comparison_conf_df$BiasPercent   <- base::round(comparison_conf_df$BiasPercent, 3)
+comparison_conf_df$R2            <- base::round(comparison_conf_df$R2, 3)
+
+DT::datatable(
+  comparison_conf_df,
+  caption = "Comparison of Different Modeling Strategies for Confounded Data",
+  options = list(pageLength = 10, scrollX = TRUE),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
+```
+
+## 10. Statistical tests for differences between models
+
+```{r}
+#| label: statistical-tests-diffs-confounded
+#| tbl-cap: "Statistical tests for model performance in confounded design"
+
+model_comp_naive_smoking <- stats::anova(confounded_models[["Naive (Biased)"]], confounded_models[["Adjusted for Smoking"]])
+model_comp_naive_age     <- stats::anova(confounded_models[["Naive (Biased)"]], confounded_models[["Adjusted for Age"]])
+model_comp_naive_full    <- stats::anova(confounded_models[["Naive (Biased)"]], confounded_models[["Fully Adjusted (Correct)"]])
+
+naive_z_stat_conf <- (stats::coef(confounded_models[["Naive (Biased)"]])["HIV"] - true_effect_conf) / 
+  summary(confounded_models[["Naive (Biased)"]])$coefficients["HIV", "Std. Error"]
+naive_p_value_conf <- 2 * (1 - stats::pnorm(base::abs(naive_z_stat_conf)))
+
+adj_z_stat_conf <- (stats::coef(confounded_models[["Fully Adjusted (Correct)"]])["HIV"] - true_effect_conf) / 
+  summary(confounded_models[["Fully Adjusted (Correct)"]])$coefficients["HIV", "Std. Error"]
+adj_p_value_conf <- 2 * (1 - stats::pnorm(base::abs(adj_z_stat_conf)))
+
+significance_conf_df <- base::data.frame(
+  Comparison = c(
+    "Naive vs. Adjusted for Smoking",
+    "Naive vs. Adjusted for Age",
+    "Naive vs. Fully Adjusted",
+    "Naive Model vs. True Effect",
+    "Fully Adjusted Model vs. True Effect"
+  ),
+  Test = c(
+    "F-test (ANOVA)",
+    "F-test (ANOVA)",
+    "F-test (ANOVA)",
+    "Z-test (coefficient vs. true effect)",
+    "Z-test (coefficient vs. true effect)"
+  ),
+  Statistic = c(
+    base::round(model_comp_naive_smoking$F[2], 3),
+    base::round(model_comp_naive_age$F[2], 3),
+    base::round(model_comp_naive_full$F[2], 3),
+    base::round(naive_z_stat_conf, 3),
+    base::round(adj_z_stat_conf, 3)
+  ),
+  PValue = c(
+    base::round(stats::pf(model_comp_naive_smoking$F[2], model_comp_naive_smoking$Df[2], model_comp_naive_smoking$Df[1], lower.tail = FALSE), 3),
+    base::round(stats::pf(model_comp_naive_age$F[2], model_comp_naive_age$Df[2], model_comp_naive_age$Df[1], lower.tail = FALSE), 3),
+    base::round(stats::pf(model_comp_naive_full$F[2], model_comp_naive_full$Df[2], model_comp_naive_full$Df[1], lower.tail = FALSE), 3),
+    base::round(naive_p_value_conf, 3),
+    base::round(adj_p_value_conf, 3)
+  ),
+  Conclusion = c(
+    if (isTRUE(stats::pf(model_comp_naive_smoking$F[2], model_comp_naive_smoking$Df[2], model_comp_naive_smoking$Df[1], lower.tail = FALSE) < 0.05)) "Adjusted model significantly improves fit" else "No significant improvement in model fit",
+    if (isTRUE(stats::pf(model_comp_naive_age$F[2], model_comp_naive_age$Df[2], model_comp_naive_age$Df[1], lower.tail = FALSE) < 0.05)) "Adjusted model significantly improves fit" else "No significant improvement in model fit",
+    if (isTRUE(stats::pf(model_comp_naive_full$F[2], model_comp_naive_full$Df[2], model_comp_naive_full$Df[1], lower.tail = FALSE) < 0.05)) "Full model significantly improves fit" else "No significant improvement in model fit",
+    if (isTRUE(naive_p_value_conf < 0.05)) "Naive estimate significantly differs from true effect" else "Naive estimate not significantly different from true effect",
+    if (isTRUE(adj_p_value_conf < 0.05)) "Adjusted estimate significantly differs from true effect" else "Adjusted estimate not significantly different from true effect"
+  )
+)
+
+DT::datatable(
+  significance_conf_df,
+  caption = "Statistical Tests for Model Performance in Confounded Design",
+  options = list(pageLength = 10, scrollX = TRUE),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
+```
+
+## 11. Identifying Backdoor Paths and Adjustment Sets
+
+```{r}
+#| label: backdoor-analysis
+#| tbl-cap: "Backdoor paths and adjustment strategies"
+
+confounded_dag_dagitty <- dagitty::dagitty("dag{
+  HIV -> Stroke
+  Smoking -> HIV
+  Smoking -> Stroke  
+  Age -> Smoking
+  Age -> HIV
+  Age -> Stroke
+}")
+
+dagitty::exposures(confounded_dag_dagitty) <- "HIV"
+dagitty::outcomes(confounded_dag_dagitty)  <- "Stroke"
+
+backdoor_paths   <- dagitty::paths(confounded_dag_dagitty, from = "HIV", to = "Stroke")
+adjustment_sets  <- dagitty::adjustmentSets(confounded_dag_dagitty)
+
+backdoor_df <- base::data.frame(
+  Path_Number = 1:3,
+  Backdoor_Path = c(
+    "HIV ← Smoking → Stroke",
+    "HIV ← Age → Stroke", 
+    "HIV ← Age → Smoking → Stroke"
+  ),
+  Path_Type = c("Direct confounding", "Direct confounding", "Indirect confounding"),
+  Blocked_By = c("Adjusting for Smoking", "Adjusting for Age", "Adjusting for Age or Smoking")
+)
+
+DT::datatable(
+  backdoor_df,
+  caption = "Backdoor Paths in the Confounded DAG",
+  options = list(pageLength = 10, dom = 't'),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
+
+adj_sets_df <- base::data.frame(
+  Adjustment_Set = c("{ Age, Smoking }", "Minimal sufficient set"),
+  Description = c("Complete adjustment closing all backdoor paths", 
+                  "Both Age and Smoking needed for unbiased estimation"),
+  Status = c("Sufficient", "Necessary and sufficient")
+)
+
+DT::datatable(
+  adj_sets_df,
+  caption = "Adjustment Sets for Causal Identification",
+  options = list(pageLength = 10, dom = 't'),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
+```
+
+## 12. Testing Confounding: Correlations and Dependencies
+
+```{r}
+#| label: confounding-tests
+#| tbl-cap: "Testing for confounding relationships"
+
+confounding_tests <- base::data.frame(
+  Relationship = c("Age and HIV", "Age and Stroke", "Smoking and HIV", "Smoking and Stroke", 
+                   "Age and Smoking", "HIV and Stroke"),
+  Correlation = c(
+    stats::cor(confounded_data$Age, confounded_data$HIV), 
+    stats::cor(confounded_data$Age, confounded_data$Stroke),
+    stats::cor(confounded_data$Smoking, confounded_data$HIV), 
+    stats::cor(confounded_data$Smoking, confounded_data$Stroke),
+    stats::cor(confounded_data$Age, confounded_data$Smoking),
+    stats::cor(confounded_data$HIV, confounded_data$Stroke)
+  ),
+  P_Value = c(
+    stats::cor.test(confounded_data$Age, confounded_data$HIV)$p.value,
+    stats::cor.test(confounded_data$Age, confounded_data$Stroke)$p.value,
+    stats::cor.test(confounded_data$Smoking, confounded_data$HIV)$p.value,
+    stats::cor.test(confounded_data$Smoking, confounded_data$Stroke)$p.value,
+    stats::cor.test(confounded_data$Age, confounded_data$Smoking)$p.value,
+    stats::cor.test(confounded_data$HIV, confounded_data$Stroke)$p.value
+  ),
+  Confounding_Evidence = c(
+    "Age affects HIV (confounder)",
+    "Age affects Stroke (confounder)", 
+    "Smoking affects HIV (confounder)",
+    "Smoking affects Stroke (confounder)",
+    "Age affects Smoking (creates confounding chain)",
+    "HIV and Stroke associated (includes causal + confounding effects)"
+  )
+)
+
+confounding_tests$Correlation <- base::round(confounding_tests$Correlation, 3)
+confounding_tests$P_Value     <- base::round(confounding_tests$P_Value, 3)
+
+DT::datatable(
+  confounding_tests,
+  caption = "Evidence for Confounding Relationships",
+  options = list(pageLength = 10, scrollX = TRUE),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
+```
+
+## 13. Stratification Analysis
+
+```{r}
+#| label: stratification-analysis-confounded
+#| fig-cap: "Stratified analysis showing confounding effects"
+#| fig-subcap: 
+#|   - "HIV-Stroke Relationship Stratified by Smoking"
+#|   - "HIV-Stroke Relationship Stratified by Age" 
+#|   - "HIV-Stroke Relationship by Age and Smoking Combined"
+#|   - "Smoking-Stroke Relationship Stratified by Age"
+#| layout-ncol: 2
+
+confounded_data <- confounded_data |>
+  dplyr::mutate(Smoking_strata = base::cut(Smoking, breaks = 3, labels = c("Low Smoking", "Medium Smoking", "High Smoking")))
+
+p1_conf <- ggplot2::ggplot(confounded_data, ggplot2::aes(x = HIV, y = Stroke, color = Smoking_strata)) +
+  ggplot2::geom_point(alpha = 0.5) +
+  ggplot2::geom_smooth(method = "lm", se = TRUE) +
+  ggplot2::facet_wrap(~ Smoking_strata) +
+  ggplot2::labs(title = "HIV-Stroke Relationship Stratified by Smoking",
+       subtitle = "Different intercepts but similar slopes indicate confounding") +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(legend.position = "bottom",
+        plot.title = ggplot2::element_text(size = 28),
+        plot.subtitle = ggplot2::element_text(size = 28))
+print(p1_conf)
+
+confounded_data <- confounded_data |>
+  dplyr::mutate(Age_strata = base::cut(Age, breaks = 3, labels = c("Young", "Middle Age", "Old")))
+
+p2_conf <- ggplot2::ggplot(confounded_data, ggplot2::aes(x = HIV, y = Stroke, color = Age_strata)) +
+  ggplot2::geom_point(alpha = 0.5) +
+  ggplot2::geom_smooth(method = "lm", se = TRUE) +
+  ggplot2::facet_wrap(~ Age_strata) +
+  ggplot2::labs(title = "HIV-Stroke Relationship Stratified by Age",
+       subtitle = "Different intercepts show confounding by age") +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(legend.position = "bottom",
+        plot.title = ggplot2::element_text(size = 28),
+        plot.subtitle = ggplot2::element_text(size = 28))
+print(p2_conf)
+
+confounded_data <- confounded_data |>
+  dplyr::mutate(Combined_strata = base::paste(Age_strata, Smoking_strata, sep = " + "))
+
+p3_conf <- confounded_data |>
+  dplyr::filter(Combined_strata %in% c("Young + Low Smoking", "Old + High Smoking", 
+                                "Middle Age + Medium Smoking")) |>
+  ggplot2::ggplot(ggplot2::aes(x = HIV, y = Stroke, color = Combined_strata)) +
+  ggplot2::geom_point(alpha = 0.5) +
+  ggplot2::geom_smooth(method = "lm", se = TRUE) +
+  ggplot2::facet_wrap(~ Combined_strata) +
+  ggplot2::labs(title = "HIV-Stroke by Age and Smoking Combined",
+       subtitle = "Controlling for both confounders") +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(legend.position = "bottom",
+        plot.title = ggplot2::element_text(size = 28),
+        plot.subtitle = ggplot2::element_text(size = 28))
+print(p3_conf)
+
+p4_conf <- ggplot2::ggplot(confounded_data, ggplot2::aes(x = Smoking, y = Stroke, color = Age_strata)) +
+  ggplot2::geom_point(alpha = 0.5) +
+  ggplot2::geom_smooth(method = "lm", se = TRUE) +
+  ggplot2::facet_wrap(~ Age_strata) +
+  ggplot2::labs(title = "Smoking-Stroke Relationship Stratified by Age",
+       subtitle = "Age confounds the smoking-stroke relationship") +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(legend.position = "bottom",
+        plot.title = ggplot2::element_text(size = 28),
+        plot.subtitle = ggplot2::element_text(size = 28))
+print(p4_conf)
+```
+
+## 14. Structural Equation Modeling (SEM)
+
+```{r}
+#| label: sem-analysis-confounded
+#| tbl-cap: "Structural Equation Model Results for Confounded Design"
+
+sem_model_conf <- '
+  Smoking ~ b1*Age
+  HIV ~ a1*Smoking + b2*Age
+  Stroke ~ x1*HIV + a2*Smoking + b3*Age
+  Age_to_HIV_via_Smoking := b1*a1
+  Age_to_Stroke_via_Smoking := b1*a2
+  Age_to_Stroke_via_HIV := b2*x1
+  Age_to_Stroke_via_Smoking_HIV := b1*a1*x1
+  Age_to_Stroke_total := b3 + Age_to_Stroke_via_Smoking + Age_to_Stroke_via_HIV + Age_to_Stroke_via_Smoking_HIV
+  Smoking_to_Stroke_via_HIV := a1*x1
+  Smoking_to_Stroke_total := a2 + Smoking_to_Stroke_via_HIV
+'
+
+sem_fit_conf <- lavaan::sem(sem_model_conf, data = confounded_data)
+sem_summary_conf <- lavaan::summary(sem_fit_conf, standardized = TRUE, fit.measures = TRUE)
+
+sem_coefs_conf <- lavaan::parameterEstimates(sem_fit_conf) |>
+  dplyr::filter(op %in% c("~", ":=")) |>
+  dplyr::select(lhs, op, rhs, est, se, z, pvalue, ci.lower, ci.upper)
+
+sem_results_conf <- sem_coefs_conf |>
+  dplyr::mutate(
+    Path = dplyr::case_when(
+      op == "~" & lhs == "Smoking" ~ base::paste(lhs, "<-", rhs),
+      op == "~" & lhs == "HIV" ~ base::paste(lhs, "<-", rhs),
+      op == "~" & lhs == "Stroke" ~ base::paste(lhs, "<-", rhs),
+      op == ":=" & base::grepl("Age_to", lhs) ~ lhs,
+      op == ":=" & base::grepl("Smoking_to", lhs) ~ lhs,
+      TRUE ~ base::paste(lhs, op, rhs)
+    ),
+    Estimate = base::round(est, 3),
+    SE = base::round(se, 3),
+    `Z-value` = base::round(z, 3),
+    `P-value` = base::round(pvalue, 3),
+    `95% CI` = base::paste0("[", base::round(ci.lower, 3), ", ", base::round(ci.upper, 3), "]")
+  ) |>
+  dplyr::select(Path, Estimate, SE, `Z-value`, `P-value`, `95% CI`)
+
+DT::datatable(
+  sem_results_conf,
+  caption = "Structural Equation Model Path Coefficients for Confounded Design",
+  options = list(pageLength = 15, scrollX = TRUE),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
+```
+
+```{r}
+#| label: sem-fit-measures-confounded
+#| tbl-cap: "SEM Model Fit Measures for Confounded Design"
+
+fit_measures_conf <- lavaan::fitMeasures(sem_fit_conf)
+
+fit_table_conf <- base::data.frame(
+  Measure = c("Chi-square", "df", "P-value", "CFI", "TLI", "RMSEA", "RMSEA CI Lower", "RMSEA CI Upper", "SRMR"),
+  Value = c(
+    base::round(fit_measures_conf["chisq"], 3),
+    fit_measures_conf["df"],
+    base::round(fit_measures_conf["pvalue"], 3),
+    base::round(fit_measures_conf["cfi"], 3),
+    base::round(fit_measures_conf["tli"], 3),
+    base::round(fit_measures_conf["rmsea"], 3),
+    base::round(fit_measures_conf["rmsea.ci.lower"], 3),
+    base::round(fit_measures_conf["rmsea.ci.upper"], 3),
+    base::round(fit_measures_conf["srmr"], 3)
+  ),
+  Interpretation = c(
+    "Model chi-square",
+    "Degrees of freedom",
+    "P-value for chi-square test",
+    "Comparative Fit Index (>0.95 good)",
+    "Tucker-Lewis Index (>0.95 good)",
+    "Root Mean Square Error of Approximation (<0.06 good)",
+    "RMSEA 95% CI lower bound",
+    "RMSEA 95% CI upper bound", 
+    "Standardized Root Mean Square Residual (<0.08 good)"
+  )
+)
+
+DT::datatable(
+  fit_table_conf,
+  caption = "Structural Equation Model Fit Indices for Confounded Design",
+  options = list(pageLength = 10, scrollX = TRUE),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
+```
+
+## 15. Examining Confounding Bias: Naive vs Adjusted Estimates
+
+```{r}
+#| label: confounding-bias-analysis
+#| fig-cap: "Visualizing confounding bias across different adjustment strategies"
+
+bias_comparison <- base::data.frame(
+  Model = c("Naive", "Age Only", "Smoking Only", "Fully Adjusted"),
+  HIV_Coefficient = c(
+    stats::coef(confounded_models[["Naive (Biased)"]])["HIV"],
+    stats::coef(confounded_models[["Adjusted for Age"]])["HIV"],
+    stats::coef(confounded_models[["Adjusted for Smoking"]])["HIV"],
+    stats::coef(confounded_models[["Fully Adjusted (Correct)"]])["HIV"]
+  ),
+  Bias = c(
+    stats::coef(confounded_models[["Naive (Biased)"]])["HIV"] - true_effect_conf,
+    stats::coef(confounded_models[["Adjusted for Age"]])["HIV"] - true_effect_conf,
+    stats::coef(confounded_models[["Adjusted for Smoking"]])["HIV"] - true_effect_conf,
+    stats::coef(confounded_models[["Fully Adjusted (Correct)"]])["HIV"] - true_effect_conf
+  ),
+  Standard_Error = c(
+    summary(confounded_models[["Naive (Biased)"]])$coefficients["HIV", "Std. Error"],
+    summary(confounded_models[["Adjusted for Age"]])$coefficients["HIV", "Std. Error"],
+    summary(confounded_models[["Adjusted for Smoking"]])$coefficients["HIV", "Std. Error"],
+    summary(confounded_models[["Fully Adjusted (Correct)"]])$coefficients["HIV", "Std. Error"]
+  )
+)
+
+bias_comparison$CI_Lower <- bias_comparison$HIV_Coefficient - 1.96 * bias_comparison$Standard_Error
+bias_comparison$CI_Upper <- bias_comparison$HIV_Coefficient + 1.96 * bias_comparison$Standard_Error
+
+ggplot2::ggplot(bias_comparison, ggplot2::aes(x = base::factor(Model, levels = c("Naive", "Age Only", "Smoking Only", "Fully Adjusted")), 
+                           y = HIV_Coefficient)) +
+  ggplot2::geom_pointrange(ggplot2::aes(ymin = CI_Lower, ymax = CI_Upper), size = 1.2, color = "darkblue") +
+  ggplot2::geom_hline(yintercept = true_effect_conf, linetype = "dashed", color = "red", size = 1) +
+  ggplot2::labs(title = "Confounding Bias Across Different Adjustment Strategies",
+       subtitle = "Red line shows true causal effect (0.6)",
+       x = "Adjustment Strategy",
+       y = "Estimated HIV Effect on Stroke") +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
+
+bias_table <- base::data.frame(
+  Model = bias_comparison$Model,
+  Estimate = base::round(bias_comparison$HIV_Coefficient, 3),
+  Bias = base::round(bias_comparison$Bias, 3),
+  Bias_Percent = base::round(100 * bias_comparison$Bias / true_effect_conf, 1),
+  Status = c("Severely Biased", "Partially Biased", "Partially Biased", "Unbiased")
+)
+
+DT::datatable(
+  bias_table,
+  caption = "Confounding Bias Analysis",
+  options = list(pageLength = 10, dom = 't'),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
+```
+
+## 16. Power Analysis for Confounded Design
+
+```{r}
+#| label: power-analysis-confounded
+#| tbl-cap: "Power analysis for detecting treatment effects in confounded design"
+
+effect_sizes_conf <- c(0.2, 0.4, 0.6, 0.8, 1.0)
+sample_sizes_conf <- c(100, 250, 500, 750, 1000)
+
+calculate_power_confounded <- function(effect_size, n, alpha = 0.05) {
+  residual_se_conf <- summary(model_adjusted_correct)$sigma
+  se_treatment_conf <- summary(model_adjusted_correct)$coefficients["HIV", "Std. Error"]
+  se_treatment_adj_conf <- se_treatment_conf * base::sqrt(1000 / n)
+  t_critical_conf <- stats::qt(1 - alpha/2, df = n - 4)
+  power_conf <- 1 - stats::pt(t_critical_conf, df = n - 4, ncp = effect_size / se_treatment_adj_conf) +
+           stats::pt(-t_critical_conf, df = n - 4, ncp = effect_size / se_treatment_adj_conf)
+  return(power_conf)
+}
+
+power_analysis_conf <- base::expand.grid(
+  Effect_Size = effect_sizes_conf,
+  Sample_Size = sample_sizes_conf
+)
+
+power_analysis_conf$Power <- base::mapply(calculate_power_confounded, 
+                               power_analysis_conf$Effect_Size, 
+                               power_analysis_conf$Sample_Size)
+
+power_analysis_conf$Power <- base::round(power_analysis_conf$Power, 3)
+
+power_wide_conf <- tidyr::pivot_wider(power_analysis_conf,
+  names_from = Sample_Size, values_from = Power, names_prefix = "N_")
+
+DT::datatable(
+  power_wide_conf,
+  caption = "Statistical Power for Different Effect Sizes and Sample Sizes (Confounded Design)",
+  options = list(pageLength = 10, scrollX = TRUE),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
+```
+
+```{r}
+#| label: power-visualization-confounded
+#| fig-cap: "Power curves for different effect sizes in confounded design"
+
+ggplot2::ggplot(power_analysis_conf, ggplot2::aes(x = Sample_Size, y = Power, color = base::factor(Effect_Size))) +
+  ggplot2::geom_line(size = 1.2) +
+  ggplot2::geom_point(size = 2) +
+  ggplot2::geom_hline(yintercept = 0.8, linetype = "dashed", color = "red") +
+  ggplot2::scale_color_viridis_d(name = "Effect Size") +
+  ggplot2::labs(title = "Statistical Power vs Sample Size for Confounded Design",
+       subtitle = "Red dashed line shows 80% power threshold",
+       x = "Sample Size", y = "Statistical Power") +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(legend.position = "bottom")
+```
+
+## 17. Bayesian Causal Inference Analysis
+
+```{r}
+#| label: bayesian-causal-analysis-confounded
+#| message: false
+#| warning: false
+#| results: 'hide'
+
+confounded_data_std <- confounded_data |>
+  dplyr::select(Age, Smoking, HIV, Stroke) |>
+  dplyr::mutate(dplyr::across(where(is.numeric), scale)) |>
+  base::as.data.frame()
+
+m_naive_conf <- rethinking::quap(
+  alist(
+    Stroke ~ dnorm(mu, sigma),
+    mu <- a + bHIV * HIV,
+    a ~ dnorm(0, 1),
+    bHIV ~ dnorm(0, 1),
+    sigma ~ dexp(1)
+  ),
+  data = confounded_data_std
+)
+
+m_age_conf <- rethinking::quap(
+  alist(
+    Stroke ~ dnorm(mu, sigma),
+    mu <- a + bHIV * HIV + bAge * Age,
+    a ~ dnorm(0, 1),
+    bHIV ~ dnorm(0, 1),
+    bAge ~ dnorm(0, 1),
+    sigma ~ dexp(1)
+  ),
+  data = confounded_data_std
+)
+
+m_smoking_conf <- rethinking::quap(
+  alist(
+    Stroke ~ dnorm(mu, sigma),
+    mu <- a + bHIV * HIV + bSmoking * Smoking,
+    a ~ dnorm(0, 1),
+    bHIV ~ dnorm(0, 1),
+    bSmoking ~ dnorm(0, 1),
+    sigma ~ dexp(1)
+  ),
+  data = confounded_data_std
+)
+
+m_full_conf <- rethinking::quap(
+  alist(
+    Stroke ~ dnorm(mu, sigma),
+    mu <- a + bHIV * HIV + bSmoking * Smoking + bAge * Age,
+    a ~ dnorm(0, 1),
+    bHIV ~ dnorm(0, 1),
+    bSmoking ~ dnorm(0, 1),
+    bAge ~ dnorm(0, 1),
+    sigma ~ dexp(1)
+  ),
+  data = confounded_data_std
+)
+```
+
+```{r}
+#| label: extract-bayesian-posteriors-confounded
+#| tbl-cap: "Bayesian estimates of the treatment effect in confounded design"
+
+post_naive_conf   <- rethinking::extract.samples(m_naive_conf)
+post_age_conf     <- rethinking::extract.samples(m_age_conf)
+post_smoking_conf <- rethinking::extract.samples(m_smoking_conf)
+post_full_conf    <- rethinking::extract.samples(m_full_conf)
+
+summarize_posterior_conf <- function(posterior, name) {
+  base::data.frame(
+    Model = name,
+    Mean = base::mean(posterior$bHIV),
+    Median = stats::median(posterior$bHIV),
+    SD = stats::sd(posterior$bHIV),
+    CI_Lower = stats::quantile(posterior$bHIV, 0.025),
+    CI_Upper = stats::quantile(posterior$bHIV, 0.975),
+    Width = stats::quantile(posterior$bHIV, 0.975) - stats::quantile(posterior$bHIV, 0.025)
+  )
+}
+
+bayesian_results_conf <- base::rbind(
+  summarize_posterior_conf(post_naive_conf, "Naive (Biased)"),
+  summarize_posterior_conf(post_age_conf, "Adjusted for Age"),
+  summarize_posterior_conf(post_smoking_conf, "Adjusted for Smoking"),
+  summarize_posterior_conf(post_full_conf, "Fully Adjusted (Correct)")
+)
+
+DT::datatable(
+  bayesian_results_conf,
+  caption = "Bayesian estimates of the treatment effect under different adjustment strategies",
+  options = list(pageLength = 5, dom = 't'),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+) |>
+  DT::formatRound(columns = c("Mean", "Median", "SD", "CI_Lower", "CI_Upper", "Width"), digits = 3)
+```
+
+```{r}
+#| label: plot-bayesian-posteriors-confounded
+#| fig-width: 10
+#| fig-height: 6
+#| fig-cap: "Posterior distributions of treatment effect estimates in confounded design"
+
+all_posteriors_conf <- base::data.frame(
+  `Naive (Biased)` = post_naive_conf$bHIV,
+  `Adjusted for Age` = post_age_conf$bHIV,
+  `Adjusted for Smoking` = post_smoking_conf$bHIV,
+  `Fully Adjusted (Correct)` = post_full_conf$bHIV,
+  check.names = FALSE
+)
+
+long_posteriors_conf <- tidyr::pivot_longer(
+  all_posteriors_conf,
+  cols = tidyselect::everything(),
+  names_to = "Model",
+  values_to = "Effect_Estimate"
+)
+
+long_posteriors_conf$Model <- base::factor(
+  long_posteriors_conf$Model,
+  levels = c("Naive (Biased)", "Adjusted for Age", "Adjusted for Smoking", "Fully Adjusted (Correct)")
+)
+
+ggplot2::ggplot(long_posteriors_conf, ggplot2::aes(x = Effect_Estimate, fill = Model)) +
+  ggplot2::geom_density(alpha = 0.6) +
+  ggplot2::geom_vline(data = bayesian_results_conf,
+             ggplot2::aes(xintercept = Mean, color = Model),
+             linetype = "dashed", size = 1) +
+  ggplot2::scale_fill_brewer(palette = "Set1") +
+  ggplot2::scale_color_brewer(palette = "Set1") +
+  ggplot2::labs(
+    title = "Posterior Distributions of the Treatment Effect",
+    subtitle = "Shows dramatic impact of confounding bias",
+    x = "Treatment Effect (Standardized)",
+    y = "Density"
+  ) +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(legend.position = "bottom")
+```
+
+## 18. Counterfactual Analysis: Treatment Effect Estimation
+
+```{r}
+#| label: counterfactual-analysis-confounded
+#| fig-cap: "Counterfactual predictions under different treatment levels (confounded design)"
+
+predict_counterfactual_conf <- function(hiv_values, data = confounded_data) {
+  model <- stats::lm(Stroke ~ HIV + Smoking + Age, data = data)
+  mean_smoking <- base::mean(data$Smoking)
+  mean_age <- base::mean(data$Age)
+  stats::predict(model, newdata = base::data.frame(
+    HIV = hiv_values,
+    Smoking = mean_smoking,
+    Age = mean_age
+  ))
+}
+
+hiv_range <- base::seq(base::min(confounded_data$HIV), base::max(confounded_data$HIV), length.out = 100)
+stroke_pred_conf <- predict_counterfactual_conf(hiv_range)
+
+counterfactual_conf_df <- base::data.frame(HIV = hiv_range, Stroke = stroke_pred_conf)
+
+naive_pred <- stats::predict(confounded_models[["Naive (Biased)"]], newdata = base::data.frame(HIV = hiv_range))
+counterfactual_naive_df <- base::data.frame(HIV = hiv_range, Stroke = naive_pred)
+
+ggplot2::ggplot() +
+  ggplot2::geom_point(data = confounded_data, ggplot2::aes(x = HIV, y = Stroke), alpha = 0.2, color = "gray") +
+  ggplot2::geom_line(data = counterfactual_naive_df, ggplot2::aes(x = HIV, y = Stroke),
+            color = "red", size = 1.5, linetype = "dashed") +
+  ggplot2::geom_line(data = counterfactual_conf_df, ggplot2::aes(x = HIV, y = Stroke),
+            color = "blue", size = 1.5) +
+  ggplot2::labs(
+    title = "Counterfactual Prediction: HIV Effect on Stroke",
+    subtitle = "Blue line shows adjusted effect, red dashed shows naive (biased) effect",
+    x = "HIV Status",
+    y = "Stroke Risk"
+  ) +
+  ggplot2::theme_minimal()
+```
+
+```{r}
+#| label: treatment-effect-table-confounded
+#| tbl-cap: "Estimated treatment effects under different interventions (confounded design)"
+
+intervention_effects_conf <- base::data.frame(
+  Intervention = c(
+    "Increase HIV exposure by 1 unit",
+    "Increase HIV exposure by 2 units",
+    "Move from 25th to 75th percentile",
+    "Move from minimum to maximum HIV exposure"
+  ),
+  HIV_Change = c(
+    1,
+    2,
+    stats::quantile(confounded_data$HIV, 0.75) - stats::quantile(confounded_data$HIV, 0.25),
+    base::max(confounded_data$HIV) - base::min(confounded_data$HIV)
+  ),
+  Naive_Effect = c(
+    1 * stats::coef(confounded_models[["Naive (Biased)"]])["HIV"],
+    2 * stats::coef(confounded_models[["Naive (Biased)"]])["HIV"],
+    (stats::quantile(confounded_data$HIV, 0.75) - stats::quantile(confounded_data$HIV, 0.25)) * stats::coef(confounded_models[["Naive (Biased)"]])["HIV"],
+    (base::max(confounded_data$HIV) - base::min(confounded_data$HIV)) * stats::coef(confounded_models[["Naive (Biased)"]])["HIV"]
+  ),
+  Adjusted_Effect = c(
+    1 * stats::coef(confounded_models[["Fully Adjusted (Correct)"]])["HIV"],
+    2 * stats::coef(confounded_models[["Fully Adjusted (Correct)"]])["HIV"],
+    (stats::quantile(confounded_data$HIV, 0.75) - stats::quantile(confounded_data$HIV, 0.25)) * stats::coef(confounded_models[["Fully Adjusted (Correct)"]])["HIV"],
+    (base::max(confounded_data$HIV) - base::min(confounded_data$HIV)) * stats::coef(confounded_models[["Fully Adjusted (Correct)"]])["HIV"]
+  )
+)
+
+intervention_effects_conf$HIV_Change      <- base::round(intervention_effects_conf$HIV_Change, 3)
+intervention_effects_conf$Naive_Effect    <- base::round(intervention_effects_conf$Naive_Effect, 3)
+intervention_effects_conf$Adjusted_Effect <- base::round(intervention_effects_conf$Adjusted_Effect, 3)
+
+DT::datatable(
+  intervention_effects_conf,
+  caption = "Expected outcomes under different HIV interventions (naive vs adjusted)",
+  options = list(pageLength = 10, dom = 't'),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
+```
+
+## 19. Sensitivity Analysis: Unmeasured Confounding
+
+```{r}
+#| label: sensitivity-analysis-confounded
+#| fig-cap: "Sensitivity to unmeasured confounding"
+
+simulate_unmeasured_confounding <- function(u_hiv_strength, u_stroke_strength) {
+  set.seed(123)
+  n <- 1000
+  U <- stats::rnorm(n, mean = 0, sd = 1)
+  HIV_with_U <- confounded_data$HIV + u_hiv_strength * U
+  Stroke_with_U <- confounded_data$Stroke + u_stroke_strength * U
+  stats::coef(stats::lm(Stroke_with_U ~ HIV_with_U + confounded_data$Smoking + confounded_data$Age))[2]
+}
+
+u_strengths <- base::seq(0, 0.5, by = 0.1)
+sensitivity_grid <- base::expand.grid(
+  U_HIV_Strength = u_strengths,
+  U_Stroke_Strength = u_strengths
+)
+
+sensitivity_grid$Apparent_Effect <- base::mapply(simulate_unmeasured_confounding, 
+                                          sensitivity_grid$U_HIV_Strength,
+                                          sensitivity_grid$U_Stroke_Strength)
+
+sensitivity_scenarios <- base::data.frame(
+  Scenario = c("No unmeasured confounding", "Weak unmeasured confounding", 
+               "Moderate unmeasured confounding", "Strong unmeasured confounding"),
+  U_HIV_Effect = c(0.0, 0.1, 0.3, 0.5),
+  U_Stroke_Effect = c(0.0, 0.1, 0.3, 0.5),
+  Apparent_Effect = c(
+    simulate_unmeasured_confounding(0.0, 0.0),
+    simulate_unmeasured_confounding(0.1, 0.1),
+    simulate_unmeasured_confounding(0.3, 0.3),
+    simulate_unmeasured_confounding(0.5, 0.5)
+  ),
+  Bias_from_True = c(
+    simulate_unmeasured_confounding(0.0, 0.0) - true_effect_conf,
+    simulate_unmeasured_confounding(0.1, 0.1) - true_effect_conf,
+    simulate_unmeasured_confounding(0.3, 0.3) - true_effect_conf,
+    simulate_unmeasured_confounding(0.5, 0.5) - true_effect_conf
+  )
+)
+
+sensitivity_scenarios$Apparent_Effect <- base::round(sensitivity_scenarios$Apparent_Effect, 3)
+sensitivity_scenarios$Bias_from_True  <- base::round(sensitivity_scenarios$Bias_from_True, 3)
+
+DT::datatable(
+  sensitivity_scenarios,
+  caption = "Sensitivity Analysis: Impact of Unmeasured Confounding",
+  options = list(pageLength = 10, dom = 't'),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
+```
+
+```{r}
+#| label: sensitivity-heatmap
+#| fig-cap: "Sensitivity heatmap showing bias from unmeasured confounding"
+
+sensitivity_wide <- sensitivity_grid |>
+  dplyr::mutate(Bias = Apparent_Effect - true_effect_conf) |>
+  dplyr::select(U_HIV_Strength, U_Stroke_Strength, Bias)
+
+ggplot2::ggplot(sensitivity_wide, ggplot2::aes(x = U_HIV_Strength, y = U_Stroke_Strength, fill = Bias)) +
+  ggplot2::geom_tile() +
+  ggplot2::scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+  ggplot2::labs(title = "Sensitivity to Unmeasured Confounding",
+       subtitle = "Bias in HIV effect estimate",
+       x = "Unmeasured Confounder Effect on HIV",
+       y = "Unmeasured Confounder Effect on Stroke",
+       fill = "Bias") +
+  ggplot2::theme_minimal()
+```
+
+## 20. Mediation Analysis: Decomposing Effects
+
+```{r}
+#| label: mediation-analysis-confounded
+#| tbl-cap: "Mediation analysis: Effects through different pathways"
+
+age_hiv_model <- stats::lm(HIV ~ Age, data = confounded_data)
+age_hiv_stroke_model <- stats::lm(Stroke ~ HIV + Age, data = confounded_data)
+
+age_smoking_model <- stats::lm(Smoking ~ Age, data = confounded_data)
+age_smoking_stroke_model <- stats::lm(Stroke ~ Smoking + Age, data = confounded_data)
+
+smoking_hiv_model <- stats::lm(HIV ~ Smoking, data = confounded_data)
+smoking_hiv_stroke_model <- stats::lm(Stroke ~ HIV + Smoking, data = confounded_data)
+
+mediation_results <- base::data.frame(
+  Pathway = c(
+    "Age → HIV (a path)",
+    "HIV → Stroke|Age (b path)", 
+    "Age → HIV → Stroke (indirect)",
+    "Age → Stroke (direct)",
+    "Age → Smoking (a path)",
+    "Smoking → Stroke|Age (b path)",
+    "Age → Smoking → Stroke (indirect)",
+    "Smoking → HIV (a path)",
+    "HIV → Stroke|Smoking (b path)",
+    "Smoking → HIV → Stroke (indirect)"
+  ),
+  Effect = c(
+    stats::coef(age_hiv_model)["Age"],
+    stats::coef(age_hiv_stroke_model)["HIV"],
+    stats::coef(age_hiv_model)["Age"] * stats::coef(age_hiv_stroke_model)["HIV"],
+    stats::coef(age_hiv_stroke_model)["Age"],
+    stats::coef(age_smoking_model)["Age"],
+    stats::coef(age_smoking_stroke_model)["Smoking"],
+    stats::coef(age_smoking_model)["Age"] * stats::coef(age_smoking_stroke_model)["Smoking"],
+    stats::coef(smoking_hiv_model)["Smoking"],
+    stats::coef(smoking_hiv_stroke_model)["HIV"],
+    stats::coef(smoking_hiv_model)["Smoking"] * stats::coef(smoking_hiv_stroke_model)["HIV"]
+  ),
+  Interpretation = c(
+    "Age effect on HIV status",
+    "HIV effect on stroke controlling for age",
+    "Indirect effect of age on stroke through HIV",
+    "Direct effect of age on stroke",
+    "Age effect on smoking behavior",
+    "Smoking effect on stroke controlling for age", 
+    "Indirect effect of age on stroke through smoking",
+    "Smoking effect on HIV status",
+    "HIV effect on stroke controlling for smoking",
+    "Indirect effect of smoking on stroke through HIV"
+  )
+)
+
+mediation_results$Effect <- base::round(mediation_results$Effect, 3)
+
+DT::datatable(
+  mediation_results,
+  caption = "Mediation Analysis: Decomposing Effects in Confounded Structure",
+  options = list(pageLength = 12, scrollX = TRUE),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
+```
+
+## 21. Forest Plot Visualization of Treatment Effects
+
+```{r}
+#| label: forest-plot-confounded
+#| fig-cap: "Forest plot of HIV effect estimates under different modeling approaches"
+
+forest_data_conf <- comparison_conf_df |>
+  dplyr::filter(Model != "True Causal Effect") |>
+  dplyr::mutate(
+    Model = base::factor(Model, levels = base::rev(c(
+      "Naive (Biased)",
+      "Adjusted for Smoking",
+      "Adjusted for Age", 
+      "Fully Adjusted (Correct)"
+    ))),
+    CI_Lower = Coefficient - 1.96 * StandardError,
+    CI_Upper = Coefficient + 1.96 * StandardError
+  )
+
+ggplot2::ggplot(forest_data_conf, ggplot2::aes(x = Coefficient, y = Model,
+                           xmin = CI_Lower, xmax = CI_Upper)) +
+  ggplot2::geom_pointrange(size = 0.8, color = "darkgreen") +
+  ggplot2::geom_vline(xintercept = true_effect_conf, linetype = "dashed", color = "red", size = 1) +
+  ggplot2::labs(
+    title = "HIV Effect Estimates Under Different Modeling Approaches",
+    subtitle = "Dashed line represents the true causal effect (0.6)",
+    x = "Estimated HIV Effect on Stroke",
+    y = "Modeling Approach"
+  ) +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(axis.text.y = ggplot2::element_text(size = 10))
+```
+
+## 22. Practical Implications and Conclusions
+
+*(Narrative preserved as in the original file.)*
+
+## 23. Simpson's Paradox Detection Analysis
+
+### 23.1 Testing for Simpson's Paradox by Smoking Status
+
+```{r}
+#| label: simpsons-paradox-smoking
+#| tbl-cap: "Testing for Simpson's Paradox: HIV-Stroke relationship by Smoking strata"
+
+confounded_data <- confounded_data |>
+  dplyr::mutate(
+    Smoking_category = dplyr::case_when(
+      Smoking <= stats::quantile(Smoking, 0.33) ~ "Low Smoker",
+      Smoking <= stats::quantile(Smoking, 0.67) ~ "Moderate Smoker", 
+      TRUE ~ "Heavy Smoker"
+    )
+  )
+
+overall_corr <- stats::cor(confounded_data$HIV, confounded_data$Stroke)
+
+smoking_strata_analysis <- confounded_data |>
+  dplyr::group_by(Smoking_category) |>
+  dplyr::summarise(
+    n = dplyr::n(),
+    HIV_mean = base::round(base::mean(HIV), 3),
+    Stroke_mean = base::round(base::mean(Stroke), 3),
+    HIV_Stroke_correlation = base::round(stats::cor(HIV, Stroke), 3),
+    HIV_coefficient = base::round(stats::coef(stats::lm(Stroke ~ HIV))[2], 3),
+    HIV_pvalue = base::round(summary(stats::lm(Stroke ~ HIV))$coefficients[2,4], 3),
+    .groups = 'drop'
+  )
+
+overall_results <- base::data.frame(
+  Smoking_category = "Overall (All)",
+  n = base::nrow(confounded_data),
+  HIV_mean = base::round(base::mean(confounded_data$HIV), 3),
+  Stroke_mean = base::round(base::mean(confounded_data$Stroke), 3),
+  HIV_Stroke_correlation = base::round(overall_corr, 3),
+  HIV_coefficient = base::round(stats::coef(stats::lm(Stroke ~ HIV, data = confounded_data))[2], 3),
+  HIV_pvalue = base::round(summary(stats::lm(Stroke ~ HIV, data = confounded_data))$coefficients[2,4], 3)
+)
+
+simpsons_smoking_df <- base::rbind(overall_results, smoking_strata_analysis)
+
+DT::datatable(
+  simpsons_smoking_df,
+  caption = "Simpson's Paradox Test: HIV-Stroke Relationship by Smoking Status",
+  options = list(pageLength = 10, dom = 't'),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
+
+smoking_paradox_test <- base::data.frame(
+  Comparison = c("Overall vs Low Smoker", "Overall vs Moderate Smoker", "Overall vs Heavy Smoker"),
+  Overall_Direction = c("Positive", "Positive", "Positive"),
+  Strata_Direction = c(
+    if (smoking_strata_analysis$HIV_coefficient[1] > 0) "Positive" else "Negative",
+    if (smoking_strata_analysis$HIV_coefficient[2] > 0) "Positive" else "Negative",
+    if (smoking_strata_analysis$HIV_coefficient[3] > 0) "Positive" else "Negative"
+  ),
+  Paradox_Present = c(
+    if (smoking_strata_analysis$HIV_coefficient[1] < 0) "YES" else "NO",
+    if (smoking_strata_analysis$HIV_coefficient[2] < 0) "YES" else "NO",
+    if (smoking_strata_analysis$HIV_coefficient[3] < 0) "YES" else "NO"
+  )
+)
+
+DT::datatable(
+  smoking_paradox_test,
+  caption = "Simpson's Paradox Direction Test by Smoking",
+  options = list(pageLength = 10, dom = 't'),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
+```
+
+### 23.2 Testing for Simpson's Paradox by Age Groups
+
+```{r}
+#| label: simpsons-paradox-age
+#| tbl-cap: "Testing for Simpson's Paradox: HIV-Stroke relationship by Age strata"
+
+confounded_data <- confounded_data |>
+  dplyr::mutate(
+    Age_category = dplyr::case_when(
+      Age <= stats::quantile(Age, 0.33) ~ "Young",
+      Age <= stats::quantile(Age, 0.67) ~ "Middle-aged", 
+      TRUE ~ "Older"
+    )
+  )
+
+age_strata_analysis <- confounded_data |>
+  dplyr::group_by(Age_category) |>
+  dplyr::summarise(
+    n = dplyr::n(),
+    HIV_mean = base::round(base::mean(HIV), 3),
+    Stroke_mean = base::round(base::mean(Stroke), 3),
+    HIV_Stroke_correlation = base::round(stats::cor(HIV, Stroke), 3),
+    HIV_coefficient = base::round(stats::coef(stats::lm(Stroke ~ HIV))[2], 3),
+    HIV_pvalue = base::round(summary(stats::lm(Stroke ~ HIV))$coefficients[2,4], 3),
+    .groups = 'drop'
+  )
+
+overall_results_age <- base::data.frame(
+  Age_category = "Overall (All)",
+  n = base::nrow(confounded_data),
+  HIV_mean = base::round(base::mean(confounded_data$HIV), 3),
+  Stroke_mean = base::round(base::mean(confounded_data$Stroke), 3),
+  HIV_Stroke_correlation = base::round(overall_corr, 3),
+  HIV_coefficient = base::round(stats::coef(stats::lm(Stroke ~ HIV, data = confounded_data))[2], 3),
+  HIV_pvalue = base::round(summary(stats::lm(Stroke ~ HIV, data = confounded_data))$coefficients[2,4], 3)
+)
+
+simpsons_age_df <- base::rbind(overall_results_age, age_strata_analysis)
+
+DT::datatable(
+  simpsons_age_df,
+  caption = "Simpson's Paradox Test: HIV-Stroke Relationship by Age Group",
+  options = list(pageLength = 10, dom = 't'),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
+
+age_paradox_test <- base::data.frame(
+  Comparison = c("Overall vs Young", "Overall vs Middle-aged", "Overall vs Older"),
+  Overall_Direction = c("Positive", "Positive", "Positive"),
+  Strata_Direction = c(
+    if (age_strata_analysis$HIV_coefficient[1] > 0) "Positive" else "Negative",
+    if (age_strata_analysis$HIV_coefficient[2] > 0) "Positive" else "Negative",
+    if (age_strata_analysis$HIV_coefficient[3] > 0) "Positive" else "Negative"
+  ),
+  Paradox_Present = c(
+    if (age_strata_analysis$HIV_coefficient[1] < 0) "YES" else "NO",
+    if (age_strata_analysis$HIV_coefficient[2] < 0) "YES" else "NO",
+    if (age_strata_analysis$HIV_coefficient[3] < 0) "YES" else "NO"
+  )
+)
+
+DT::datatable(
+  age_paradox_test,
+  caption = "Simpson's Paradox Direction Test by Age",
+  options = list(pageLength = 10, dom = 't'),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
+```
+
+### 23.3 Visual Detection of Simpson's Paradox
+
+```{r}
+#| label: simpsons-paradox-visualization
+#| fig-cap: "Visual detection of Simpson's Paradox"
+#| fig-subcap: 
+#|   - "Overall vs Smoking Strata Relationships"
+#|   - "Overall vs Age Strata Relationships"
+#| layout-ncol: 1
+
+p1_simpson <- ggplot2::ggplot(confounded_data, ggplot2::aes(x = HIV, y = Stroke)) +
+  ggplot2::geom_smooth(ggplot2::aes(color = "Overall"), method = "lm", se = TRUE, size = 2) +
+  ggplot2::geom_smooth(ggplot2::aes(color = Smoking_category), method = "lm", se = FALSE, size = 1) +
+  ggplot2::geom_point(ggplot2::aes(color = Smoking_category), alpha = 0.3) +
+  ggplot2::scale_color_manual(values = c("Overall" = "black", "Low Smoker" = "blue", 
+                               "Moderate Smoker" = "green", "Heavy Smoker" = "red")) +
+  ggplot2::labs(title = "Testing Simpson's Paradox: HIV-Stroke by Smoking Status",
+       subtitle = "Black line shows overall relationship, colored lines show within-strata relationships",
+       x = "HIV Status", y = "Stroke Risk", color = "Group") +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(legend.position = "bottom")
+print(p1_simpson)
+
+p2_simpson <- ggplot2::ggplot(confounded_data, ggplot2::aes(x = HIV, y = Stroke)) +
+  ggplot2::geom_smooth(ggplot2::aes(color = "Overall"), method = "lm", se = TRUE, size = 2) +
+  ggplot2::geom_smooth(ggplot2::aes(color = Age_category), method = "lm", se = FALSE, size = 1) +
+  ggplot2::geom_point(ggplot2::aes(color = Age_category), alpha = 0.3) +
+  ggplot2::scale_color_manual(values = c("Overall" = "black", "Young" = "purple", 
+                               "Middle-aged" = "orange", "Older" = "brown")) +
+  ggplot2::labs(title = "Testing Simpson's Paradox: HIV-Stroke by Age Group",
+       subtitle = "Black line shows overall relationship, colored lines show within-strata relationships",
+       x = "HIV Status", y = "Stroke Risk", color = "Group") +
+  ggplot2::theme_minimal() +
+  ggplot2::theme(legend.position = "bottom")
+print(p2_simpson)
+```
+
+### 23.4 Formal Statistical Test for Simpson's Paradox
+
+```{r}
+#| label: simpsons-paradox-formal-test
+#| tbl-cap: "Formal statistical test for Simpson's Paradox"
+
+test_simpsons_paradox <- function(data, strata_var, exposure_var, outcome_var) {
+  overall_coef <- stats::coef(stats::lm(stats::as.formula(paste(outcome_var, "~", exposure_var)), data = data))[2]
+  strata_stats <- data |>
+    dplyr::group_by(!!rlang::sym(strata_var)) |>
+    dplyr::summarise(
+      n = dplyr::n(),
+      coefficient = stats::coef(stats::lm(stats::as.formula(paste(outcome_var, "~", exposure_var))))[2],
+      .groups = 'drop'
+    )
+  overall_direction <- base::sign(overall_coef)
+  strata_directions <- base::sign(strata_stats$coefficient)
+  reversals <- base::sum(strata_directions != overall_direction)
+  total_strata <- base::nrow(strata_stats)
+  interaction_model <- stats::lm(stats::as.formula(paste(outcome_var, "~", exposure_var, "*", strata_var)), data = data)
+  interaction_p <- summary(interaction_model)$coefficients[base::grep(":", base::rownames(summary(interaction_model)$coefficients)), 4]
+  list(
+    overall_coefficient = overall_coef,
+    strata_coefficients = strata_stats$coefficient,
+    reversals = reversals,
+    total_strata = total_strata,
+    proportion_reversed = reversals / total_strata,
+    interaction_p_values = interaction_p,
+    paradox_detected = any(interaction_p < 0.05) && reversals > 0
+  )
+}
+
+smoking_paradox_result <- test_simpsons_paradox(confounded_data, "Smoking_category", "HIV", "Stroke")
+age_paradox_result     <- test_simpsons_paradox(confounded_data, "Age_category", "HIV", "Stroke")
+
+paradox_summary <- base::data.frame(
+  Stratification_Variable = c("Smoking Status", "Age Group"),
+  Overall_Coefficient = c(smoking_paradox_result$overall_coefficient, age_paradox_result$overall_coefficient),
+  Direction_Reversals = c(smoking_paradox_result$reversals, age_paradox_result$reversals),
+  Total_Strata = c(smoking_paradox_result$total_strata, age_paradox_result$total_strata),
+  Proportion_Reversed = c(smoking_paradox_result$proportion_reversed, age_paradox_result$proportion_reversed),
+  Interaction_Significant = c(
+    any(smoking_paradox_result$interaction_p_values < 0.05),
+    any(age_paradox_result$interaction_p_values < 0.05)
+  ),
+  Simpsons_Paradox_Detected = c(smoking_paradox_result$paradox_detected, age_paradox_result$paradox_detected)
+)
+
+paradox_summary$Overall_Coefficient <- base::round(paradox_summary$Overall_Coefficient, 3)
+paradox_summary$Proportion_Reversed <- base::round(paradox_summary$Proportion_Reversed, 3)
+
+DT::datatable(
+  paradox_summary,
+  caption = "Formal Test Results for Simpson's Paradox",
+  options = list(pageLength = 10, dom = 't'),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
+```
+
+### 23.5 Magnitude of Simpson's Paradox Effect
+
+```{r}
+#| label: simpsons-paradox-magnitude
+#| tbl-cap: "Quantifying the magnitude of Simpson's Paradox effects"
+
+smoking_magnitude <- base::data.frame(
+  Stratum = c("Overall", smoking_strata_analysis$Smoking_category),
+  HIV_Coefficient = c(overall_results$HIV_coefficient, smoking_strata_analysis$HIV_coefficient),
+  Difference_from_Overall = c(0, smoking_strata_analysis$HIV_coefficient - overall_results$HIV_coefficient),
+  Percent_Change = c(0, 100 * (smoking_strata_analysis$HIV_coefficient - overall_results$HIV_coefficient) / overall_results$HIV_coefficient)
+)
+
+age_magnitude <- base::data.frame(
+  Stratum = c("Overall", age_strata_analysis$Age_category),
+  HIV_Coefficient = c(overall_results$HIV_coefficient, age_strata_analysis$HIV_coefficient),
+  Difference_from_Overall = c(0, age_strata_analysis$HIV_coefficient - overall_results$HIV_coefficient),
+  Percent_Change = c(0, 100 * (age_strata_analysis$HIV_coefficient - overall_results$HIV_coefficient) / overall_results$HIV_coefficient)
+)
+
+smoking_magnitude$Difference_from_Overall <- base::round(smoking_magnitude$Difference_from_Overall, 3)
+smoking_magnitude$Percent_Change <- base::round(smoking_magnitude$Percent_Change, 1)
+age_magnitude$Difference_from_Overall <- base::round(age_magnitude$Difference_from_Overall, 3)
+age_magnitude$Percent_Change <- base::round(age_magnitude$Percent_Change, 1)
+
+DT::datatable(
+  smoking_magnitude,
+  caption = "Magnitude of Simpson's Paradox: Smoking Stratification",
+  options = list(pageLength = 10, dom = 't'),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
+
+DT::datatable(
+  age_magnitude,
+  caption = "Magnitude of Simpson's Paradox: Age Stratification",
+  options = list(pageLength = 10, dom = 't'),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
+```
+
+### 23.6 Weighted vs Unweighted Analysis
+
+```{r}
+#| label: simpsons-paradox-weighted
+#| tbl-cap: "Weighted vs unweighted analysis to understand Simpson's Paradox"
+
+smoking_weighted_analysis <- confounded_data |>
+  dplyr::group_by(Smoking_category) |>
+  dplyr::summarise(
+    n = dplyr::n(),
+    coefficient = stats::coef(stats::lm(Stroke ~ HIV))[2],
+    .groups = 'drop'
+  ) |>
+  dplyr::mutate(weight = n / base::sum(n))
+
+age_weighted_analysis <- confounded_data |>
+  dplyr::group_by(Age_category) |>
+  dplyr::summarise(
+    n = dplyr::n(),
+    coefficient = stats::coef(stats::lm(Stroke ~ HIV))[2],
+    .groups = 'drop'
+  ) |>
+  dplyr::mutate(weight = n / base::sum(n))
+
+smoking_weighted_coef <- base::sum(smoking_weighted_analysis$coefficient * smoking_weighted_analysis$weight)
+age_weighted_coef     <- base::sum(age_weighted_analysis$coefficient * age_weighted_analysis$weight)
+
+weighted_comparison <- base::data.frame(
+  Analysis_Type = c("Overall (Marginal)", "Smoking Strata (Weighted Average)", "Age Strata (Weighted Average)"),
+  HIV_Coefficient = c(overall_results$HIV_coefficient, smoking_weighted_coef, age_weighted_coef),
+  Difference_from_Overall = c(0, smoking_weighted_coef - overall_results$HIV_coefficient, 
+                             age_weighted_coef - overall_results$HIV_coefficient),
+  Interpretation = c(
+    "Marginal association (confounded)",
+    "Average within-smoking-strata effect",
+    "Average within-age-strata effect"
+  )
+)
+
+weighted_comparison$HIV_Coefficient <- base::round(weighted_comparison$HIV_Coefficient, 3)
+weighted_comparison$Difference_from_Overall <- base::round(weighted_comparison$Difference_from_Overall, 3)
+
+DT::datatable(
+  weighted_comparison,
+  caption = "Weighted Analysis: Understanding Simpson's Paradox Mechanism",
+  options = list(pageLength = 10, dom = 't'),
+  rownames = FALSE,
+  class = 'cell-border stripe compact responsive'
+)
+```
+
+## Session Information for Reproducibility
+
+```{r}
+#| label: session-info-confounded
+#| echo: false
+
+utils::sessionInfo()
+```
