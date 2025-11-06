@@ -22,7 +22,6 @@ Applied consistent namespace syntax throughout the entire file:
 - `as.data.frame()` → `base::as.data.frame()`
 - `rbind()` → `base::rbind()`
 - `ifelse()` → `base::ifelse()`
-- `quantile()` → `base::quantile()`
 - `set.seed()` → `base::set.seed()`
 - `sapply()` → `base::sapply()`
 - `lapply()` → `base::lapply()`
@@ -40,6 +39,7 @@ Applied consistent namespace syntax throughout the entire file:
 
 #### Stats Functions  
 - `coef()` → `stats::coef()`
+- `quantile()` → `stats::quantile()`
 - All other stats functions already had proper `stats::` prefix
 
 #### Graphics Functions

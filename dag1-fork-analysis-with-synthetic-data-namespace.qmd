@@ -125,7 +125,7 @@ knitr:
 # Rstudio 2025.9.2.418 (Cucumberleaf Sunflower)
 # 
 
-# install.packages(c("mapview", "survey", "srvyr", "arcgislayers"))
+# install.packages(base::c("mapview", "survey", "srvyr", "arcgislayers"))
 
 # census_api_key("95496766c51541ee6f402c1e1a8658581285b759", install = TRUE, overwrite = TRUE)
 
@@ -144,7 +144,7 @@ knitr:
 # library(dagitty) # Graphical Analysis of Structural Causal Models  
 # library(DiagrammeR) # Graph/Network Visualization 
 # library(dlookr) # Tools for Data Diagnosis, Exploration, Transformation 
-library(dplyr) # A Grammar of Data Manipulation
+# library(dplyr) # A Grammar of Data Manipulation (using namespace syntax instead)
 # library(DT) # A Wrapper of the JavaScript Library 'DataTables'
 # library(dutchmasters) # Color Palettes based on Famous Paintings 
 # library(flexdashboard) # R Markdown Format for Flexible Dashboards
@@ -213,9 +213,7 @@ library(dplyr) # A Grammar of Data Manipulation
 
 
 
-# Force dplyr's select to take precedence
-select <- dplyr::select
-filter <- dplyr::filter
+# No select/filter assignments needed - using namespace syntax throughout
 
 # Options
 options(scipen = 999)
@@ -223,7 +221,7 @@ options(qic.clshade = T) # NO LONGER NEEDED; CHARTS ALL PREPARED WITH GGPLOT2 ON
 options(qic.linecol = 'black') # NO LONGER NEEDED; CHARTS ALL PREPARED WITH GGPLOT2 ONLY
 options(qic.signalcol = "red") # NO LONGER NEEDED; CHARTS ALL PREPARED WITH GGPLOT2 ONLY
 options(qic.targetcol = "purple") # NO LONGER NEEDED; CHARTS ALL PREPARED WITH GGPLOT2 ONLY
-options(DT.options = list(dom = 'pBlfrti')) # Add buttons, filtering, and top (t) pagination controls
+options(DT.options = base::list(dom = 'pBlfrti')) # Add buttons, filtering, and top (t) pagination controls
 options(shiny.maxRequestSize = 50 * 1024^2) # Set upload maximum to 50 MB
 options(tigris_use_cache = TRUE)
 
@@ -256,7 +254,7 @@ ggplot2::theme_set(ggplot2::theme_minimal(base_size = 20) +
 
 
 # Set seed for reproducibility
-set.seed(123)
+base::set.seed(123)
 
 ```
 
@@ -286,7 +284,7 @@ First, let's create synthetic data that follows our DAG structure. We'll set the
 #| warning: false
 
 # Set seed for reproducibility
-set.seed(42)
+base::set.seed(42)
 
 # Sample size
 n <- 1000
@@ -295,22 +293,22 @@ n <- 1000
 # Z → X, Z → Y, and X → Y
 
 # First, generate the confounder Z (e.g., age)
-Z <- rnorm(n, mean = 50, sd = 10)
+Z <- stats::rnorm(n, mean = 50, sd = 10)
 
 # Next, generate X as influenced by Z (e.g., coffee consumption affected by age)
 # We add some random noise to represent other factors affecting X
-X <- 2 + 0.08 * Z + rnorm(n, mean = 0, sd = 1)
+X <- 2 + 0.08 * Z + stats::rnorm(n, mean = 0, sd = 1)
 
 # Finally, generate Y as influenced by both Z and X
 # The true direct effect of X on Y is 0.3
 # The true effect of Z on Y is 0.1
-Y <- 5 + 0.3 * X + 0.1 * Z + rnorm(n, mean = 0, sd = 1.5)
+Y <- 5 + 0.3 * X + 0.1 * Z + stats::rnorm(n, mean = 0, sd = 1.5)
 
 # Create a data frame
-dag_data <- data.frame(X = X, Y = Y, Z = Z)
+dag_data <- base::data.frame(X = X, Y = Y, Z = Z)
 
 # Quick summary of the data
-summary(dag_data)
+base::summary(dag_data)
 ```
 
 Our synthetic data now follows these true causal relationships:
@@ -331,34 +329,34 @@ Let's visualize the distributions and relationships in our synthetic data:
 #| layout-ncol: 2
 
 # Distributions of variables
-dag_data %>%
-  pivot_longer(cols = everything(), names_to = "Variable", values_to = "Value") %>%
-  ggplot(aes(x = Value)) +
-  geom_histogram(fill = "steelblue", alpha = 0.7, bins = 30) +
-  facet_wrap(~ Variable, scales = "free") +
-  theme_minimal() +
-  ggtitle("Distributions of X, Y, and Z")
+dag_data |>
+  tidyr::pivot_longer(cols = tidyselect::everything(), names_to = "Variable", values_to = "Value") |>
+  ggplot2::ggplot(ggplot2::aes(x = Value)) +
+  ggplot2::geom_histogram(fill = "steelblue", alpha = 0.7, bins = 30) +
+  ggplot2::facet_wrap(~ Variable, scales = "free") +
+  ggplot2::theme_minimal() +
+  ggplot2::ggtitle("Distributions of X, Y, and Z")
 
 # X vs Y scatterplot
-ggplot(dag_data, aes(x = X, y = Y)) +
-  geom_point(alpha = 0.3, color = "dodgerblue") +
-  geom_smooth(method = "lm", formula = y ~ x, color = "darkred") +
-  theme_minimal() +
-  ggtitle("Relationship between X and Y")
+ggplot2::ggplot(dag_data, ggplot2::aes(x = X, y = Y)) +
+  ggplot2::geom_point(alpha = 0.3, color = "navy") +
+  ggplot2::geom_smooth(method = "lm", formula = y ~ x, color = "firebrick") +
+  ggplot2::theme_minimal() +
+  ggplot2::ggtitle("Relationship between X and Y")
 
 # Z vs X scatterplot
-ggplot(dag_data, aes(x = Z, y = X)) +
-  geom_point(alpha = 0.3, color = "darkgreen") +
-  geom_smooth(method = "lm", formula = y ~ x, color = "darkred") +
-  theme_minimal() +
-  ggtitle("Relationship between Z and X")
+ggplot2::ggplot(dag_data, ggplot2::aes(x = Z, y = X)) +
+  ggplot2::geom_point(alpha = 0.3, color = "darkgreen") +
+  ggplot2::geom_smooth(method = "lm", formula = y ~ x, color = "firebrick") +
+  ggplot2::theme_minimal() +
+  ggplot2::ggtitle("Relationship between Z and X")
 
 # Z vs Y scatterplot
-ggplot(dag_data, aes(x = Z, y = Y)) +
-  geom_point(alpha = 0.3, color = "purple") +
-  geom_smooth(method = "lm", formula = y ~ x, color = "darkred") +
-  theme_minimal() +
-  ggtitle("Relationship between Z and Y")
+ggplot2::ggplot(dag_data, ggplot2::aes(x = Z, y = Y)) +
+  ggplot2::geom_point(alpha = 0.3, color = "purple") +
+  ggplot2::geom_smooth(method = "lm", formula = y ~ x, color = "firebrick") +
+  ggplot2::theme_minimal() +
+  ggplot2::ggtitle("Relationship between Z and Y")
 ```
 
 ## 3. Recreating the DAG for Reference
@@ -376,7 +374,7 @@ Let's recreate the DAG using DiagrammeR and ggdag for reference:
 #| layout-ncol: 1
 
 # Visualize DAG with DiagrammeR
-grViz("
+DiagrammeR::grViz("
   digraph DAG {
     # Graph settings
     graph [layout=neato, margin=\"0.0, 0.0, 0.0, 0.0\"]
@@ -393,8 +391,8 @@ grViz("
     edge [penwidth=1.50, color=\"darkblue\", arrowsize=1.00]
     
     # Nodes with exact coordinates
-    X [label=\"X (Exposure)\", pos=\"1.0, 1.0!\", fontcolor=\"dodgerblue\"]
-    Y [label=\"Y (Outcome)\", pos=\"3.0, 1.0!\", fontcolor=\"dodgerblue\"]
+    X [label=\"X (Exposure)\", pos=\"1.0, 1.0!\", fontcolor=\"navy\"]
+    Y [label=\"Y (Outcome)\", pos=\"3.0, 1.0!\", fontcolor=\"navy\"]
     Z [label=\"Z (Confounder)\", pos=\"2.0,3.0!\", fontcolor=\"red\"]
     
     # Edges with true coefficients from our synthetic data
@@ -409,30 +407,30 @@ grViz("
 ")
 
 # Define the DAG using ggdag
-dag <- dagify(
+dag <- ggdag::dagify(
   Y ~ X + Z,
   X ~ Z,
   exposure = "X",
   outcome = "Y",
-  labels = c("X" = "X (Exposure)", 
+  labels = base::c("X" = "X (Exposure)", 
              "Y" = "Y (Outcome)", 
              "Z" = "Z (Confounder)")
 )
 
 # Set coordinates for nice visualization
-coordinates(dag) <- list(
-  x = c(X = 1, Y = 3, Z = 2),
-  y = c(X = 1, Y = 1, Z = 3)
+dagitty::coordinates(dag) <- base::list(
+  x = base::c(X = 1, Y = 3, Z = 2),
+  y = base::c(X = 1, Y = 1, Z = 3)
 )
 
 # Create nice visualization with ggdag
-ggdag(dag, edge_type = "link") + 
-  geom_dag_point(color = "lightblue", size = 14, alpha = 0.7) +
-  geom_dag_text(color = "black") +
-  geom_dag_edges(edge_colour = "blue", edge_width = 1.0, arrow_size = 0.6) +
-  theme_dag() +
-  theme(plot.title = element_text(hjust = 0.5)) +
-  ggtitle("DAG: X → Y with Z as confounder")
+ggdag::ggdag(dag, edge_type = "link") + 
+  ggdag::geom_dag_point(color = "lightblue", size = 14, alpha = 0.7) +
+  ggdag::geom_dag_text(color = "black") +
+  ggdag::geom_dag_edges(edge_colour = "blue", edge_width = 1.0, arrow_size = 0.6) +
+  ggdag::theme_dag() +
+  ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5)) +
+  ggplot2::ggtitle("DAG: X → Y with Z as confounder")
 ```
 
 ## 4. Testing Causal Relationships
@@ -448,13 +446,13 @@ First, we'll fit a model that ignores the confounder Z:
 #| message: false
 
 # Fit unadjusted model (ignoring the confounder Z)
-model_unadjusted <- lm(Y ~ X, data = dag_data)
+model_unadjusted <- stats::lm(Y ~ X, data = dag_data)
 
 # Display model summary
-summary(model_unadjusted)
+base::summary(model_unadjusted)
 
 # Extract the coefficient for X
-coef_unadjusted <- coef(model_unadjusted)["X"]
+coef_unadjusted <- stats::coef(model_unadjusted)["X"]
 ```
 
 ### 4.2 Adjusted Model (Correcting for Confounding)
@@ -466,13 +464,13 @@ Now, let's fit a model that adjusts for the confounder Z:
 #| message: false
 
 # Fit adjusted model (accounting for confounder Z)
-model_adjusted <- lm(Y ~ X + Z, data = dag_data)
+model_adjusted <- stats::lm(Y ~ X + Z, data = dag_data)
 
 # Display model summary
-summary(model_adjusted)
+base::summary(model_adjusted)
 
 # Extract the coefficient for X
-coef_adjusted <- coef(model_adjusted)["X"]
+coef_adjusted <- stats::coef(model_adjusted)["X"]
 ```
 
 ### 4.3 Comparing Model Results
@@ -487,24 +485,24 @@ Let's compare the estimated effect of X on Y from both models:
 true_effect <- 0.3
 
 # Create a comparison table
-comparison_df <- data.frame(
-  Model = c("True Causal Effect", "Unadjusted Model (Ignores Z)", "Adjusted Model (Controls for Z)"),
-  Coefficient = c(true_effect, coef_unadjusted, coef_adjusted),
-  Error = c(0, coef_unadjusted - true_effect, coef_adjusted - true_effect),
-  BiasPercent = c(0, 100 * (coef_unadjusted - true_effect) / true_effect, 
+comparison_df <- base::data.frame(
+  Model = base::c("True Causal Effect", "Unadjusted Model (Ignores Z)", "Adjusted Model (Controls for Z)"),
+  Coefficient = base::c(true_effect, coef_unadjusted, coef_adjusted),
+  Error = base::c(0, coef_unadjusted - true_effect, coef_adjusted - true_effect),
+  BiasPercent = base::c(0, 100 * (coef_unadjusted - true_effect) / true_effect, 
                   100 * (coef_adjusted - true_effect) / true_effect)
 )
 
 # Format for display
-comparison_df$Coefficient <- round(comparison_df$Coefficient, 4)
-comparison_df$Error <- round(comparison_df$Error, 4)
-comparison_df$BiasPercent <- round(comparison_df$BiasPercent, 2)
+comparison_df$Coefficient <- base::round(comparison_df$Coefficient, 4)
+comparison_df$Error <- base::round(comparison_df$Error, 4)
+comparison_df$BiasPercent <- base::round(comparison_df$BiasPercent, 2)
 
 # Display as a table
-kable(comparison_df, 
-      col.names = c("Model", "Coefficient of X on Y", "Absolute Error", "Bias (%)"),
-      caption = "Comparison of estimated effects of X on Y") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+knitr::kable(comparison_df, 
+      col.names = base::c("Model", "Coefficient of X on Y", "Absolute Error", "Bias (%)"),
+      caption = "Comparison of estimated effects of X on Y") |>
+  kableExtra::kable_styling(bootstrap_options = base::c("striped", "hover", "condensed"))
 ```
 
 ### 4.4 Testing for Significant Differences Between Models
@@ -516,62 +514,62 @@ Now, let's test whether the difference between the unadjusted and adjusted model
 #| message: false
 
 # Compare models using anova (valid since one model is nested in the other)
-model_comparison <- anova(model_unadjusted, model_adjusted)
+model_comparison <- stats::anova(model_unadjusted, model_adjusted)
 
 # Test if unadjusted coefficient differs from true effect
-unadj_z_stat <- (coef_unadjusted - true_effect) / summary(model_unadjusted)$coefficients["X", "Std. Error"]
-unadj_p_value <- 2 * (1 - pnorm(abs(unadj_z_stat)))
+unadj_z_stat <- (coef_unadjusted - true_effect) / base::summary(model_unadjusted)$coefficients["X", "Std. Error"]
+unadj_p_value <- 2 * (1 - stats::pnorm(base::abs(unadj_z_stat)))
 
 # Test if adjusted coefficient differs from true effect
-adj_z_stat <- (coef_adjusted - true_effect) / summary(model_adjusted)$coefficients["X", "Std. Error"]
-adj_p_value <- 2 * (1 - pnorm(abs(adj_z_stat)))
+adj_z_stat <- (coef_adjusted - true_effect) / base::summary(model_adjusted)$coefficients["X", "Std. Error"]
+adj_p_value <- 2 * (1 - stats::pnorm(base::abs(adj_z_stat)))
 
 # Create a data frame for the results
-significance_df <- data.frame(
-  Comparison = c(
+significance_df <- base::data.frame(
+  Comparison = base::c(
     "Unadjusted vs. Adjusted Model",
     "Unadjusted Model vs. True Effect",
     "Adjusted Model vs. True Effect"
   ),
   
-  Test = c(
+  Test = base::c(
     "F-test (ANOVA)",
     "Z-test (coefficient vs. true effect)",
     "Z-test (coefficient vs. true effect)"
   ),
   
-  Statistic = c(
-    round(model_comparison$F[2], 3),
-    round(unadj_z_stat, 3),
-    round(adj_z_stat, 3)
+  Statistic = base::c(
+    base::round(model_comparison$F[2], 3),
+    base::round(unadj_z_stat, 3),
+    base::round(adj_z_stat, 3)
   ),
   
-  PValue = c(
-    round(model_comparison$`Pr(>F)`[2], 4),
-    round(unadj_p_value, 4),
-    round(adj_p_value, 4)
+  PValue = base::c(
+    base::round(model_comparison$`Pr(>F)`[2], 4),
+    base::round(unadj_p_value, 4),
+    base::round(adj_p_value, 4)
   ),
   
-  Conclusion = c(
-    ifelse(model_comparison$`Pr(>F)`[2] < 0.05, 
+  Conclusion = base::c(
+    base::ifelse(model_comparison$`Pr(>F)`[2] < 0.05, 
            "Models are significantly different", 
            "No significant difference between models"),
     
-    ifelse(unadj_p_value < 0.05,
+    base::ifelse(unadj_p_value < 0.05,
            "Unadjusted estimate is significantly different from true effect",
            "Unadjusted estimate is not significantly different from true effect"),
     
-    ifelse(adj_p_value < 0.05,
+    base::ifelse(adj_p_value < 0.05,
            "Adjusted estimate is significantly different from true effect",
            "Adjusted estimate is not significantly different from true effect")
   )
 )
 
 # Display as a table
-kable(significance_df, 
-      col.names = c("Comparison", "Test", "Statistic", "P-value", "Conclusion"),
-      caption = "Statistical tests for model comparisons") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+knitr::kable(significance_df, 
+      col.names = base::c("Comparison", "Test", "Statistic", "P-value", "Conclusion"),
+      caption = "Statistical tests for model comparisons") |>
+  kableExtra::kable_styling(bootstrap_options = base::c("striped", "hover", "condensed"))
 ```
 
 These tests confirm that:
@@ -594,36 +592,36 @@ Let's test this using partial correlations:
 
 # Function to calculate partial correlation
 partial_cor <- function(x, y, z, data) {
-  model_x <- lm(as.formula(paste(x, "~", z)), data = data)
-  model_y <- lm(as.formula(paste(y, "~", z)), data = data)
+  model_x <- stats::lm(stats::as.formula(base::paste(x, "~", z)), data = data)
+  model_y <- stats::lm(stats::as.formula(base::paste(y, "~", z)), data = data)
   
-  residuals_x <- residuals(model_x)
-  residuals_y <- residuals(model_y)
+  residuals_x <- stats::residuals(model_x)
+  residuals_y <- stats::residuals(model_y)
   
-  cor(residuals_x, residuals_y)
+  stats::cor(residuals_x, residuals_y)
 }
 
 # Calculate simple correlation between X and Y
-simple_cor_XY <- cor(dag_data$X, dag_data$Y)
+simple_cor_XY <- stats::cor(dag_data$X, dag_data$Y)
 
 # Calculate partial correlation between X and Y, controlling for Z
 partial_cor_XY_Z <- partial_cor("X", "Y", "Z", dag_data)
 
 # Prepare results for display
-cor_tests <- data.frame(
-  Test = c("Simple correlation between X and Y", 
+cor_tests <- base::data.frame(
+  Test = base::c("Simple correlation between X and Y", 
            "Partial correlation between X and Y, controlling for Z"),
-  Correlation = c(simple_cor_XY, partial_cor_XY_Z)
+  Correlation = base::c(simple_cor_XY, partial_cor_XY_Z)
 )
 
 # Format for display
-cor_tests$Correlation <- round(cor_tests$Correlation, 4)
+cor_tests$Correlation <- base::round(cor_tests$Correlation, 4)
 
 # Display as a table
-kable(cor_tests, 
-      col.names = c("Test", "Correlation"),
-      caption = "Testing conditional independences") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+knitr::kable(cor_tests, 
+      col.names = base::c("Test", "Correlation"),
+      caption = "Testing conditional independences") |>
+  kableExtra::kable_styling(bootstrap_options = base::c("striped", "hover", "condensed"))
 ```
 
 The results confirm our understanding of the DAG structure:
@@ -646,9 +644,9 @@ Let's visualize these paths:
 #| fig-cap: "Path analysis in our DAG"
 
 # Use ggdag to visualize paths
-ggdag_paths(dag, from = "X", to = "Y", shadow = TRUE) +
-  theme_dag() +
-  ggtitle("All paths from X to Y")
+ggdag::ggdag_paths(dag, from = "X", to = "Y", shadow = TRUE) +
+  ggdag::theme_dag() +
+  ggplot2::ggtitle("All paths from X to Y")
 ```
 
 Now, let's use ggdag to highlight the appropriate adjustment set:
@@ -660,9 +658,9 @@ Now, let's use ggdag to highlight the appropriate adjustment set:
 #| fig-cap: "Adjustment set for estimating the causal effect of X on Y"
 
 # Visualize the adjustment set
-ggdag_adjustment_set(dag, exposure = "X", outcome = "Y", shadow = TRUE) +
-  theme_dag() +
-  ggtitle("Adjustment set to estimate causal effect of X on Y")
+ggdag::ggdag_adjustment_set(dag, exposure = "X", outcome = "Y", shadow = TRUE) +
+  ggdag::theme_dag() +
+  ggplot2::ggtitle("Adjustment set to estimate causal effect of X on Y")
 ```
 
 ## 7. Examining the Backdoor Criterion
@@ -682,56 +680,56 @@ Let's see how controlling for Z changes the estimated relationship between X and
 #| layout-ncol: 2
 
 # 1. X-Y relationship (unadjusted)
-p1 <- ggplot(dag_data, aes(x = X, y = Y)) +
-  geom_point(alpha = 0.3, color = "dodgerblue") +
-  geom_smooth(method = "lm", formula = y ~ x, color = "darkred") +
-  theme_minimal() +
-  annotate("text", x = min(dag_data$X) + 0.2*(max(dag_data$X)-min(dag_data$X)), 
-           y = max(dag_data$Y) - 0.1*(max(dag_data$Y)-min(dag_data$Y)), 
-           label = paste("Slope =", round(coef(lm(Y ~ X, dag_data))[2], 3)),
+p1 <- ggplot2::ggplot(dag_data, ggplot2::aes(x = X, y = Y)) +
+  ggplot2::geom_point(alpha = 0.3, color = "navy") +
+  ggplot2::geom_smooth(method = "lm", formula = y ~ x, color = "firebrick") +
+  ggplot2::theme_minimal() +
+  ggplot2::annotate("text", x = base::min(dag_data$X) + 0.2*(base::max(dag_data$X)-base::min(dag_data$X)), 
+           y = base::max(dag_data$Y) - 0.1*(base::max(dag_data$Y)-base::min(dag_data$Y)), 
+           label = base::paste("Slope =", base::round(stats::coef(stats::lm(Y ~ X, dag_data))[2], 3)),
            hjust = 0) +
-  ggtitle("Unadjusted X-Y relationship")
+  ggplot2::ggtitle("Unadjusted X-Y relationship")
 
 # 2. Z-X relationship (correctly labeled with Z as predictor)
-p2 <- ggplot(dag_data, aes(x = Z, y = X)) +
-  geom_smooth(method = "lm", formula = y ~ x, color = "darkred") +
-  geom_point(alpha = 0.3, color = "darkgreen") +
-  theme_minimal() +
-  annotate("text", x = min(dag_data$Z) + 0.2*(max(dag_data$Z)-min(dag_data$Z)), 
-           y = max(dag_data$X) - 0.1*(max(dag_data$X)-min(dag_data$X)), 
-           label = paste("Slope =", round(coef(lm(X ~ Z, dag_data))[2], 3)),
+p2 <- ggplot2::ggplot(dag_data, ggplot2::aes(x = Z, y = X)) +
+  ggplot2::geom_smooth(method = "lm", formula = y ~ x, color = "firebrick") +
+  ggplot2::geom_point(alpha = 0.3, color = "darkgreen") +
+  ggplot2::theme_minimal() +
+  ggplot2::annotate("text", x = base::min(dag_data$Z) + 0.2*(base::max(dag_data$Z)-base::min(dag_data$Z)), 
+           y = base::max(dag_data$X) - 0.1*(base::max(dag_data$X)-base::min(dag_data$X)), 
+           label = base::paste("Slope =", base::round(stats::coef(stats::lm(X ~ Z, dag_data))[2], 3)),
            hjust = 0) +
-  ggtitle("Z → X relationship (confounder affects exposure)")
+  ggplot2::ggtitle("Z → X relationship (confounder affects exposure)")
 
 # 3. Z-Y relationship (correctly labeled with Z as predictor)
-p3 <- ggplot(dag_data, aes(x = Z, y = Y)) +
-  geom_smooth(method = "lm", formula = y ~ x, color = "darkred") +
-  geom_point(alpha = 0.3, color = "purple") +
-  theme_minimal() +
-  annotate("text", x = min(dag_data$Z) + 0.2*(max(dag_data$Z)-min(dag_data$Z)), 
-           y = max(dag_data$Y) - 0.1*(max(dag_data$Y)-min(dag_data$Y)), 
-           label = paste("Slope =", round(coef(lm(Y ~ Z, dag_data))[2], 3)),
+p3 <- ggplot2::ggplot(dag_data, ggplot2::aes(x = Z, y = Y)) +
+  ggplot2::geom_smooth(method = "lm", formula = y ~ x, color = "firebrick") +
+  ggplot2::geom_point(alpha = 0.3, color = "purple") +
+  ggplot2::theme_minimal() +
+  ggplot2::annotate("text", x = base::min(dag_data$Z) + 0.2*(base::max(dag_data$Z)-base::min(dag_data$Z)), 
+           y = base::max(dag_data$Y) - 0.1*(base::max(dag_data$Y)-base::min(dag_data$Y)), 
+           label = base::paste("Slope =", base::round(stats::coef(stats::lm(Y ~ Z, dag_data))[2], 3)),
            hjust = 0) +
-  ggtitle("Z → Y relationship (confounder affects outcome)")
+  ggplot2::ggtitle("Z → Y relationship (confounder affects outcome)")
 
 # 4. X-Y relationship (adjusted for Z) - using residuals
 # Create residuals
-x_resid <- residuals(lm(X ~ Z, data = dag_data))
-y_resid <- residuals(lm(Y ~ Z, data = dag_data))
-resid_data <- data.frame(x_resid = x_resid, y_resid = y_resid)
+x_resid <- stats::residuals(stats::lm(X ~ Z, data = dag_data))
+y_resid <- stats::residuals(stats::lm(Y ~ Z, data = dag_data))
+resid_data <- base::data.frame(x_resid = x_resid, y_resid = y_resid)
 
 # Plot relationship between residuals
-p4 <- ggplot(resid_data, aes(x = x_resid, y = y_resid)) +
-  geom_smooth(method = "lm", formula = y ~ x, color = "darkred") +
-  geom_point(alpha = 0.3, color = "orange") +
-  theme_minimal() +
-  annotate("text", x = min(resid_data$x_resid) + 0.2*(max(resid_data$x_resid)-min(resid_data$x_resid)), 
-           y = max(resid_data$y_resid) - 0.1*(max(resid_data$y_resid)-min(resid_data$y_resid)), 
-           label = paste("Slope =", round(coef(lm(y_resid ~ x_resid))[2], 3)),
+p4 <- ggplot2::ggplot(resid_data, ggplot2::aes(x = x_resid, y = y_resid)) +
+  ggplot2::geom_smooth(method = "lm", formula = y ~ x, color = "firebrick") +
+  ggplot2::geom_point(alpha = 0.3, color = "orange") +
+  ggplot2::theme_minimal() +
+  ggplot2::annotate("text", x = base::min(resid_data$x_resid) + 0.2*(base::max(resid_data$x_resid)-base::min(resid_data$x_resid)), 
+           y = base::max(resid_data$y_resid) - 0.1*(base::max(resid_data$y_resid)-base::min(resid_data$y_resid)), 
+           label = base::paste("Slope =", base::round(stats::coef(stats::lm(y_resid ~ x_resid))[2], 3)),
            hjust = 0) +
-  xlab("X (residuals after controlling for Z)") +
-  ylab("Y (residuals after controlling for Z)") +
-  ggtitle("X → Y relationship after removing Z's effect")
+  ggplot2::xlab("X (residuals after controlling for Z)") +
+  ggplot2::ylab("Y (residuals after controlling for Z)") +
+  ggplot2::ggtitle("X → Y relationship after removing Z's effect")
 
 # Display all plots
 p1
@@ -756,26 +754,26 @@ D-separation is a criterion for determining whether two variables in a DAG are c
 #| message: false
 
 # Test d-separation claims in our DAG
-dseparation_results <- data.frame(
-  Claim = c(
+dseparation_results <- base::data.frame(
+  Claim = base::c(
     "X and Y are not d-separated (without conditioning)",
     "X and Y are not d-separated given Z"
   ),
-  Result = c(
-    !dseparated(dag, "X", "Y", c()),
-    !dseparated(dag, "X", "Y", c("Z"))
+  Result = base::c(
+    !dagitty::dseparated(dag, "X", "Y", base::c()),
+    !dagitty::dseparated(dag, "X", "Y", base::c("Z"))
   ),
-  Explanation = c(
+  Explanation = base::c(
     "X and Y are associated through both the direct path and the backdoor path",
     "Even after blocking the backdoor path, X and Y remain associated through the direct path"
   )
 )
 
 # Display as a table
-kable(dseparation_results, 
-      col.names = c("D-Separation Claim", "Confirmed?", "Explanation"),
-      caption = "Testing d-separation claims in our DAG") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+knitr::kable(dseparation_results, 
+      col.names = base::c("D-Separation Claim", "Confirmed?", "Explanation"),
+      caption = "Testing d-separation claims in our DAG") |>
+  kableExtra::kable_styling(bootstrap_options = base::c("striped", "hover", "condensed"))
 ```
 
 These results confirm our understanding of the DAG structure:
@@ -795,22 +793,22 @@ In real-world scenarios, we might not be able to measure all confounders. Let's 
 # Function to simulate unmeasured confounding
 simulate_unmeasured_z <- function(cor_xz, cor_zy, n = 1000) {
   # Create a new dataset without Z
-  z_unmeasured <- rnorm(n)
+  z_unmeasured <- stats::rnorm(n)
   
   # Create X correlated with unmeasured Z
-  x_unmeasured <- cor_xz * z_unmeasured + sqrt(1 - cor_xz^2) * rnorm(n)
+  x_unmeasured <- cor_xz * z_unmeasured + sqrt(1 - cor_xz^2) * stats::rnorm(n)
   
   # Create Y correlated with unmeasured Z and with a direct effect from X (set to 0.3)
   y_unmeasured <- 0.3 * x_unmeasured + cor_zy * z_unmeasured + 
-                  sqrt(1 - 0.3^2 - cor_zy^2 - 2*0.3*cor_xz*cor_zy) * rnorm(n)
+                  sqrt(1 - 0.3^2 - cor_zy^2 - 2*0.3*cor_xz*cor_zy) * stats::rnorm(n)
   
   # Create dataset
-  data.frame(X = x_unmeasured, Y = y_unmeasured)
+  base::data.frame(X = x_unmeasured, Y = y_unmeasured)
 }
 
 # Create a range of confounding strengths
-z_effects <- seq(0, 0.5, by = 0.1)
-results <- data.frame()
+z_effects <- base::seq(0, 0.5, by = 0.1)
+results <- base::data.frame()
 
 # For each confounding strength, calculate the bias
 for (z_effect in z_effects) {
@@ -818,30 +816,30 @@ for (z_effect in z_effects) {
   sim_data <- simulate_unmeasured_z(cor_xz = z_effect, cor_zy = z_effect)
   
   # Fit model without ability to adjust for Z
-  model <- lm(Y ~ X, data = sim_data)
+  model <- stats::lm(Y ~ X, data = sim_data)
   
   # Store results
-  results <- rbind(results, data.frame(
+  results <- rbind(results, base::data.frame(
     ConfounderStrength = z_effect,
-    EstimatedEffect = coef(model)["X"],
+    EstimatedEffect = stats::coef(model)["X"],
     TrueEffect = 0.3,
-    Bias = coef(model)["X"] - 0.3,
-    BiasPercent = 100 * (coef(model)["X"] - 0.3) / 0.3
+    Bias = stats::coef(model)["X"] - 0.3,
+    BiasPercent = 100 * (stats::coef(model)["X"] - 0.3) / 0.3
   ))
 }
 
 # Plot the results
-ggplot(results, aes(x = ConfounderStrength, y = EstimatedEffect)) +
-  geom_line(color = "blue", size = 1) +
-  geom_point(color = "blue", size = 3) +
-  geom_hline(yintercept = 0.3, linetype = "dashed", color = "red") +
-  labs(
+ggplot2::ggplot(results, ggplot2::aes(x = ConfounderStrength, y = EstimatedEffect)) +
+  ggplot2::geom_line(color = "blue", size = 1) +
+  ggplot2::geom_point(color = "blue", size = 3) +
+  ggplot2::geom_hline(yintercept = 0.3, linetype = "dashed", color = "red") +
+  ggplot2::labs(
     title = "Impact of Unmeasured Confounding on Effect Estimates",
     subtitle = "Red dashed line shows true causal effect (0.3)",
     x = "Confounder Strength (correlation between Z and X/Y)",
     y = "Estimated Effect of X on Y"
   ) +
-  theme_minimal()
+  ggplot2::theme_minimal()
 ```
 
 This sensitivity analysis shows how unmeasured confounding can bias our estimates of the causal effect. As the strength of confounding increases (stronger correlation between Z and both X and Y), our estimate of the effect of X on Y becomes increasingly biased.
@@ -856,12 +854,12 @@ Let's explore a more advanced approach using the `rethinking` package, which is 
 #| warning: false
 
 # Standardize the variables for better fitting
-dag_data_std <- dag_data %>%
-  mutate(across(everything(), scale))
+dag_data_std <- dag_data |>
+  dplyr::mutate(dplyr::across(tidyselect::everything(), base::scale))
 
 # Fit a Bayesian causal model for the adjusted effect
-m_adjusted <- quap(
-  alist(
+m_adjusted <- rethinking::quap(
+  base::alist(
     Y ~ dnorm(mu, sigma),
     mu <- a + bX * X + bZ * Z,
     a ~ dnorm(0, 1),
@@ -873,35 +871,35 @@ m_adjusted <- quap(
 )
 
 # Extract the posterior distribution
-post <- extract.samples(m_adjusted)
+post <- rethinking::extract.samples(m_adjusted)
 
 # Summarize the posterior for the causal effect of X on Y
-causal_effect_summary <- data.frame(
+causal_effect_summary <- base::data.frame(
   Parameter = "Effect of X on Y",
-  Mean = mean(post$bX),
-  SD = sd(post$bX),
-  `2.5%` = quantile(post$bX, 0.025),
-  `50%` = median(post$bX),
-  `97.5%` = quantile(post$bX, 0.975)
+  Mean = base::mean(post$bX),
+  SD = stats::sd(post$bX),
+  `2.5%` = stats::quantile(post$bX, 0.025),
+  `50%` = stats::median(post$bX),
+  `97.5%` = stats::quantile(post$bX, 0.975)
 )
 
 # Display the causal effect estimate
-kable(causal_effect_summary, 
+knitr::kable(causal_effect_summary, 
       caption = "Bayesian estimate of the causal effect of X on Y (adjusted for Z)",
-      digits = 3) %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+      digits = 3) |>
+  kableExtra::kable_styling(bootstrap_options = base::c("striped", "hover", "condensed"))
 
 # Plot the posterior distribution of the causal effect
-ggplot(data.frame(bX = post$bX), aes(x = bX)) +
-  geom_density(fill = "skyblue", alpha = 0.7) +
-  geom_vline(xintercept = mean(post$bX), color = "darkblue", linetype = "dashed") +
-  labs(
+ggplot2::ggplot(base::data.frame(bX = post$bX), ggplot2::aes(x = bX)) +
+  ggplot2::geom_density(fill = "skyblue", alpha = 0.7) +
+  ggplot2::geom_vline(xintercept = base::mean(post$bX), color = "darkblue", linetype = "dashed") +
+  ggplot2::labs(
     title = "Posterior Distribution of the Causal Effect of X on Y",
     subtitle = "After adjusting for confounder Z",
     x = "Effect Size (Standardized)",
     y = "Density"
   ) +
-  theme_minimal()
+  ggplot2::theme_minimal()
 ```
 
 ## 11. Counterfactual Analysis: "What If" Scenarios
@@ -917,9 +915,9 @@ Causal inference allows us to answer counterfactual questions. Let's explore wha
 # Function to predict Y based on do(X = x)
 predict_counterfactual <- function(x_values, fixed_z = 50) {
   # Use the coefficients from our adjusted model
-  intercept <- coef(model_adjusted)[1]
-  x_coef <- coef(model_adjusted)[2]
-  z_coef <- coef(model_adjusted)[3]
+  intercept <- stats::coef(model_adjusted)[1]
+  x_coef <- stats::coef(model_adjusted)[2]
+  z_coef <- stats::coef(model_adjusted)[3]
   
   # Predict Y for different values of X, holding Z constant
   y_pred <- intercept + x_coef * x_values + z_coef * fixed_z
@@ -927,29 +925,29 @@ predict_counterfactual <- function(x_values, fixed_z = 50) {
 }
 
 # Create a range of X values
-x_range <- seq(min(dag_data$X), max(dag_data$X), length.out = 100)
+x_range <- base::seq(base::min(dag_data$X), base::max(dag_data$X), length.out = 100)
 
 # Predict Y for different values of X, holding Z constant at its mean
-z_mean <- mean(dag_data$Z)
+z_mean <- base::mean(dag_data$Z)
 y_pred <- predict_counterfactual(x_range, fixed_z = z_mean)
 
 # Create a data frame for plotting
-counterfactual_df <- data.frame(X = x_range, Y = y_pred)
+counterfactual_df <- base::data.frame(X = x_range, Y = y_pred)
 
 # Plot the counterfactual prediction
-ggplot() +
+ggplot2::ggplot() +
   # Add actual data points
-  geom_point(data = dag_data, aes(x = X, y = Y), alpha = 0.2, color = "gray") +
+  ggplot2::geom_point(data = dag_data, ggplot2::aes(x = X, y = Y), alpha = 0.2, color = "gray") +
   # Add counterfactual prediction
-  geom_line(data = counterfactual_df, aes(x = X, y = Y), 
+  ggplot2::geom_line(data = counterfactual_df, ggplot2::aes(x = X, y = Y), 
             color = "red", size = 1.2) +
-  labs(
+  ggplot2::labs(
     title = "Counterfactual Prediction: What if we change X?",
-    subtitle = paste("Holding Z constant at its mean:", round(z_mean, 2)),
+    subtitle = base::paste("Holding Z constant at its mean:", base::round(z_mean, 2)),
     x = "X (Exposure)",
     y = "Y (Outcome)"
   ) +
-  theme_minimal()
+  ggplot2::theme_minimal()
 ```
 
 The red line represents the causal effect of X on Y, isolated from confounding by holding Z constant. This is the relationship we would observe if we could experimentally manipulate X while keeping Z fixed.
@@ -962,43 +960,43 @@ To understand how the counterfactual prediction changes for different values of 
 #| warning: false
 
 # Create predictions for different Z values
-z_values <- quantile(dag_data$Z, probs = c(0.1, 0.25, 0.5, 0.75, 0.9))
-predictions_list <- list()
+z_values <- stats::quantile(dag_data$Z, probs = base::c(0.1, 0.25, 0.5, 0.75, 0.9))
+predictions_list <- base::list()
 
 for (z_val in z_values) {
   y_pred <- predict_counterfactual(x_range, fixed_z = z_val)
-  predictions_list[[as.character(round(z_val, 1))]] <- y_pred
+  predictions_list[[base::as.character(base::round(z_val, 1))]] <- y_pred
 }
 
 # Convert to a data frame for ggplot
-predictions_df <- data.frame(X = x_range)
-for (z_val in names(predictions_list)) {
+predictions_df <- base::data.frame(X = x_range)
+for (z_val in base::names(predictions_list)) {
   predictions_df[[paste0("Z_", z_val)]] <- predictions_list[[z_val]]
 }
 
 # Reshape for plotting
-predictions_long <- predictions_df %>%
-  pivot_longer(cols = starts_with("Z_"), 
+predictions_long <- predictions_df |>
+  tidyr::pivot_longer(cols = tidyselect::starts_with("Z_"), 
                names_to = "Z_value", 
-               values_to = "Y_pred") %>%
-  mutate(Z_value = gsub("Z_", "", Z_value))
+               values_to = "Y_pred") |>
+  dplyr::mutate(Z_value = base::gsub("Z_", "", Z_value))
 
 # Plot the counterfactual predictions for different Z values
-ggplot() +
+ggplot2::ggplot() +
   # Add actual data points
-  geom_point(data = dag_data, aes(x = X, y = Y), alpha = 0.1, color = "gray") +
+  ggplot2::geom_point(data = dag_data, ggplot2::aes(x = X, y = Y), alpha = 0.1, color = "gray") +
   # Add counterfactual predictions
-  geom_line(data = predictions_long, 
-            aes(x = X, y = Y_pred, color = Z_value, group = Z_value),
+  ggplot2::geom_line(data = predictions_long, 
+            ggplot2::aes(x = X, y = Y_pred, color = Z_value, group = Z_value),
             size = 1.0) +
-  scale_color_viridis_d(name = "Z Value\n(Age)") +
-  labs(
+  ggplot2::scale_color_viridis_d(name = "Z Value\n(Age)") +
+  ggplot2::labs(
     title = "Counterfactual Predictions for Different Z Values",
     subtitle = "Each line shows the causal effect of X on Y for a specific Z value",
     x = "X (Exposure, e.g., Coffee Consumption)",
     y = "Y (Outcome, e.g., Heart Disease Risk)"
   ) +
-  theme_minimal()
+  ggplot2::theme_minimal()
 ```
 
 This visualization demonstrates an important feature of causal inference: we can predict the effect of interventions under different scenarios or for different subgroups. Each line shows how Y would respond to changes in X for a specific value of Z. This type of analysis can be valuable for personalized predictions or targeted interventions.
