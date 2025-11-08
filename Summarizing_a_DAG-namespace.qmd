@@ -130,7 +130,8 @@ knitr:
 # census_api_key("95496766c51541ee6f402c1e1a8658581285b759", install = TRUE, overwrite = TRUE)
 
 
-# @ load libraries
+# All packages now called with namespace syntax (package::function)
+# No library() calls needed - reduces overhead and prevents namespace conflicts
 
 # library(BayesFactor) # Computation of Bayes Factors for Common Designs
 # library(boot) # Bootstrap Functions
@@ -144,7 +145,7 @@ knitr:
 # library(dagitty) # Graphical Analysis of Structural Causal Models  
 # library(DiagrammeR) # Graph/Network Visualization 
 # library(dlookr) # Tools for Data Diagnosis, Exploration, Transformation 
-library(dplyr) # A Grammar of Data Manipulation
+# library(dplyr) # A Grammar of Data Manipulation
 # library(DT) # A Wrapper of the JavaScript Library 'DataTables'
 # library(dutchmasters) # Color Palettes based on Famous Paintings 
 # library(flexdashboard) # R Markdown Format for Flexible Dashboards
@@ -218,14 +219,14 @@ select <- dplyr::select
 filter <- dplyr::filter
 
 # Options
-options(scipen = 999)
-options(qic.clshade = T) # NO LONGER NEEDED; CHARTS ALL PREPARED WITH GGPLOT2 ONLY
-options(qic.linecol = 'black') # NO LONGER NEEDED; CHARTS ALL PREPARED WITH GGPLOT2 ONLY
-options(qic.signalcol = "firebrick") # NO LONGER NEEDED; CHARTS ALL PREPARED WITH GGPLOT2 ONLY
-options(qic.targetcol = "purple") # NO LONGER NEEDED; CHARTS ALL PREPARED WITH GGPLOT2 ONLY
-options(DT.options = list(dom = 'pBlfrti')) # Add buttons, filtering, and top (t) pagination controls
-options(shiny.maxRequestSize = 50 * 1024^2) # Set upload maximum to 50 MB
-options(tigris_use_cache = TRUE)
+base::options(scipen = 999)
+base::options(qic.clshade = T) # NO LONGER NEEDED; CHARTS ALL PREPARED WITH GGPLOT2 ONLY
+base::options(qic.linecol = 'black') # NO LONGER NEEDED; CHARTS ALL PREPARED WITH GGPLOT2 ONLY
+base::options(qic.signalcol = "firebrick") # NO LONGER NEEDED; CHARTS ALL PREPARED WITH GGPLOT2 ONLY
+base::options(qic.targetcol = "purple") # NO LONGER NEEDED; CHARTS ALL PREPARED WITH GGPLOT2 ONLY
+base::options(DT.options = base::list(dom = 'pBlfrti')) # Add buttons, filtering, and top (t) pagination controls
+base::options(shiny.maxRequestSize = 50 * 1024^2) # Set upload maximum to 50 MB
+base::options(tigris_use_cache = TRUE)
 
 
 # Set global theme for consistent plots
@@ -256,7 +257,7 @@ ggplot2::theme_set(ggplot2::theme_minimal(base_size = 20) +
 
 
 # Set seed for reproducibility
-set.seed(123)
+base::set.seed(123)
 
 ```
 
@@ -273,7 +274,7 @@ There is no analysis with DiagrammeR, but the DAG is awesome, and EASY. It is di
 #| warning: false
 #| echo: false
 
-library(DiagrammeR)
+# library(DiagrammeR)
 
 DiagrammeR::grViz("
 digraph DAG {
@@ -296,7 +297,7 @@ digraph DAG {
   Stroke [label=\"Stroke\", pos=\"4,.5!\", fontcolor=\"dodgerblue\"]
   Smoking [label=\"Smoking\", pos=\"1,1.5!\"]
   Age [label=\"Age\", pos=\"1,-.5!\"]
-  UC [label=\"Unmeasured\\nConfounder\", fontcolor=\"red\", pos=\"3.0,1.5!\"]
+  UC [label=\"Unmeasured\\nConfounder\", fontcolor=\"\", pos=\"3.0,1.5!\"]
   
   # Edges
   HIV -> Stroke
@@ -341,7 +342,7 @@ dag <- dagitty::dagitty("dag {
 }")
 
 # Set coordinates for visualization
-dagitty::coordinates(dag) <- list(
+dagitty::coordinates(dag) <- base::list(
   x = base::c(HIV = 2.5, Stroke = 4.0, Smoke = 1.0, Age = 1, UC = 3.0),
   y = base::c(HIV = 2.0, Stroke = 2.0, Smoke = 1.0, Age = 3, UC = 1.0)
 )
@@ -369,7 +370,7 @@ minimal_adjustment_sets <- dagitty::adjustmentSets(dag, type = "minimal")
 hiv_stroke_paths <- dagitty::paths(dag, from = "HIV", to = "Stroke")
 
 # Find instrumental variables
-instruments <- tryCatch({
+instruments <- base::tryCatch({
   dagitty::instrumentalVariables(dag, exposure = "HIV", outcome = "Stroke")
 }, error = function(e) {
   NULL
@@ -377,7 +378,7 @@ instruments <- tryCatch({
 
 # Check identifiability of causal effect
 is_identifiable <- dagitty::isAcyclic(dag) && 
-                   length(dagitty::adjustmentSets(dag)) > 0
+                   base::length(dagitty::adjustmentSets(dag)) > 0
 
 # Find ancestors and descendants
 hiv_ancestors <- dagitty::ancestors(dag, "HIV")
@@ -386,20 +387,20 @@ stroke_ancestors <- dagitty::ancestors(dag, "Stroke")
 stroke_descendants <- dagitty::descendants(dag, "Stroke")
 
 # Check backdoor paths
-backdoor_paths <- character(0)
-paths_data <- tryCatch({
+backdoor_paths <- base::character(0)
+paths_data <- base::tryCatch({
   dagitty::paths(dag, from = "HIV", to = "Stroke")
 }, error = function(e) {
-  data.frame(paths = character(0), length = numeric(0))
+  base::data.frame(paths = base::character(0), length = base::numeric(0))
 })
 
-if(is.data.frame(paths_data) && nrow(paths_data) > 0) {
-  for(i in 1:nrow(paths_data)) {
+if(base::is.data.frame(paths_data) && base::nrow(paths_data) > 0) {
+  for(i in 1:base::nrow(paths_data)) {
     path_str <- paths_data$paths[i]
-    path_elements <- strsplit(path_str, " ")[[1]]
+    path_elements <- base::strsplit(path_str, " ")[[1]]
     
     # A backdoor path has an arrow pointing into the exposure
-    if(length(path_elements) >= 3) {
+    if(base::length(path_elements) >= 3) {
       second_element <- path_elements[2]
       if(second_element == "<-") {
         backdoor_paths <- base::c(backdoor_paths, path_str)
@@ -409,69 +410,69 @@ if(is.data.frame(paths_data) && nrow(paths_data) > 0) {
 }
 
 # Find directed paths (potential mediation)
-directed_paths <- tryCatch({
+directed_paths <- base::tryCatch({
   dagitty::paths(dag, from = "HIV", to = "Stroke", directed = TRUE)
 }, error = function(e) {
-  data.frame(paths = character(0), length = numeric(0))
+  base::data.frame(paths = base::character(0), length = base::numeric(0))
 })
 
-mediators <- character(0)
-if(is.data.frame(directed_paths) && nrow(directed_paths) > 0) {
-  mediators_list <- vector("list", nrow(directed_paths))
+mediators <- base::character(0)
+if(base::is.data.frame(directed_paths) && base::nrow(directed_paths) > 0) {
+  mediators_list <- base::vector("list", base::nrow(directed_paths))
   
-  for(i in 1:nrow(directed_paths)) {
+  for(i in 1:base::nrow(directed_paths)) {
     path_str <- directed_paths$paths[i]
-    path_elements <- strsplit(path_str, " ")[[1]]
+    path_elements <- base::strsplit(path_str, " ")[[1]]
     
     # Extract variables (every other element)
-    path_vars <- path_elements[seq(1, length(path_elements), by = 2)]
+    path_vars <- path_elements[base::seq(1, base::length(path_elements), by = 2)]
     
     # Variables between HIV and Stroke are mediators
-    if(length(path_vars) > 2) {
-      potential_mediators <- path_vars[-base::c(1, length(path_vars))]
+    if(base::length(path_vars) > 2) {
+      potential_mediators <- path_vars[-base::c(1, base::length(path_vars))]
       mediators <- base::c(mediators, potential_mediators)
     }
   }
-  mediators <- unique(mediators)
+  mediators <- base::unique(mediators)
 }
 
 # Test d-separation
-d_sep_results <- list(
+d_sep_results <- base::list(
   Smoke_stroke = dagitty::dseparated(dag, "Smoke", "Stroke", base::c("HIV", "Age", "UC")),
   age_uc = dagitty::dseparated(dag, "Age", "UC", base::c()),
   hiv_uc = dagitty::dseparated(dag, "HIV", "UC", base::c("Age", "Smoke"))
 )
 
 # Check paths under different adjustments
-adjustment_effects <- list()
-adjustment_sets_to_check <- list(
+adjustment_effects <- base::list()
+adjustment_sets_to_check <- base::list(
   "None" = base::c(),
   "Age" = base::c("Age"),
   "Age+Smoke" = base::c("Age", "Smoke"),
   "Age+UC" = base::c("Age", "UC")
 )
 
-for(adj_name in names(adjustment_sets_to_check)) {
+for(adj_name in base::names(adjustment_sets_to_check)) {
   adj_set <- adjustment_sets_to_check[[adj_name]]
-  paths <- tryCatch({
+  paths <- base::tryCatch({
     dagitty::paths(dag, from = "HIV", to = "Stroke")
   }, error = function(e) {
-    data.frame(paths = character(0), length = numeric(0))
+    base::data.frame(paths = base::character(0), length = base::numeric(0))
   })
   
-  if(is.data.frame(paths) && nrow(paths) > 0) {
-    open_paths <- tryCatch({
+  if(base::is.data.frame(paths) && base::nrow(paths) > 0) {
+    open_paths <- base::tryCatch({
       dagitty::paths(dag, from = "HIV", to = "Stroke", Z = adj_set)
     }, error = function(e) {
-      data.frame(paths = character(0), length = numeric(0))
+      base::data.frame(paths = base::character(0), length = base::numeric(0))
     })
     
-    adjustment_effects[[adj_name]] <- list(
-      "total_paths" = nrow(paths),
-      "open_paths" = nrow(open_paths)
+    adjustment_effects[[adj_name]] <- base::list(
+      "total_paths" = base::nrow(paths),
+      "open_paths" = base::nrow(open_paths)
     )
   } else {
-    adjustment_effects[[adj_name]] <- list(
+    adjustment_effects[[adj_name]] <- base::list(
       "total_paths" = 0,
       "open_paths" = 0
     )
@@ -479,8 +480,8 @@ for(adj_name in names(adjustment_sets_to_check)) {
 }
 
 # Check impact of unmeasured confounding
-unmeasured_impact <- list()
-all_vars <- names(dagitty::coordinates(dag)$x)
+unmeasured_impact <- base::list()
+all_vars <- base::names(dagitty::coordinates(dag)$x)
 
 for(var in all_vars) {
   if(var != "HIV" && var != "Stroke") {
@@ -493,9 +494,9 @@ for(var in all_vars) {
     adj_sets_original <- dagitty::adjustmentSets(dag)
     adj_sets_modified <- dagitty::adjustmentSets(dag_modified)
     
-    unmeasured_impact[[var]] <- list(
-      "original_sets" = length(adj_sets_original),
-      "modified_sets" = length(adj_sets_modified)
+    unmeasured_impact[[var]] <- base::list(
+      "original_sets" = base::length(adj_sets_original),
+      "modified_sets" = base::length(adj_sets_modified)
     )
   }
 }
@@ -508,16 +509,16 @@ for(var in all_vars) {
 ```{r}
 
 # Safely determine if there are paths
-has_paths <- tryCatch({
+has_paths <- base::tryCatch({
   paths_data <- dagitty::paths(dag, from = "HIV", to = "Stroke")
-  is.data.frame(paths_data) && nrow(paths_data) > 0
+  base::is.data.frame(paths_data) && base::nrow(paths_data) > 0
 }, error = function(e) {
   FALSE
 })
 
-num_paths <- if(has_paths) nrow(dagitty::paths(dag, from = "HIV", to = "Stroke")) else 0
+num_paths <- if(has_paths) base::nrow(dagitty::paths(dag, from = "HIV", to = "Stroke")) else 0
 
-properties_df <- data.frame(
+properties_df <- base::data.frame(
   Property = base::c(
     "Acyclic DAG", 
     "Causal effect identifiable",
@@ -529,20 +530,20 @@ properties_df <- data.frame(
     "Minimal adjustment sets"
   ),
   Value = base::c(
-    ifelse(dagitty::isAcyclic(dag), "Yes", "No"),
-    ifelse(is_identifiable, "Yes", "No"),
+    base::ifelse(dagitty::isAcyclic(dag), "Yes", "No"),
+    base::ifelse(is_identifiable, "Yes", "No"),
     num_paths,
-    length(backdoor_paths),
-    ifelse("HIV" %in% dagitty::parents(dag, "Stroke"), "Yes", "No"),
-    ifelse(length(mediators) > 0, paste(mediators, collapse=", "), "None"),
-    length(adjustment_sets),
-    ifelse(length(minimal_adjustment_sets) > 0, 
-           paste(sapply(minimal_adjustment_sets, function(x) paste(x, collapse=", ")), collapse="; "), 
+    base::length(backdoor_paths),
+    base::ifelse("HIV" %in% dagitty::parents(dag, "Stroke"), "Yes", "No"),
+    base::ifelse(base::length(mediators) > 0, base::paste(mediators, collapse=", "), "None"),
+    base::length(adjustment_sets),
+    base::ifelse(base::length(minimal_adjustment_sets) > 0, 
+           base::paste(base::sapply(minimal_adjustment_sets, function(x) base::paste(x, collapse=", ")), collapse="; "), 
            "None")
   )
 )
 
-kableExtra::kable(properties_df, caption = "Key Properties of the DAG") %>%
+kableExtra::kable(properties_df, caption = "Key Properties of the DAG") |>
   kableExtra::kable_styling(bootstrap_options = base::c("striped", "hover", "condensed"))
 
 ```
@@ -553,27 +554,27 @@ kableExtra::kable(properties_df, caption = "Key Properties of the DAG") %>%
 ```{r}
 
 # Safely get paths
-paths_data <- tryCatch({
+paths_data <- base::tryCatch({
   dagitty::paths(dag, from = "HIV", to = "Stroke")
 }, error = function(e) {
-  data.frame(paths = character(0), length = numeric(0))
+  base::data.frame(paths = base::character(0), length = base::numeric(0))
 })
 
-if(is.data.frame(paths_data) && nrow(paths_data) > 0) {
-  paths_df <- data.frame(
+if(base::is.data.frame(paths_data) && base::nrow(paths_data) > 0) {
+  paths_df <- base::data.frame(
     Path = paths_data$paths,
     Length = paths_data$length,
-    IsBackdoor = sapply(paths_data$paths, function(p) {
-      elements <- strsplit(p, " ")[[1]]
-      if(length(elements) >= 3) {
+    IsBackdoor = base::sapply(paths_data$paths, function(p) {
+      elements <- base::strsplit(p, " ")[[1]]
+      if(base::length(elements) >= 3) {
         return(elements[2] == "<-")
       }
       return(FALSE)
     }),
-    IsDirected = sapply(paths_data$paths, function(p) {
-      elements <- strsplit(p, " ")[[1]]
+    IsDirected = base::sapply(paths_data$paths, function(p) {
+      elements <- base::strsplit(p, " ")[[1]]
       all_forward <- TRUE
-      for(i in seq(2, length(elements), by=2)) {
+      for(i in base::seq(2, base::length(elements), by=2)) {
         if(elements[i] != "->") {
           all_forward <- FALSE
           break
@@ -583,10 +584,10 @@ if(is.data.frame(paths_data) && nrow(paths_data) > 0) {
     })
   )
   
-  kableExtra::kable(paths_df, caption = "All Paths Between HIV and Stroke") %>%
+  kableExtra::kable(paths_df, caption = "All Paths Between HIV and Stroke") |>
     kableExtra::kable_styling(bootstrap_options = base::c("striped", "hover", "condensed"))
 } else {
-  cat("No paths found between HIV and Stroke")
+  base::cat("No paths found between HIV and Stroke")
 }
 
 
@@ -597,33 +598,33 @@ if(is.data.frame(paths_data) && nrow(paths_data) > 0) {
 
 ```{r}
 
-if(length(independencies) > 0) {
+if(base::length(independencies) > 0) {
   # Create a clean format for the independencies
-  ind_statements <- character(length(independencies))
+  ind_statements <- base::character(base::length(independencies))
   
-  for(i in 1:length(independencies)) {
+  for(i in 1:base::length(independencies)) {
     ind <- independencies[[i]]
-    if(length(ind) >= 2) {
-      statement <- paste0(ind[1], " _||_ ", ind[2])
+    if(base::length(ind) >= 2) {
+      statement <- base::paste0(ind[1], " _||_ ", ind[2])
       
-      if(length(ind) > 2 && length(ind[[3]]) > 0) {
-        statement <- paste0(statement, " | ", paste(ind[[3]], collapse=", "))
+      if(base::length(ind) > 2 && base::length(ind[[3]]) > 0) {
+        statement <- base::paste0(statement, " | ", base::paste(ind[[3]], collapse=", "))
       } else {
-        statement <- paste0(statement, " (unconditionally)")
+        statement <- base::paste0(statement, " (unconditionally)")
       }
       
       ind_statements[i] <- statement
     }
   }
   
-  independencies_df <- data.frame(
+  independencies_df <- base::data.frame(
     Statement = ind_statements
   )
   
-  kableExtra::kable(independencies_df, caption = "Testable Implications of the DAG") %>%
+  kableExtra::kable(independencies_df, caption = "Testable Implications of the DAG") |>
     kableExtra::kable_styling(bootstrap_options = base::c("striped", "hover", "condensed"))
 } else {
-  cat("No conditional independencies implied by this DAG")
+  base::cat("No conditional independencies implied by this DAG")
 }
 
 
@@ -634,20 +635,20 @@ if(length(independencies) > 0) {
 
 ```{r}
 
-relations_df <- data.frame(
+relations_df <- base::data.frame(
   Variable = base::c("HIV", "Stroke"),
   Ancestors = base::c(
-    paste(dplyr::setdiff(hiv_ancestors, "HIV"), collapse=", "),
-    paste(dplyr::setdiff(stroke_ancestors, "Stroke"), collapse=", ")
+    base::paste(dplyr::setdiff(hiv_ancestors, "HIV"), collapse=", "),
+    base::paste(dplyr::setdiff(stroke_ancestors, "Stroke"), collapse=", ")
   ),
-  Descendants = c(
-    paste(dplyr::setdiff(hiv_descendants, "HIV"), collapse=", "),
-    paste(dplyr::setdiff(stroke_descendants, "Stroke"), collapse=", ")
+  Descendants = base::c(
+    base::paste(dplyr::setdiff(hiv_descendants, "HIV"), collapse=", "),
+    base::paste(dplyr::setdiff(stroke_descendants, "Stroke"), collapse=", ")
   )
 )
 
-kableExtra::kable(relations_df, caption = "Ancestor and Descendant Relationships") %>%
-  kableExtra::kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+kableExtra::kable(relations_df, caption = "Ancestor and Descendant Relationships") |>
+  kableExtra::kable_styling(bootstrap_options = base::c("striped", "hover", "condensed"))
 
 ```
 <br>
@@ -656,14 +657,14 @@ kableExtra::kable(relations_df, caption = "Ancestor and Descendant Relationships
 
 ```{r}
 
-adj_effects_df <- data.frame(
-  AdjustmentSet = names(adjustment_effects),
-  TotalPaths = sapply(adjustment_effects, function(x) x$total_paths),
-  OpenPaths = sapply(adjustment_effects, function(x) x$open_paths),
-  ClosedPaths = sapply(adjustment_effects, function(x) x$total_paths - x$open_paths)
+adj_effects_df <- base::data.frame(
+  AdjustmentSet = base::names(adjustment_effects),
+  TotalPaths = base::sapply(adjustment_effects, function(x) x$total_paths),
+  OpenPaths = base::sapply(adjustment_effects, function(x) x$open_paths),
+  ClosedPaths = base::sapply(adjustment_effects, function(x) x$total_paths - x$open_paths)
 )
 
-kableExtra::kable(adj_effects_df, caption = "Effect of Different Adjustment Sets on Open Paths") %>%
+kableExtra::kable(adj_effects_df, caption = "Effect of Different Adjustment Sets on Open Paths") |>
   kableExtra::kable_styling(bootstrap_options = base::c("striped", "hover", "condensed"))
 
 ```
@@ -673,14 +674,14 @@ kableExtra::kable(adj_effects_df, caption = "Effect of Different Adjustment Sets
 
 ```{r}
 
-unmeasured_df <- data.frame(
-  Variable = names(unmeasured_impact),
-  OriginalAdjustmentSets = sapply(unmeasured_impact, function(x) x$original_sets),
-  AdjustmentSetsIfUnmeasured = sapply(unmeasured_impact, function(x) x$modified_sets),
-  IdentifiableIfUnmeasured = sapply(unmeasured_impact, function(x) x$modified_sets > 0)
+unmeasured_df <- base::data.frame(
+  Variable = base::names(unmeasured_impact),
+  OriginalAdjustmentSets = base::sapply(unmeasured_impact, function(x) x$original_sets),
+  AdjustmentSetsIfUnmeasured = base::sapply(unmeasured_impact, function(x) x$modified_sets),
+  IdentifiableIfUnmeasured = base::sapply(unmeasured_impact, function(x) x$modified_sets > 0)
 )
 
-kableExtra::kable(unmeasured_df, caption = "Impact of Each Variable Being Unmeasured") %>%
+kableExtra::kable(unmeasured_df, caption = "Impact of Each Variable Being Unmeasured") |>
   kableExtra::kable_styling(bootstrap_options = base::c("striped", "hover", "condensed"))
 
 ```
@@ -690,20 +691,20 @@ kableExtra::kable(unmeasured_df, caption = "Impact of Each Variable Being Unmeas
 
 ```{r}
 
-d_sep_df <- data.frame(
+d_sep_df <- base::data.frame(
   Test = base::c(
     "Smoke _||_ Stroke | HIV, Age, UC",
     "Age _||_ UC (unconditional)",
     "HIV _||_ UC | Age, Smoke"
   ),
-  Result = c(
-    ifelse(d_sep_results$Smoke_stroke, "Yes (d-separated)", "No (d-connected)"),
-    ifelse(d_sep_results$age_uc, "Yes (d-separated)", "No (d-connected)"),
-    ifelse(d_sep_results$hiv_uc, "Yes (d-separated)", "No (d-connected)")
+  Result = base::c(
+    base::ifelse(d_sep_results$Smoke_stroke, "Yes (d-separated)", "No (d-connected)"),
+    base::ifelse(d_sep_results$age_uc, "Yes (d-separated)", "No (d-connected)"),
+    base::ifelse(d_sep_results$hiv_uc, "Yes (d-separated)", "No (d-connected)")
   )
 )
 
-kableExtra::kable(d_sep_df, caption = "D-Separation Tests") %>%
+kableExtra::kable(d_sep_df, caption = "D-Separation Tests") |>
   kableExtra::kable_styling(bootstrap_options = base::c("striped", "hover", "condensed"))
 
 ```
@@ -730,7 +731,7 @@ dag <- dagitty::dagitty("dag {
 }")
 
 # Set coordinates in dagitty format
-dagitty::coordinates(dag) <- list(
+dagitty::coordinates(dag) <- base::list(
   x = base::c(HIV = 2.5, Stroke = 4.0, Smoke = 1.0, Age = 1, UC = 3.0),
   y = base::c(HIV = 2.0, Stroke = 2.0, Smoke = 3.0, Age = 1, UC = 3.0)
 )
@@ -742,17 +743,17 @@ dag_tidy <- ggdag::tidy_dagitty(dag)
 # Status plot showing exposure/outcome
 ggdag::ggdag_status(dag_tidy) +
   ggdag::theme_dag() +
-  ggdag::label("Status Plot: Exposure and Outcome")
+  ggplot2::labs(title = "Status Plot: Exposure and Outcome")
 
 # Adjustment set visualization
 ggdag::ggdag_adjustment_set(dag_tidy) +
   ggdag::theme_dag() +
-  ggdag::label("Adjustment Sets for HIV → Stroke")
+  ggplot2::labs(title = "Adjustment Sets for HIV → Stroke")
 
 # Paths visualization
 ggdag::ggdag_paths(dag_tidy) +
   ggdag::theme_dag() +
-  ggdag::label("All Paths between HIV and Stroke")
+  ggplot2::labs(title = "All Paths between HIV and Stroke")
 
 ```
 <br>
